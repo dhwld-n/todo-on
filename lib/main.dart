@@ -13,6 +13,7 @@ import 'providers/providers.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'theme/app_theme.dart';
+import 'widgets/update_checker.dart';
 
 void _logCrash(Object error, StackTrace stack) {
   try {
@@ -90,7 +91,9 @@ class _AuthGate extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider);
     return authState.when(
-      data: (user) => user == null ? const LoginScreen() : const HomeScreen(),
+      data: (user) => user == null
+          ? const LoginScreen()
+          : const UpdateChecker(child: HomeScreen()),
       loading: () =>
           const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, _) => Scaffold(body: Center(child: Text('오류: $e'))),
