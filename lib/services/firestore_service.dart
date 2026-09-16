@@ -120,6 +120,10 @@ class FirestoreService {
     return _profile.set(data, SetOptions(merge: true));
   }
 
+  Future<void> saveThemeMode(String themeMode) {
+    return _profile.set({'themeMode': themeMode}, SetOptions(merge: true));
+  }
+
   CollectionReference<Map<String, dynamic>> get _following =>
       _db.collection('users').doc(uid).collection('following');
 

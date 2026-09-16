@@ -43,9 +43,13 @@ class HomeScreen extends ConsumerWidget {
           IconButton(
             icon: Icon(isDark ? Icons.dark_mode : Icons.light_mode),
             tooltip: isDark ? '다크 모드' : '라이트 모드',
-            onPressed: () => ref.read(themeModeProvider.notifier).state = isDark
-                ? ThemeMode.light
-                : ThemeMode.dark,
+            onPressed: () {
+              final next = isDark ? ThemeMode.light : ThemeMode.dark;
+              ref.read(themeModeProvider.notifier).state = next;
+              ref
+                  .read(firestoreServiceProvider)
+                  ?.saveThemeMode(next == ThemeMode.dark ? 'dark' : 'light');
+            },
           ),
           if (!isWide)
             IconButton(

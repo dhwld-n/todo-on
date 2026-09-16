@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -8,6 +9,54 @@ import '../models/todo_item.dart';
 import '../providers/providers.dart';
 
 const int _kMaxChipsPerDay = 3;
+
+void _showYearMonthPicker(
+  BuildContext context,
+  WidgetRef ref,
+  DateTime focusedDay,
+) {
+  var picked = DateTime(focusedDay.year, focusedDay.month);
+  showModalBottomSheet<void>(
+    context: context,
+    builder: (context) {
+      return SafeArea(
+        child: SizedBox(
+          height: 300,
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('취소'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      ref.read(focusedMonthProvider.notifier).state = picked;
+                      Navigator.of(context).pop();
+                    },
+                    child: const Text('완료'),
+                  ),
+                ],
+              ),
+              Expanded(
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.monthYear,
+                  initialDateTime: picked,
+                  minimumYear: 2020,
+                  maximumYear: 2035,
+                  onDateTimeChanged: (dt) =>
+                      picked = DateTime(dt.year, dt.month),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
 
 class CalendarSidebar extends ConsumerWidget {
   final bool embeddedInSheet;
@@ -167,6 +216,8 @@ class CalendarSidebar extends ConsumerWidget {
               onPageChanged: (focusedDay) {
                 ref.read(focusedMonthProvider.notifier).state = focusedDay;
               },
+              onHeaderTapped: (focusedDay) =>
+                  _showYearMonthPicker(context, ref, focusedDay),
               calendarFormat: CalendarFormat.month,
               headerStyle: const HeaderStyle(
                 formatButtonVisible: false,

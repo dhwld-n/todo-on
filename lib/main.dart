@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -53,12 +54,30 @@ class TodoMateApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
+    ref.listen(profileDocProvider, (previous, next) {
+      final saved = next.value?['themeMode'] as String?;
+      final resolved = saved == 'dark'
+          ? ThemeMode.dark
+          : saved == 'light'
+          ? ThemeMode.light
+          : null;
+      if (resolved != null && resolved != ref.read(themeModeProvider)) {
+        ref.read(themeModeProvider.notifier).state = resolved;
+      }
+    });
     return MaterialApp(
       title: 'TODO on',
       debugShowCheckedModeBanner: false,
       theme: buildLightTheme(),
       darkTheme: buildDarkTheme(),
       themeMode: themeMode,
+      locale: const Locale('ko', 'KR'),
+      supportedLocales: const [Locale('ko', 'KR'), Locale('en', 'US')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       home: const _AuthGate(),
     );
   }

@@ -1,0 +1,305 @@
+<title>TODO on</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap"
+/>
+<style>
+  :root {
+    --bg: #eaf3fe;
+    --bg-soft: #dcebfd;
+    --surface: #ffffff;
+    --ink: #17263d;
+    --ink-muted: #5c6b82;
+    --primary: #2e90fa;
+    --primary-dark: #1c6fd1;
+    --accent: #ff7043;
+    --accent-dark: #e85f30;
+    --line: #d3e5f8;
+    --chip-red: #ef5350;
+    --chip-orange: #ff7043;
+    --chip-teal: #26c6da;
+    --chip-purple: #7e57c2;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0b1526;
+      --bg-soft: #0e1c33;
+      --surface: #132238;
+      --ink: #eaf0f9;
+      --ink-muted: #93a3ba;
+      --primary: #5aa9ff;
+      --primary-dark: #7fbdff;
+      --accent: #ff8a5c;
+      --accent-dark: #ffa07d;
+      --line: #1f3557;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #0b1526;
+    --bg-soft: #0e1c33;
+    --surface: #132238;
+    --ink: #eaf0f9;
+    --ink-muted: #93a3ba;
+    --primary: #5aa9ff;
+    --primary-dark: #7fbdff;
+    --accent: #ff8a5c;
+    --accent-dark: #ffa07d;
+    --line: #1f3557;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: linear-gradient(180deg, var(--bg-soft), var(--bg) 40%);
+    color: var(--ink);
+    font-family: "Noto Sans KR", "Pretendard", -apple-system, sans-serif;
+    padding-inline: 20px;
+    padding-block: 56px 40px;
+  }
+
+  .wrap {
+    max-width: 880px;
+    margin: 0 auto;
+  }
+
+  .hero {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .mascot {
+    width: 132px;
+    height: 132px;
+    margin-bottom: 4px;
+    filter: drop-shadow(0 10px 18px rgba(46, 144, 250, 0.25));
+  }
+
+  .brand {
+    font-family: "Gaegu", "Noto Sans KR", sans-serif;
+    font-weight: 700;
+    font-size: clamp(2.6rem, 8vw, 3.6rem);
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    color: var(--ink);
+    text-wrap: balance;
+  }
+
+  .brand .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--primary);
+    display: inline-block;
+    margin-bottom: 6px;
+    animation: blink 1.6s ease-in-out infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .brand .dot { animation: none; }
+  }
+
+  .tagline {
+    font-size: 1.05rem;
+    color: var(--ink-muted);
+    max-width: 34ch;
+    line-height: 1.6;
+    margin-top: 4px;
+  }
+
+  .cta {
+    margin-top: 26px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--accent);
+    color: #fff;
+    font-family: "Gaegu", sans-serif;
+    font-weight: 700;
+    font-size: 1.3rem;
+    padding: 16px 34px;
+    border-radius: 999px;
+    text-decoration: none;
+    box-shadow: 0 10px 24px rgba(255, 112, 67, 0.35);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  }
+
+  .cta:hover {
+    background: var(--accent-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 14px 28px rgba(255, 112, 67, 0.4);
+  }
+
+  .cta:active { transform: translateY(0); }
+
+  .meta {
+    margin-top: 12px;
+    font-size: 0.85rem;
+    color: var(--ink-muted);
+  }
+
+  .meta a {
+    color: var(--primary-dark);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .meta a:hover { text-decoration: underline; }
+
+  .features {
+    margin-top: 64px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+
+  @media (max-width: 640px) {
+    .features { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .feature {
+    background: var(--surface);
+    border-radius: 20px;
+    padding: 20px 16px;
+    box-shadow: 0 8px 20px rgba(23, 38, 61, 0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .feature .chip {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+  }
+
+  .feature h3 {
+    margin: 0;
+    font-family: "Gaegu", sans-serif;
+    font-size: 1.15rem;
+    font-weight: 700;
+  }
+
+  .feature p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--ink-muted);
+    line-height: 1.55;
+  }
+
+  .steps {
+    margin-top: 56px;
+    background: var(--surface);
+    border-radius: 24px;
+    padding: 28px clamp(18px, 5vw, 36px);
+    box-shadow: 0 8px 24px rgba(23, 38, 61, 0.06);
+  }
+
+  .steps h2 {
+    font-family: "Gaegu", sans-serif;
+    font-size: 1.4rem;
+    margin: 0 0 18px;
+  }
+
+  .steps ol {
+    margin: 0;
+    padding-left: 1.3em;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+
+  .steps code {
+    background: var(--bg-soft);
+    border-radius: 6px;
+    padding: 2px 6px;
+    font-size: 0.88em;
+  }
+
+  .note {
+    margin-top: 14px;
+    font-size: 0.82rem;
+    color: var(--ink-muted);
+    border-top: 1px dashed var(--line);
+    padding-top: 14px;
+    line-height: 1.6;
+  }
+
+  footer {
+    margin-top: 48px;
+    text-align: center;
+    font-size: 0.82rem;
+    color: var(--ink-muted);
+  }
+
+  footer a {
+    color: var(--ink-muted);
+    text-decoration: underline;
+  }
+</style>
+
+<div class="wrap">
+  <div class="hero">
+    <img class="mascot" src="cat.png" alt="TODO on 마스코트 고양이" />
+    <div class="brand">TODO on<span class="dot"></span></div>
+    <p class="tagline">친구들끼리 가볍게 쓰는 할 일 관리 앱. 카테고리, 캘린더, 일기, 그리고 친구의 오늘까지 한 곳에서.</p>
+
+    <a class="cta" href="https://github.com/dhwld-n/todo-on/releases/download/v1.0.0/TODOon-windows-v1.0.0.zip">
+      ⬇ Windows용 다운로드
+    </a>
+    <p class="meta">v1.0.0 · 약 22MB · <a href="https://github.com/dhwld-n/todo-on" target="_blank" rel="noopener">GitHub에서 보기</a></p>
+  </div>
+
+  <div class="features">
+    <div class="feature">
+      <div class="chip" style="background: color-mix(in srgb, var(--chip-red) 16%, transparent);">🗂️</div>
+      <h3>카테고리</h3>
+      <p>할 일을 카테고리별로 나눠서 관리하고, 드래그로 순서나 카테고리를 바로 옮길 수 있어요.</p>
+    </div>
+    <div class="feature">
+      <div class="chip" style="background: color-mix(in srgb, var(--primary) 16%, transparent);">📅</div>
+      <h3>캘린더</h3>
+      <p>날짜별 할 일이 캘린더 칸 안에 바로 보이고, 공휴일도 자동으로 표시돼요.</p>
+    </div>
+    <div class="feature">
+      <div class="chip" style="background: color-mix(in srgb, var(--chip-purple) 16%, transparent);">📖</div>
+      <h3>일기</h3>
+      <p>날짜별로 자유롭게 쓰는 일기장. 친구에게도 절대 공개되지 않아요.</p>
+    </div>
+    <div class="feature">
+      <div class="chip" style="background: color-mix(in srgb, var(--chip-teal) 16%, transparent);">🐾</div>
+      <h3>친구</h3>
+      <p>코드를 주고받아 친구를 추가하면 프로필과 오늘 할 일을 볼 수 있어요. 비공개 카테고리는 제외.</p>
+    </div>
+  </div>
+
+  <div class="steps">
+    <h2>설치 방법</h2>
+    <ol>
+      <li>위 버튼으로 <code>TODOon-windows-v1.0.0.zip</code>을 받아요.</li>
+      <li>압축을 풀어요 (안의 파일들이 서로 필요해서 폴더째로 옮겨야 해요).</li>
+      <li><code>todo_mate.exe</code>를 더블클릭해서 실행하고, 이메일로 회원가입하면 끝!</li>
+    </ol>
+    <p class="note">Windows가 "알 수 없는 게시자" 경고를 띄우면 <b>추가 정보 → 실행</b>을 눌러주세요. 서명되지 않은 개인 배포 앱이라 나오는 정상적인 안내예요.</p>
+  </div>
+
+  <footer>
+    Flutter + Firebase로 만든 개인 프로젝트예요 · <a href="https://github.com/dhwld-n/todo-on" target="_blank" rel="noopener">소스 코드 보기</a>
+  </footer>
+</div>
