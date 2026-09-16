@@ -35,7 +35,7 @@ Name: "desktopicon"; Description: "바탕화면에 바로가기 만들기"; Grou
 
 [Files]
 Source: "{#MyReleaseDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#MyReleaseDir}\flutter_windows.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#MyReleaseDir}\*.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyReleaseDir}\data\*"; DestDir: "{app}\data"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
