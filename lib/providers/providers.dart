@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 
 import '../models/category.dart';
 import '../models/diary_entry.dart';
+import '../models/habit.dart';
+import '../models/habit_log.dart';
 import '../models/todo_item.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
@@ -57,7 +59,7 @@ final focusedMonthProvider = StateProvider<DateTime>((ref) => DateTime.now());
 
 final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.light);
 
-enum ContentMode { todo, diary, friends }
+enum ContentMode { todo, diary, friends, habits }
 
 final contentModeProvider = StateProvider<ContentMode>(
   (ref) => ContentMode.todo,
@@ -71,6 +73,18 @@ final diaryEntryProvider = StreamProvider.autoDispose
       if (service == null) return const Stream.empty();
       return service.watchDiaryEntry(dateKey);
     });
+
+final habitsProvider = StreamProvider<List<Habit>>((ref) {
+  final service = ref.watch(firestoreServiceProvider);
+  if (service == null) return const Stream.empty();
+  return service.watchHabits();
+});
+
+final habitLogsProvider = StreamProvider<List<HabitLog>>((ref) {
+  final service = ref.watch(firestoreServiceProvider);
+  if (service == null) return const Stream.empty();
+  return service.watchHabitLogs();
+});
 
 final followingProvider = StreamProvider<List<String>>((ref) {
   final service = ref.watch(firestoreServiceProvider);

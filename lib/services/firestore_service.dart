@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/category.dart';
 import '../models/diary_entry.dart';
+import '../models/habit.dart';
+import '../models/habit_log.dart';
 import '../models/todo_item.dart';
 
 class FirestoreService {
@@ -18,6 +20,12 @@ class FirestoreService {
 
   CollectionReference<Map<String, dynamic>> get _diary =>
       _db.collection('users').doc(uid).collection('diary');
+
+  CollectionReference<Map<String, dynamic>> get _habits =>
+      _db.collection('users').doc(uid).collection('habits');
+
+  CollectionReference<Map<String, dynamic>> get _habitLogs =>
+      _db.collection('users').doc(uid).collection('habit_logs');
 
   DocumentReference<Map<String, dynamic>> get _profile =>
       _db.collection('users').doc(uid);
@@ -102,6 +110,43 @@ class FirestoreService {
       'content': content,
       'updatedAt': Timestamp.fromDate(DateTime.now()),
     }, SetOptions(merge: true));
+  }
+
+  Stream<List<Habit>> watchHabits() {
+    return _habits
+        .orderBy('order')
+        .snapshots()
+        .map((snap) => snap.docs.map(Habit.fromFirestore).toList());
+  }
+
+  Future<void> addHabit(Habit habit) {
+    return _habits.doc(habit.id).set(habit.toFirestore());
+  }
+
+  Future<void> updateHabit(Habit habit) {
+    return _habits.doc(habit.id).update(habit.toFirestore());
+  }
+
+  Future<void> deleteHabit(String habitId) {
+    return _habits.doc(habitId).delete();
+  }
+
+  Stream<List<HabitLog>> watchHabitLogs() {
+    return _habitLogs.snapshots().map(
+      (snap) => snap.docs.map(HabitLog.fromFirestore).toList(),
+    );
+  }
+
+  Future<void> setHabitLog({
+    required String habitId,
+    required String dateKey,
+    required bool completed,
+  }) {
+    final docId = '${habitId}_$dateKey';
+    if (completed) {
+      return _habitLogs.doc(docId).set({'habitId': habitId, 'dateKey': dateKey});
+    }
+    return _habitLogs.doc(docId).delete();
   }
 
   Stream<Map<String, dynamic>?> watchProfile() {

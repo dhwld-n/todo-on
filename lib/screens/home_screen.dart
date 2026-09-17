@@ -11,6 +11,7 @@ import '../widgets/blinking_dot.dart';
 import '../widgets/calendar_sidebar.dart';
 import '../widgets/diary_pane.dart';
 import '../widgets/friends_pane.dart';
+import '../widgets/habits_pane.dart';
 import '../widgets/manage_categories_sheet.dart';
 import '../widgets/profile_header.dart';
 import '../widgets/todo_tile.dart';
@@ -89,6 +90,7 @@ class HomeScreen extends ConsumerWidget {
               child: switch (mode) {
                 ContentMode.diary => DiaryPane(date: activeDate),
                 ContentMode.friends => const FriendsPane(),
+                ContentMode.habits => const HabitsPane(),
                 ContentMode.todo => const _TodoListPane(),
               },
             );
@@ -161,6 +163,14 @@ class _ModeTabRail extends ConsumerWidget {
             selected: mode == ContentMode.diary,
             onTap: () => ref.read(contentModeProvider.notifier).state =
                 ContentMode.diary,
+          ),
+          const SizedBox(height: 12),
+          _ModeTabButton(
+            icon: Icons.local_fire_department_outlined,
+            label: '습관',
+            selected: mode == ContentMode.habits,
+            onTap: () => ref.read(contentModeProvider.notifier).state =
+                ContentMode.habits,
           ),
         ],
       ),
