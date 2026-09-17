@@ -67,9 +67,6 @@ class TodoTile extends StatelessWidget {
                             fontFamily: 'GriunFromsol',
                             fontSize: 17,
                             fontWeight: FontWeight.w600,
-                            decoration: todo.isDone
-                                ? TextDecoration.lineThrough
-                                : null,
                             color: todo.isDone
                                 ? Theme.of(context).disabledColor
                                 : null,

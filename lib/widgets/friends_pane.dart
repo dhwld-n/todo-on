@@ -370,9 +370,6 @@ class _FriendDetailSheet extends ConsumerWidget {
                               child: Text(
                                 todo.title,
                                 style: TextStyle(
-                                  decoration: todo.isDone
-                                      ? TextDecoration.lineThrough
-                                      : null,
                                   color: todo.isDone
                                       ? Theme.of(context).disabledColor
                                       : null,

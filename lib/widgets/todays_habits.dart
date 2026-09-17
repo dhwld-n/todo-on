@@ -149,7 +149,6 @@ class _HabitRow extends StatelessWidget {
                     color: done
                         ? disabled
                         : Theme.of(context).textTheme.bodyMedium?.color,
-                    decoration: done ? TextDecoration.lineThrough : null,
                   ),
                   children: [
                     TextSpan(
