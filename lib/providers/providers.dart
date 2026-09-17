@@ -11,6 +11,7 @@ import '../models/habit_log.dart';
 import '../models/todo_item.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
+import '../services/update_service.dart';
 
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());
 
@@ -85,6 +86,14 @@ final habitLogsProvider = StreamProvider<List<HabitLog>>((ref) {
   if (service == null) return const Stream.empty();
   return service.watchHabitLogs();
 });
+
+final updateInfoProvider = FutureProvider<UpdateInfo?>((ref) {
+  return checkForUpdate();
+});
+
+/// Whether the user has already acknowledged the pending update (dismisses
+/// the tab-rail badge, but the item itself stays until they actually update).
+final updateSeenProvider = StateProvider<bool>((ref) => false);
 
 final followingProvider = StreamProvider<List<String>>((ref) {
   final service = ref.watch(firestoreServiceProvider);

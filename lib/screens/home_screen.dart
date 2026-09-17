@@ -15,6 +15,7 @@ import '../widgets/habits_pane.dart';
 import '../widgets/manage_categories_sheet.dart';
 import '../widgets/profile_header.dart';
 import '../widgets/todo_tile.dart';
+import '../widgets/update_checker.dart';
 
 const double _kCalendarBreakpoint = 700;
 
@@ -137,6 +138,8 @@ class _ModeTabRail extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mode = ref.watch(contentModeProvider);
+    final updateInfo = ref.watch(updateInfoProvider).value;
+    final updateSeen = ref.watch(updateSeenProvider);
     return Padding(
       padding: const EdgeInsets.only(right: 12),
       child: Column(
@@ -172,6 +175,19 @@ class _ModeTabRail extends ConsumerWidget {
             onTap: () => ref.read(contentModeProvider.notifier).state =
                 ContentMode.habits,
           ),
+          if (updateInfo != null) ...[
+            const SizedBox(height: 12),
+            _ModeTabButton(
+              icon: Icons.system_update_alt,
+              label: '업데이트',
+              selected: false,
+              showBadge: !updateSeen,
+              onTap: () {
+                ref.read(updateSeenProvider.notifier).state = true;
+                showUpdateDialog(context, updateInfo);
+              },
+            ),
+          ],
         ],
       ),
     );
@@ -183,12 +199,14 @@ class _ModeTabButton extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final bool showBadge;
 
   const _ModeTabButton({
     required this.icon,
     required this.label,
     required this.selected,
     required this.onTap,
+    this.showBadge = false,
   });
 
   @override
@@ -214,10 +232,32 @@ class _ModeTabButton extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 20,
-              color: selected ? Colors.white : colorScheme.onSurfaceVariant,
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  icon,
+                  size: 20,
+                  color: selected ? Colors.white : colorScheme.onSurfaceVariant,
+                ),
+                if (showBadge)
+                  Positioned(
+                    right: -3,
+                    top: -3,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: selected ? colorScheme.primary : colorScheme.surface,
+                          width: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 4),
             Text(
