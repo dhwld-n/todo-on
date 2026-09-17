@@ -375,7 +375,7 @@ class _CategorySectionData {
 void _moveTodo(
   WidgetRef ref,
   TodoItem dragged,
-  String? categoryId,
+  TodoCategory? destinationCategory,
   List<TodoItem> destinationTodos, {
   String? beforeId,
 }) {
@@ -388,7 +388,8 @@ void _moveTodo(
       .read(firestoreServiceProvider)
       ?.moveTodo(
         todoId: dragged.id,
-        categoryId: categoryId,
+        categoryId: destinationCategory?.id,
+        categoryIsPrivate: destinationCategory?.isPrivate ?? false,
         destinationOrderedIds: [for (final t in list) t.id],
       );
 }
@@ -413,7 +414,7 @@ class _CategorySection extends ConsumerWidget {
       children: [
         DragTarget<TodoItem>(
           onAcceptWithDetails: (details) =>
-              _moveTodo(ref, details.data, category?.id, todos),
+              _moveTodo(ref, details.data, category, todos),
           builder: (context, candidateData, rejectedData) {
             final isHovering = candidateData.isNotEmpty;
             return Container(
@@ -479,7 +480,7 @@ class _CategorySection extends ConsumerWidget {
         if (todos.isEmpty)
           DragTarget<TodoItem>(
             onAcceptWithDetails: (details) =>
-                _moveTodo(ref, details.data, category?.id, todos),
+                _moveTodo(ref, details.data, category, todos),
             builder: (context, candidateData, rejectedData) {
               final isHovering = candidateData.isNotEmpty;
               return Container(
@@ -511,7 +512,7 @@ class _CategorySection extends ConsumerWidget {
               onAcceptWithDetails: (details) => _moveTodo(
                 ref,
                 details.data,
-                category?.id,
+                category,
                 todos,
                 beforeId: todo.id,
               ),
@@ -574,7 +575,7 @@ class _CategorySection extends ConsumerWidget {
         if (todos.isNotEmpty)
           DragTarget<TodoItem>(
             onAcceptWithDetails: (details) =>
-                _moveTodo(ref, details.data, category?.id, todos),
+                _moveTodo(ref, details.data, category, todos),
             builder: (context, candidateData, rejectedData) {
               final isHovering = candidateData.isNotEmpty;
               return Container(

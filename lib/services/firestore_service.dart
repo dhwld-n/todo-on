@@ -52,6 +52,20 @@ class FirestoreService {
     return _categories.doc(category.id).update(category.toFirestore());
   }
 
+  /// Updates the category's privacy and cascades the denormalized
+  /// `categoryIsPrivate` flag onto every todo currently under it.
+  Future<void> setCategoryPrivate(String categoryId, bool isPrivate) async {
+    final batch = _db.batch();
+    batch.update(_categories.doc(categoryId), {'isPrivate': isPrivate});
+    final affected = await _todos
+        .where('categoryId', isEqualTo: categoryId)
+        .get();
+    for (final doc in affected.docs) {
+      batch.update(doc.reference, {'categoryIsPrivate': isPrivate});
+    }
+    await batch.commit();
+  }
+
   Future<void> deleteCategory(String categoryId) async {
     final batch = _db.batch();
     batch.delete(_categories.doc(categoryId));
@@ -59,9 +73,38 @@ class FirestoreService {
         .where('categoryId', isEqualTo: categoryId)
         .get();
     for (final doc in affected.docs) {
-      batch.update(doc.reference, {'categoryId': null});
+      batch.update(doc.reference, {
+        'categoryId': null,
+        'categoryIsPrivate': false,
+      });
     }
     await batch.commit();
+  }
+
+  /// One-time self-heal for todos written before `categoryIsPrivate` existed
+  /// (or left stale by a category-privacy change made outside the app).
+  Future<void> backfillTodoCategoryPrivacy() async {
+    final categoriesSnap = await _categories.get();
+    final privacyById = {
+      for (final doc in categoriesSnap.docs)
+        doc.id: doc.data()['isPrivate'] as bool? ?? false,
+    };
+    final todosSnap = await _todos.get();
+    final batch = _db.batch();
+    var hasChanges = false;
+    for (final doc in todosSnap.docs) {
+      final data = doc.data();
+      final categoryId = data['categoryId'] as String?;
+      final expected = categoryId != null
+          ? (privacyById[categoryId] ?? false)
+          : false;
+      final current = data['categoryIsPrivate'] as bool?;
+      if (current != expected) {
+        batch.update(doc.reference, {'categoryIsPrivate': expected});
+        hasChanges = true;
+      }
+    }
+    if (hasChanges) await batch.commit();
   }
 
   Future<void> addTodo(TodoItem todo) {
@@ -86,13 +129,17 @@ class FirestoreService {
   Future<void> moveTodo({
     required String todoId,
     required String? categoryId,
+    required bool categoryIsPrivate,
     required List<String> destinationOrderedIds,
   }) async {
     final batch = _db.batch();
     for (var i = 0; i < destinationOrderedIds.length; i++) {
       final id = destinationOrderedIds[i];
       final data = <String, dynamic>{'order': i};
-      if (id == todoId) data['categoryId'] = categoryId;
+      if (id == todoId) {
+        data['categoryId'] = categoryId;
+        data['categoryIsPrivate'] = categoryIsPrivate;
+      }
       batch.update(_todos.doc(id), data);
     }
     await batch.commit();
@@ -214,32 +261,18 @@ class FirestoreService {
   }
 
   /// A Firestore list query fails entirely if even one document it could
-  /// match would be denied by the security rules, so private categories
-  /// (and their todos) must be excluded from the query itself rather than
-  /// filtered after the fact.
-  Stream<List<TodoItem>> watchFriendTodos(String friendUid) async* {
-    final friendCategories = _db
+  /// match would be denied by the security rules. `categoryIsPrivate` is
+  /// denormalized onto each todo precisely so this query can filter on the
+  /// todo itself instead of needing (unreadable) access to private
+  /// category documents to know which ones to exclude.
+  Stream<List<TodoItem>> watchFriendTodos(String friendUid) {
+    return _db
         .collection('users')
         .doc(friendUid)
-        .collection('categories');
-    final privateSnap = await friendCategories
-        .where('isPrivate', isEqualTo: true)
-        .get();
-    final privateCategoryIds = privateSnap.docs.map((d) => d.id).toList();
-
-    Query<Map<String, dynamic>> query = _db
-        .collection('users')
-        .doc(friendUid)
-        .collection('todos');
-    if (privateCategoryIds.isNotEmpty) {
-      query = query.where(
-        'categoryId',
-        whereNotIn: privateCategoryIds.take(10).toList(),
-      );
-    }
-    yield* query.snapshots().map(
-      (snap) => snap.docs.map(TodoItem.fromFirestore).toList(),
-    );
+        .collection('todos')
+        .where('categoryIsPrivate', isEqualTo: false)
+        .snapshots()
+        .map((snap) => snap.docs.map(TodoItem.fromFirestore).toList());
   }
 
   Stream<List<TodoCategory>> watchFriendCategories(String friendUid) {

@@ -12,6 +12,7 @@ import 'firebase_options.dart';
 import 'providers/providers.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
+import 'services/firestore_service.dart';
 import 'theme/app_theme.dart';
 import 'widgets/update_checker.dart';
 
@@ -55,6 +56,12 @@ class TodoMateApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
+    ref.listen(authStateProvider, (previous, next) {
+      final uid = next.value?.uid;
+      if (uid != null && previous?.value?.uid != uid) {
+        FirestoreService(uid).backfillTodoCategoryPrivacy();
+      }
+    });
     ref.listen(profileDocProvider, (previous, next) {
       final saved = next.value?['themeMode'] as String?;
       final resolved = saved == 'dark'

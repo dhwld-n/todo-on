@@ -72,9 +72,7 @@ class _ManageCategoriesSheetState extends ConsumerState<ManageCategoriesSheet> {
   Future<void> _togglePrivate(TodoCategory category) async {
     final service = ref.read(firestoreServiceProvider);
     if (service == null) return;
-    await service.updateCategory(
-      category.copyWith(isPrivate: !category.isPrivate),
-    );
+    await service.setCategoryPrivate(category.id, !category.isPrivate);
   }
 
   @override

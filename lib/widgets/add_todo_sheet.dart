@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
+import '../models/category.dart';
 import '../models/todo_item.dart';
 import '../providers/providers.dart';
 
@@ -84,6 +85,21 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
     final service = ref.read(firestoreServiceProvider);
     if (service == null) return;
 
+    final categories = ref.read(categoriesProvider).value ?? const <TodoCategory>[];
+    final isPrivate = _categoryId == null
+        ? false
+        : categories
+              .firstWhere(
+                (c) => c.id == _categoryId,
+                orElse: () => TodoCategory(
+                  id: '',
+                  name: '',
+                  colorValue: 0,
+                  order: 0,
+                ),
+              )
+              .isPrivate;
+
     if (widget.existing == null) {
       final todo = TodoItem(
         id: const Uuid().v4(),
@@ -94,6 +110,7 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
         createdAt: DateTime.now(),
         order: DateTime.now().millisecondsSinceEpoch,
         note: note.isEmpty ? null : note,
+        categoryIsPrivate: isPrivate,
       );
       await service.addTodo(todo);
     } else {
@@ -104,6 +121,7 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
         dueDate: _dueDate,
         note: note.isEmpty ? null : note,
         clearNote: note.isEmpty,
+        categoryIsPrivate: isPrivate,
       );
       await service.updateTodo(updated);
     }
