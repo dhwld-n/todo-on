@@ -64,9 +64,15 @@ class HomeScreen extends ConsumerWidget {
               onPressed: () => showModalBottomSheet(
                 context: context,
                 isScrollControlled: true,
-                builder: (_) => const SizedBox(
-                  height: 480,
-                  child: CalendarSidebar(embeddedInSheet: true),
+                builder: (_) => DraggableScrollableSheet(
+                  initialChildSize: 0.75,
+                  minChildSize: 0.4,
+                  maxChildSize: 0.95,
+                  expand: false,
+                  builder: (context, controller) => CalendarSidebar(
+                    embeddedInSheet: true,
+                    scrollController: controller,
+                  ),
                 ),
               ),
             ),

@@ -60,8 +60,13 @@ void _showYearMonthPicker(
 
 class CalendarSidebar extends ConsumerWidget {
   final bool embeddedInSheet;
+  final ScrollController? scrollController;
 
-  const CalendarSidebar({super.key, this.embeddedInSheet = false});
+  const CalendarSidebar({
+    super.key,
+    this.embeddedInSheet = false,
+    this.scrollController,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -188,6 +193,7 @@ class CalendarSidebar extends ConsumerWidget {
     return SizedBox(
       width: double.infinity,
       child: SingleChildScrollView(
+        controller: scrollController,
         child: Column(
           children: [
             TableCalendar<void>(
