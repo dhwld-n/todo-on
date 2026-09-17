@@ -211,10 +211,6 @@ class _YearGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const cellSize = 12.0;
-    const cellMargin = 1.5;
-    const step = cellSize + cellMargin * 2;
-
     final jan1 = DateTime(year, 1, 1);
     final dec31 = DateTime(year, 12, 31);
     final firstMonday = jan1.subtract(
@@ -223,6 +219,29 @@ class _YearGrid extends StatelessWidget {
     final totalDays = dec31.difference(firstMonday).inDays + 1;
     final weeks = (totalDays / 7).ceil();
 
+    // Size cells to fit the whole year in the available width so every
+    // month (including December) is visible without needing to scroll.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const weekdayColW = 20.0;
+        const cellMargin = 1.5;
+        final available = constraints.maxWidth - weekdayColW - 4;
+        final rawCellSize = available / weeks - cellMargin * 2;
+        final cellSize = rawCellSize.clamp(4.0, 13.0);
+        final step = cellSize + cellMargin * 2;
+        return _buildGrid(context, weeks, firstMonday, cellSize, cellMargin, step);
+      },
+    );
+  }
+
+  Widget _buildGrid(
+    BuildContext context,
+    int weeks,
+    DateTime firstMonday,
+    double cellSize,
+    double cellMargin,
+    double step,
+  ) {
     Widget cell(DateTime date) {
       if (date.year != year) {
         return SizedBox(width: step, height: step);
@@ -234,7 +253,7 @@ class _YearGrid extends StatelessWidget {
         child: Container(
           width: cellSize,
           height: cellSize,
-          margin: const EdgeInsets.all(cellMargin),
+          margin: EdgeInsets.all(cellMargin),
           decoration: BoxDecoration(
             color: levelColor(context, activityLevel(count)),
             borderRadius: BorderRadius.circular(3),
