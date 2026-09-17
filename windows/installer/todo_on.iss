@@ -5,7 +5,7 @@
 #define MyAppName "TODO on"
 #define MyAppVersion "1.1.0"
 #define MyAppPublisher "TODO on"
-#define MyAppExeName "todo_mate.exe"
+#define MyAppExeName "todo_on.exe"
 #define MyReleaseDir "..\..\build\windows\x64\runner\Release"
 
 [Setup]
@@ -37,6 +37,9 @@ Name: "desktopicon"; Description: "바탕화면에 바로가기 만들기"; Grou
 Source: "{#MyReleaseDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyReleaseDir}\*.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyReleaseDir}\data\*"; DestDir: "{app}\data"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+[InstallDelete]
+Type: files; Name: "{app}\todo_mate.exe"
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
