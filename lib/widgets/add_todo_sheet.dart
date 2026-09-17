@@ -44,6 +44,7 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
   late final TextEditingController _noteController;
   String? _categoryId;
   late DateTime _dueDate;
+  late bool _showNoteField;
 
   @override
   void initState() {
@@ -54,6 +55,9 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
     _noteController = TextEditingController(text: widget.existing?.note ?? '');
     _categoryId = widget.existing?.categoryId ?? widget.initialCategoryId;
     _dueDate = widget.existing?.dueDate ?? widget.initialDate ?? DateTime.now();
+    // Adding a new todo starts with just the title field; note can be
+    // expanded on demand. Editing shows the note if one already exists.
+    _showNoteField = widget.existing != null && widget.existing!.note != null;
   }
 
   @override
@@ -152,19 +156,37 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
                 labelText: '할 일',
                 border: OutlineInputBorder(),
               ),
+              textInputAction: TextInputAction.done,
               onSubmitted: (_) => _save(),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _noteController,
-              minLines: 2,
-              maxLines: 5,
-              decoration: const InputDecoration(
-                labelText: '메모',
-                alignLabelWithHint: true,
-                border: OutlineInputBorder(),
+            if (_showNoteField) ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: _noteController,
+                autofocus: widget.existing == null,
+                minLines: 2,
+                maxLines: 5,
+                decoration: const InputDecoration(
+                  labelText: '메모',
+                  alignLabelWithHint: true,
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
+            ] else ...[
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => setState(() => _showNoteField = true),
+                  icon: const Icon(Icons.add, size: 16),
+                  label: const Text('메모 추가'),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                  ),
+                ),
+              ),
+            ],
             if (widget.existing != null) ...[
               const SizedBox(height: 12),
               Builder(
