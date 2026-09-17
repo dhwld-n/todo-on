@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/category.dart';
 import '../models/todo_item.dart';
+import '../services/calendar_export_service.dart';
 
 class TodoTile extends StatelessWidget {
   final TodoItem todo;
@@ -20,6 +21,20 @@ class TodoTile extends StatelessWidget {
     required this.onDelete,
     this.dragHandle,
   });
+
+  Future<void> _addToCalendar(BuildContext context) async {
+    final result = await addTodoToDeviceCalendar(todo);
+    if (!context.mounted) return;
+    final message = switch (result) {
+      CalendarExportResult.success => '캘린더에 추가했어요',
+      CalendarExportResult.permissionDenied => '캘린더 권한이 필요해요',
+      CalendarExportResult.noCalendar => '쓸 수 있는 캘린더가 없어요',
+      CalendarExportResult.error => '캘린더에 추가하지 못했어요',
+    };
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -119,6 +134,13 @@ class TodoTile extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (isDeviceCalendarSupported)
+                    IconButton(
+                      icon: const Icon(Icons.event_outlined, size: 18),
+                      tooltip: '캘린더에 추가',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => _addToCalendar(context),
+                    ),
                   ?dragHandle,
                 ],
               ),
