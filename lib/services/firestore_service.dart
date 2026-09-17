@@ -213,14 +213,33 @@ class FirestoreService {
         .map((doc) => doc.data());
   }
 
-  Stream<List<TodoItem>> watchFriendTodos(String friendUid) {
-    return _db
+  /// A Firestore list query fails entirely if even one document it could
+  /// match would be denied by the security rules, so private categories
+  /// (and their todos) must be excluded from the query itself rather than
+  /// filtered after the fact.
+  Stream<List<TodoItem>> watchFriendTodos(String friendUid) async* {
+    final friendCategories = _db
         .collection('users')
         .doc(friendUid)
-        .collection('todos')
-        .orderBy('order')
-        .snapshots()
-        .map((snap) => snap.docs.map(TodoItem.fromFirestore).toList());
+        .collection('categories');
+    final privateSnap = await friendCategories
+        .where('isPrivate', isEqualTo: true)
+        .get();
+    final privateCategoryIds = privateSnap.docs.map((d) => d.id).toList();
+
+    Query<Map<String, dynamic>> query = _db
+        .collection('users')
+        .doc(friendUid)
+        .collection('todos');
+    if (privateCategoryIds.isNotEmpty) {
+      query = query.where(
+        'categoryId',
+        whereNotIn: privateCategoryIds.take(10).toList(),
+      );
+    }
+    yield* query.snapshots().map(
+      (snap) => snap.docs.map(TodoItem.fromFirestore).toList(),
+    );
   }
 
   Stream<List<TodoCategory>> watchFriendCategories(String friendUid) {
@@ -228,6 +247,7 @@ class FirestoreService {
         .collection('users')
         .doc(friendUid)
         .collection('categories')
+        .where('isPrivate', isEqualTo: false)
         .orderBy('order')
         .snapshots()
         .map((snap) => snap.docs.map(TodoCategory.fromFirestore).toList());
