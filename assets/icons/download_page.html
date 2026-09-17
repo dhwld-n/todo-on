@@ -159,7 +159,7 @@
   .features {
     margin-top: 64px;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 14px;
   }
 
@@ -258,12 +258,12 @@
   <div class="hero">
     <img class="mascot" src="cat.png" alt="TODO on 마스코트 고양이" />
     <div class="brand">TODO on<span class="dot"></span></div>
-    <p class="tagline">친구들끼리 가볍게 쓰는 할 일 관리 앱. 카테고리, 캘린더, 일기, 그리고 친구의 오늘까지 한 곳에서.</p>
+    <p class="tagline">친구들끼리 가볍게 쓰는 할 일 관리 앱. 카테고리, 캘린더, 습관, 일기, 그리고 친구의 오늘까지 한 곳에서.</p>
 
-    <a class="cta" href="https://github.com/dhwld-n/todo-on/releases/download/v1.1.0/TODOon-Setup-1.1.0.exe">
+    <a class="cta" href="https://github.com/dhwld-n/todo-on/releases/download/v1.2.0/TODOon-Setup-1.2.0.exe">
       ⬇ Windows용 다운로드
     </a>
-    <p class="meta">v1.1.0 · 약 19MB · <a href="https://github.com/dhwld-n/todo-on/releases/download/v1.1.0/TODOon-windows-v1.1.0.zip">압축파일(zip)로 받기</a> · <a href="https://github.com/dhwld-n/todo-on" target="_blank" rel="noopener">GitHub에서 보기</a></p>
+    <p class="meta">v1.2.0 · 약 19MB · <a href="https://github.com/dhwld-n/todo-on/releases/download/v1.2.0/TODOon-windows-v1.2.0.zip">압축파일(zip)로 받기</a> · <a href="https://github.com/dhwld-n/todo-on" target="_blank" rel="noopener">GitHub에서 보기</a></p>
   </div>
 
   <div class="features">
@@ -278,6 +278,11 @@
       <p>날짜별 할 일이 캘린더 칸 안에 바로 보이고, 공휴일도 자동으로 표시돼요.</p>
     </div>
     <div class="feature">
+      <div class="chip" style="background: color-mix(in srgb, #ff8a3d 16%, transparent);">🔥</div>
+      <h3>습관</h3>
+      <p>매일 하는 습관을 체크하고 연속 달성일과 활동 지도로 한눈에 확인해요.</p>
+    </div>
+    <div class="feature">
       <div class="chip" style="background: color-mix(in srgb, var(--chip-purple) 16%, transparent);">📖</div>
       <h3>일기</h3>
       <p>날짜별로 자유롭게 쓰는 일기장. 친구에게도 절대 공개되지 않아요.</p>
@@ -285,14 +290,14 @@
     <div class="feature">
       <div class="chip" style="background: color-mix(in srgb, var(--chip-teal) 16%, transparent);">🐾</div>
       <h3>친구</h3>
-      <p>코드를 주고받아 친구를 추가하면 프로필과 오늘 할 일을 볼 수 있어요. 비공개 카테고리는 제외.</p>
+      <p>코드로 친구를 추가하면 서로 자동으로 연결돼요. 오늘 할 일도 함께 볼 수 있어요 (비공개 카테고리는 제외).</p>
     </div>
   </div>
 
   <div class="steps">
     <h2>설치 방법</h2>
     <ol>
-      <li>위 버튼으로 <code>TODOon-Setup-1.1.0.exe</code>를 받아요.</li>
+      <li>위 버튼으로 <code>TODOon-Setup-1.2.0.exe</code>를 받아요.</li>
       <li>실행해서 안내대로 설치해요 (바탕화면 아이콘 만들기 체크 가능).</li>
       <li>설치 끝나면 자동으로 앱이 열려요. 닉네임/이메일로 회원가입하면 끝!</li>
     </ol>
