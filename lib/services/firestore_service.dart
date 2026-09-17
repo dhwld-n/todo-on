@@ -172,30 +172,36 @@ class FirestoreService {
   CollectionReference<Map<String, dynamic>> get _following =>
       _db.collection('users').doc(uid).collection('following');
 
+  CollectionReference<Map<String, dynamic>> get _followers =>
+      _db.collection('users').doc(uid).collection('followers');
+
   Stream<List<String>> watchFollowing() {
     return _following.snapshots().map(
       (snap) => snap.docs.map((d) => d.id).toList(),
     );
   }
 
+  /// Friending is mutual: adding someone by their code immediately makes
+  /// both sides follow each other, so they both show up in "내 친구"
+  /// without the other person having to add the code back.
   Future<void> followUser(String targetUid) async {
+    final now = Timestamp.fromDate(DateTime.now());
+    final targetDoc = _db.collection('users').doc(targetUid);
     final batch = _db.batch();
-    batch.set(_following.doc(targetUid), {
-      'addedAt': Timestamp.fromDate(DateTime.now()),
-    });
-    batch.set(
-      _db.collection('users').doc(targetUid).collection('followers').doc(uid),
-      {'addedAt': Timestamp.fromDate(DateTime.now())},
-    );
+    batch.set(_following.doc(targetUid), {'addedAt': now});
+    batch.set(_followers.doc(targetUid), {'addedAt': now});
+    batch.set(targetDoc.collection('following').doc(uid), {'addedAt': now});
+    batch.set(targetDoc.collection('followers').doc(uid), {'addedAt': now});
     await batch.commit();
   }
 
   Future<void> unfollowUser(String targetUid) async {
+    final targetDoc = _db.collection('users').doc(targetUid);
     final batch = _db.batch();
     batch.delete(_following.doc(targetUid));
-    batch.delete(
-      _db.collection('users').doc(targetUid).collection('followers').doc(uid),
-    );
+    batch.delete(_followers.doc(targetUid));
+    batch.delete(targetDoc.collection('following').doc(uid));
+    batch.delete(targetDoc.collection('followers').doc(uid));
     await batch.commit();
   }
 
