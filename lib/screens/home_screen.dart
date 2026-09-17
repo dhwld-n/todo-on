@@ -175,19 +175,23 @@ class _ModeTabRail extends ConsumerWidget {
             onTap: () => ref.read(contentModeProvider.notifier).state =
                 ContentMode.habits,
           ),
-          if (updateInfo != null) ...[
-            const SizedBox(height: 12),
-            _ModeTabButton(
-              icon: Icons.system_update_alt,
-              label: '업데이트',
-              selected: false,
-              showBadge: !updateSeen,
-              onTap: () {
-                ref.read(updateSeenProvider.notifier).state = true;
-                showUpdateDialog(context, updateInfo);
-              },
-            ),
-          ],
+          const SizedBox(height: 12),
+          _ModeTabButton(
+            icon: Icons.system_update_alt,
+            label: '업데이트',
+            selected: false,
+            showBadge: updateInfo != null && !updateSeen,
+            onTap: () {
+              if (updateInfo == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('이미 최신 버전이에요')),
+                );
+                return;
+              }
+              ref.read(updateSeenProvider.notifier).state = true;
+              showUpdateDialog(context, updateInfo);
+            },
+          ),
         ],
       ),
     );
