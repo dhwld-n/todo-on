@@ -6,6 +6,7 @@ import 'package:table_calendar/table_calendar.dart';
 import '../models/category.dart';
 import '../models/todo_item.dart';
 import '../providers/providers.dart';
+import '../services/theme_prefs.dart';
 import '../widgets/add_todo_sheet.dart';
 import '../widgets/blinking_dot.dart';
 import '../widgets/calendar_sidebar.dart';
@@ -48,6 +49,7 @@ class HomeScreen extends ConsumerWidget {
             onPressed: () {
               final next = isDark ? ThemeMode.light : ThemeMode.dark;
               ref.read(themeModeProvider.notifier).state = next;
+              saveCachedThemeMode(next);
               ref
                   .read(firestoreServiceProvider)
                   ?.saveThemeMode(next == ThemeMode.dark ? 'dark' : 'light');

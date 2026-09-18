@@ -13,6 +13,7 @@ import 'providers/providers.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/firestore_service.dart';
+import 'services/theme_prefs.dart';
 import 'theme/app_theme.dart';
 import 'widgets/update_checker.dart';
 
@@ -42,7 +43,16 @@ Future<void> main() async {
         persistenceEnabled: false,
       );
       await initializeDateFormatting('ko_KR', null);
-      runApp(const ProviderScope(child: TodoMateApp()));
+      final cachedThemeMode = await loadCachedThemeMode();
+      runApp(
+        ProviderScope(
+          overrides: [
+            if (cachedThemeMode != null)
+              themeModeProvider.overrideWith((ref) => cachedThemeMode),
+          ],
+          child: const TodoMateApp(),
+        ),
+      );
     },
     (error, stack) {
       _logCrash(error, stack);
@@ -71,6 +81,7 @@ class TodoMateApp extends ConsumerWidget {
           : null;
       if (resolved != null && resolved != ref.read(themeModeProvider)) {
         ref.read(themeModeProvider.notifier).state = resolved;
+        saveCachedThemeMode(resolved);
       }
     });
     return MaterialApp(
