@@ -3,10 +3,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:table_calendar/table_calendar.dart';
 
-import '../models/category.dart';
 import '../providers/providers.dart';
+import '../screens/friend_detail_screen.dart';
 
 class FriendsPane extends ConsumerWidget {
   const FriendsPane({super.key});
@@ -230,165 +229,11 @@ class _FriendTile extends ConsumerWidget {
           onPressed: () =>
               ref.read(firestoreServiceProvider)?.unfollowUser(uid),
         ),
-        onTap: () => showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          builder: (_) => _FriendDetailSheet(uid: uid),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => FriendDetailScreen(uid: uid)),
         ),
       ),
     );
   }
 }
 
-class _FriendDetailSheet extends ConsumerWidget {
-  final String uid;
-
-  const _FriendDetailSheet({required this.uid});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final profileAsync = ref.watch(friendProfileProvider(uid));
-    final todosAsync = ref.watch(friendTodosProvider(uid));
-    final categoriesAsync = ref.watch(friendCategoriesProvider(uid));
-    final profile = profileAsync.value;
-    final nickname = (profile?['nickname'] as String?)?.trim();
-    final displayText = (nickname != null && nickname.isNotEmpty)
-        ? nickname
-        : uid.substring(0, 8);
-    final bio = (profile?['bio'] as String?)?.trim();
-    final photoBase64 = profile?['photoBase64'] as String?;
-    final today = DateTime.now();
-
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  backgroundImage: photoBase64 != null
-                      ? MemoryImage(base64Decode(photoBase64))
-                      : null,
-                  child: photoBase64 == null
-                      ? Text(
-                          displayText.isNotEmpty ? displayText[0] : '?',
-                          style: const TextStyle(color: Colors.white),
-                        )
-                      : null,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        displayText,
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                      if (bio != null && bio.isNotEmpty) Text(bio),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              '오늘의 할 일',
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.4,
-              ),
-              child: todosAsync.when(
-                data: (todos) {
-                  final categories =
-                      categoriesAsync.value ?? const <TodoCategory>[];
-                  final byId = {for (final c in categories) c.id: c};
-                  final todays =
-                      todos
-                          .where(
-                            (t) =>
-                                t.dueDate != null &&
-                                isSameDay(t.dueDate!, today),
-                          )
-                          .toList()
-                        ..sort((a, b) => a.order.compareTo(b.order));
-                  if (todays.isEmpty) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Text(
-                        '오늘은 할 일이 없어요.',
-                        style: TextStyle(
-                          color: Theme.of(context).disabledColor,
-                        ),
-                      ),
-                    );
-                  }
-                  return ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: todays.length,
-                    itemBuilder: (context, index) {
-                      final todo = todays[index];
-                      final category = byId[todo.categoryId];
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Row(
-                          children: [
-                            Icon(
-                              todo.isDone
-                                  ? Icons.check_circle
-                                  : Icons.radio_button_unchecked,
-                              size: 18,
-                              color: todo.isDone
-                                  ? Theme.of(context).colorScheme.primary
-                                  : Theme.of(context).disabledColor,
-                            ),
-                            const SizedBox(width: 8),
-                            if (category != null) ...[
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  color: Color(category.colorValue),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                            ],
-                            Expanded(
-                              child: Text(
-                                todo.title,
-                                style: TextStyle(
-                                  color: todo.isDone
-                                      ? Theme.of(context).disabledColor
-                                      : null,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  );
-                },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Text('오류: $e'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
