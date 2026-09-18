@@ -33,6 +33,14 @@ class HomeScreen extends ConsumerWidget {
     final activeDate = selectedDate ?? DateTime.now();
     final calendarExpanded = ref.watch(mobileCalendarExpandedProvider);
 
+    ref.listen<DateTime?>(selectedDateProvider, (previous, next) {
+      if (!isWide && mode == ContentMode.todo && next != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) _showDayTodosSheet(context);
+        });
+      }
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -56,14 +64,14 @@ class HomeScreen extends ConsumerWidget {
                   ?.saveThemeMode(next == ThemeMode.dark ? 'dark' : 'light');
             },
           ),
-          if (!isWide)
+          if (!isWide && mode == ContentMode.todo)
             IconButton(
               icon: Icon(
                 calendarExpanded
                     ? Icons.calendar_month
                     : Icons.calendar_month_outlined,
               ),
-              tooltip: calendarExpanded ? '캘린더 접기' : '캘린더 펼치기',
+              tooltip: calendarExpanded ? '목록으로 보기' : '캘린더로 보기',
               onPressed: () => ref
                   .read(mobileCalendarExpandedProvider.notifier)
                   .update((expanded) => !expanded),
@@ -118,29 +126,17 @@ class HomeScreen extends ConsumerWidget {
                 ],
               );
             }
+            final showCalendarFirst =
+                mode == ContentMode.todo && calendarExpanded;
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const _ModeTabRail(),
                 Expanded(
-                  child: calendarExpanded
-                      ? SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              _DashboardCard(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
-                                ),
-                                child: const CalendarSidebar(),
-                              ),
-                              const SizedBox(height: 12),
-                              SizedBox(
-                                height: MediaQuery.of(context).size.height * 0.7,
-                                child: contentCard,
-                              ),
-                            ],
-                          ),
+                  child: showCalendarFirst
+                      ? _DashboardCard(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: const CalendarSidebar(),
                         )
                       : contentCard,
                 ),
@@ -151,6 +147,36 @@ class HomeScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+void _showDayTodosSheet(BuildContext context) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    builder: (_) => DraggableScrollableSheet(
+      initialChildSize: 0.75,
+      minChildSize: 0.4,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (context, controller) => Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Column(
+          children: [
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Theme.of(context).disabledColor.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Expanded(child: _TodoListPane(scrollController: controller)),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _ModeTabRail extends ConsumerWidget {
@@ -331,7 +357,9 @@ class _DashboardCard extends StatelessWidget {
 }
 
 class _TodoListPane extends ConsumerWidget {
-  const _TodoListPane();
+  final ScrollController? scrollController;
+
+  const _TodoListPane({this.scrollController});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -407,6 +435,7 @@ class _TodoListPane extends ConsumerWidget {
                 ];
 
                 return ListView(
+                  controller: scrollController,
                   padding: const EdgeInsets.only(bottom: 16),
                   children: [
                     for (final section in sections)
