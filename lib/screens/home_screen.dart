@@ -123,19 +123,26 @@ class HomeScreen extends ConsumerWidget {
               children: [
                 const _ModeTabRail(),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (calendarExpanded) ...[
-                        _DashboardCard(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          child: const CalendarSidebar(),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-                      Expanded(child: contentCard),
-                    ],
-                  ),
+                  child: calendarExpanded
+                      ? SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _DashboardCard(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                child: const CalendarSidebar(),
+                              ),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                height: MediaQuery.of(context).size.height * 0.7,
+                                child: contentCard,
+                              ),
+                            ],
+                          ),
+                        )
+                      : contentCard,
                 ),
               ],
             );
