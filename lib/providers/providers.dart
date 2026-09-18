@@ -66,6 +66,11 @@ final contentModeProvider = StateProvider<ContentMode>(
   (ref) => ContentMode.todo,
 );
 
+/// Whether the calendar is shown inline on narrow (phone-width) layouts,
+/// where there's no room to keep it permanently side-by-side like on wide
+/// screens. Defaults to shown, so the calendar isn't hidden behind a tap.
+final mobileCalendarExpandedProvider = StateProvider<bool>((ref) => true);
+
 String dateKeyFor(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
 
 final diaryEntryProvider = StreamProvider.autoDispose

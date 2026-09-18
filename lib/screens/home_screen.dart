@@ -31,6 +31,7 @@ class HomeScreen extends ConsumerWidget {
     final isDark = themeMode == ThemeMode.dark;
     final mode = ref.watch(contentModeProvider);
     final activeDate = selectedDate ?? DateTime.now();
+    final calendarExpanded = ref.watch(mobileCalendarExpandedProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -58,25 +59,14 @@ class HomeScreen extends ConsumerWidget {
           if (!isWide)
             IconButton(
               icon: Icon(
-                selectedDate == null
-                    ? Icons.calendar_today_outlined
-                    : Icons.event_available,
+                calendarExpanded
+                    ? Icons.calendar_month
+                    : Icons.calendar_month_outlined,
               ),
-              tooltip: '캘린더',
-              onPressed: () => showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                builder: (_) => DraggableScrollableSheet(
-                  initialChildSize: 0.75,
-                  minChildSize: 0.4,
-                  maxChildSize: 0.95,
-                  expand: false,
-                  builder: (context, controller) => CalendarSidebar(
-                    embeddedInSheet: true,
-                    scrollController: controller,
-                  ),
-                ),
-              ),
+              tooltip: calendarExpanded ? '캘린더 접기' : '캘린더 펼치기',
+              onPressed: () => ref
+                  .read(mobileCalendarExpandedProvider.notifier)
+                  .update((expanded) => !expanded),
             ),
           IconButton(
             icon: const Icon(Icons.sell_outlined),
@@ -132,7 +122,21 @@ class HomeScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const _ModeTabRail(),
-                Expanded(child: contentCard),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (calendarExpanded) ...[
+                        _DashboardCard(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: const CalendarSidebar(),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      Expanded(child: contentCard),
+                    ],
+                  ),
+                ),
               ],
             );
           },
