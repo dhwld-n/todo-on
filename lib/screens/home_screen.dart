@@ -33,14 +33,6 @@ class HomeScreen extends ConsumerWidget {
     final activeDate = selectedDate ?? DateTime.now();
     final calendarExpanded = ref.watch(mobileCalendarExpandedProvider);
 
-    ref.listen<DateTime?>(selectedDateProvider, (previous, next) {
-      if (!isWide && mode == ContentMode.todo && next != null) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (context.mounted) _showDayTodosSheet(context);
-        });
-      }
-    });
-
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -136,7 +128,9 @@ class HomeScreen extends ConsumerWidget {
                   child: showCalendarFirst
                       ? _DashboardCard(
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          child: const CalendarSidebar(),
+                          child: CalendarSidebar(
+                            onDaySelected: (_) => _showDayTodosSheet(context),
+                          ),
                         )
                       : contentCard,
                 ),
