@@ -4,12 +4,13 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 /// Keep this in sync with pubspec.yaml's `version:` (the part before `+`).
-const String kAppVersion = '1.3.5';
+const String kAppVersion = '1.3.6';
 
 const String _kReleasesApiUrl =
     'https://api.github.com/repos/dhwld-n/todo-on/releases/latest';
 const String kReleasesPageUrl =
     'https://github.com/dhwld-n/todo-on/releases/latest';
+const String kDownloadPageUrl = 'https://todoon-install.netlify.app/';
 
 class UpdateInfo {
   final String latestVersion;
