@@ -39,6 +39,51 @@ class _FriendDetailScreenState extends ConsumerState<FriendDetailScreen> {
     });
   }
 
+  void _selectDayAndShowSheet(DateTime day) {
+    setState(() {
+      _focusedMonth = day;
+      _selectedDate = day;
+    });
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        minChildSize: 0.4,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, controller) => Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Column(
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).disabledColor.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: Consumer(
+                  builder: (context, ref, _) => _FriendTodoList(
+                    todosAsync: ref.watch(friendTodosProvider(widget.uid)),
+                    categoriesAsync: ref.watch(
+                      friendCategoriesProvider(widget.uid),
+                    ),
+                    selectedDate: day,
+                    scrollController: controller,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final profileAsync = ref.watch(friendProfileProvider(widget.uid));
@@ -99,22 +144,25 @@ class _FriendDetailScreenState extends ConsumerState<FriendDetailScreen> {
                 ],
               );
             }
-            return SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  header,
-                  const SizedBox(height: 16),
-                  _Card(child: calendar),
-                  const SizedBox(height: 16),
-                  _Card(
-                    child: SizedBox(
-                      height: MediaQuery.of(context).size.height * 0.6,
-                      child: list,
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                header,
+                const SizedBox(height: 16),
+                Expanded(
+                  child: _Card(
+                    child: _FriendCalendar(
+                      todosAsync: todosAsync,
+                      categoriesAsync: categoriesAsync,
+                      selectedDate: _selectedDate,
+                      focusedMonth: _focusedMonth,
+                      onDaySelected: _selectDayAndShowSheet,
+                      onPageChanged: (day) =>
+                          setState(() => _focusedMonth = day),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             );
           },
         ),
@@ -425,11 +473,13 @@ class _FriendTodoList extends StatelessWidget {
   final AsyncValue<List<TodoItem>> todosAsync;
   final AsyncValue<List<TodoCategory>> categoriesAsync;
   final DateTime? selectedDate;
+  final ScrollController? scrollController;
 
   const _FriendTodoList({
     required this.todosAsync,
     required this.categoriesAsync,
     required this.selectedDate,
+    this.scrollController,
   });
 
   @override
@@ -493,6 +543,7 @@ class _FriendTodoList extends StatelessWidget {
                 }
 
                 return ListView(
+                  controller: scrollController,
                   padding: const EdgeInsets.only(bottom: 16),
                   children: [
                     for (final section in sections)
