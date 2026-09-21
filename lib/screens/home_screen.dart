@@ -428,17 +428,53 @@ class _TodoListPane extends ConsumerWidget {
                     ),
                 ];
 
-                return ListView(
-                  controller: scrollController,
-                  padding: const EdgeInsets.only(bottom: 16),
-                  children: [
-                    for (final section in sections)
-                      _CategorySection(
-                        category: section.category,
-                        todos: section.todos,
-                        selectedDate: selectedDate,
+                if (sections.length < 3) {
+                  return ListView(
+                    controller: scrollController,
+                    padding: const EdgeInsets.only(bottom: 16),
+                    children: [
+                      for (final section in sections)
+                        _CategorySection(
+                          category: section.category,
+                          todos: section.todos,
+                          selectedDate: selectedDate,
+                        ),
+                    ],
+                  );
+                }
+                // 3+ categories: lay them out as responsive columns instead of
+                // one long stacked list, so wide windows aren't mostly empty
+                // space. Falls back to a single column on narrow widths.
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    const minColumnWidth = 300.0;
+                    const gap = 12.0;
+                    final columns = (constraints.maxWidth / minColumnWidth)
+                        .floor()
+                        .clamp(1, sections.length);
+                    final columnWidth =
+                        (constraints.maxWidth - gap * (columns - 1)) /
+                        columns;
+                    return SingleChildScrollView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Wrap(
+                        spacing: gap,
+                        runSpacing: gap,
+                        children: [
+                          for (final section in sections)
+                            SizedBox(
+                              width: columnWidth,
+                              child: _CategorySection(
+                                category: section.category,
+                                todos: section.todos,
+                                selectedDate: selectedDate,
+                              ),
+                            ),
+                        ],
                       ),
-                  ],
+                    );
+                  },
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
