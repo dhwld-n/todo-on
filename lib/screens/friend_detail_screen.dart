@@ -279,13 +279,23 @@ void _showYearMonthPicker(
                 ],
               ),
               Expanded(
-                child: CupertinoDatePicker(
-                  mode: CupertinoDatePickerMode.monthYear,
-                  initialDateTime: picked,
-                  minimumYear: 2020,
-                  maximumYear: 2035,
-                  onDateTimeChanged: (dt) =>
-                      picked = DateTime(dt.year, dt.month),
+                child: CupertinoTheme(
+                  data: CupertinoTheme.of(context).copyWith(
+                    textTheme: CupertinoTheme.of(context).textTheme.copyWith(
+                      dateTimePickerTextStyle: CupertinoTheme.of(context)
+                          .textTheme
+                          .dateTimePickerTextStyle
+                          .copyWith(fontFamily: 'OwnglyphParkDaHyun'),
+                    ),
+                  ),
+                  child: CupertinoDatePicker(
+                    mode: CupertinoDatePickerMode.monthYear,
+                    initialDateTime: picked,
+                    minimumYear: 2020,
+                    maximumYear: 2035,
+                    onDateTimeChanged: (dt) =>
+                        picked = DateTime(dt.year, dt.month),
+                  ),
                 ),
               ),
             ],
