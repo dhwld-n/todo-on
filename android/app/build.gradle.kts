@@ -8,7 +8,7 @@ plugins {
 }
 
 android {
-    namespace = "com.todomate.todo_mate"
+    namespace = "com.todoon.todo_on"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -19,7 +19,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.todomate.todo_mate"
+        applicationId = "com.todoon.todo_on"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
