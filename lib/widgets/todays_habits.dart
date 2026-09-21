@@ -153,7 +153,10 @@ class _HabitRow extends StatelessWidget {
                   children: [
                     TextSpan(
                       text: name,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                        fontFamily: 'OwnglyphParkDaHyun',
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     if (subtitle != null) ...[
                       const TextSpan(text: ' · '),
