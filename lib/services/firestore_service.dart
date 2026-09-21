@@ -242,6 +242,40 @@ class FirestoreService {
     await batch.commit();
   }
 
+  /// Relationships created before mutual following existed are still
+  /// one-directional in Firestore (that side never got the missing docs
+  /// added retroactively), which is why some friends can't read your
+  /// profile/nickname even though the add "worked". Re-runs the same
+  /// 4-way write for every friend already in my following or followers,
+  /// filling in whichever side is missing.
+  Future<void> backfillMutualFollows() async {
+    final followingSnap = await _following.get();
+    final followersSnap = await _followers.get();
+    final friendIds = {
+      ...followingSnap.docs.map((d) => d.id),
+      ...followersSnap.docs.map((d) => d.id),
+    };
+    if (friendIds.isEmpty) return;
+    final now = Timestamp.fromDate(DateTime.now());
+    final batch = _db.batch();
+    for (final friendId in friendIds) {
+      final targetDoc = _db.collection('users').doc(friendId);
+      batch.set(_following.doc(friendId), {
+        'addedAt': now,
+      }, SetOptions(merge: true));
+      batch.set(_followers.doc(friendId), {
+        'addedAt': now,
+      }, SetOptions(merge: true));
+      batch.set(targetDoc.collection('following').doc(uid), {
+        'addedAt': now,
+      }, SetOptions(merge: true));
+      batch.set(targetDoc.collection('followers').doc(uid), {
+        'addedAt': now,
+      }, SetOptions(merge: true));
+    }
+    await batch.commit();
+  }
+
   Future<void> unfollowUser(String targetUid) async {
     final targetDoc = _db.collection('users').doc(targetUid);
     final batch = _db.batch();

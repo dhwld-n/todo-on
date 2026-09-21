@@ -69,7 +69,9 @@ class TodoMateApp extends ConsumerWidget {
     ref.listen(authStateProvider, (previous, next) {
       final uid = next.value?.uid;
       if (uid != null && previous?.value?.uid != uid) {
-        FirestoreService(uid).backfillTodoCategoryPrivacy();
+        final service = FirestoreService(uid);
+        service.backfillTodoCategoryPrivacy();
+        service.backfillMutualFollows();
       }
     });
     ref.listen(profileDocProvider, (previous, next) {
