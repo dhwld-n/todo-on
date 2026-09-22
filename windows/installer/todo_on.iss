@@ -3,7 +3,7 @@
 ; Then compile: ISCC.exe windows\installer\todo_on.iss
 
 #define MyAppName "TODO on"
-#define MyAppVersion "1.4.9"
+#define MyAppVersion "1.4.10"
 #define MyAppPublisher "TODO on"
 #define MyAppExeName "todo_on.exe"
 #define MyReleaseDir "..\..\build\windows\x64\runner\Release"

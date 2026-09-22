@@ -179,28 +179,41 @@ class _Card extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? Colors.white.withValues(alpha: 0.14)
-              : kCardBorderLight,
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
+    final borderColor = Theme.of(context).brightness == Brightness.dark
+        ? Colors.white.withValues(alpha: 0.14)
+        : kCardBorderLight;
+    return Stack(
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
-        child: Padding(padding: const EdgeInsets.all(12), child: child),
-      ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: Padding(padding: const EdgeInsets.all(12), child: child),
+          ),
+        ),
+        // Painted on top: the ClipRRect child above shares the same bounds
+        // and would otherwise cover a border drawn as part of its decoration.
+        Positioned.fill(
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: borderColor, width: 1.5),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
