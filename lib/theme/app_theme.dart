@@ -6,6 +6,8 @@ const kDarkBg = Color(0xFF0B1526);
 const kDarkSurface = Color(0xFF132238);
 const kDarkChipBg = Color(0xFF1E3654);
 const kInkText = Color(0xFF17263D);
+const kCardBorderLight = Color(0xFFD3E5F8);
+const kCardBorderDark = Color(0xFF2C4568);
 
 ThemeData buildLightTheme() {
   final colorScheme = ColorScheme.fromSeed(

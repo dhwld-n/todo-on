@@ -7,6 +7,7 @@ import '../models/category.dart';
 import '../models/todo_item.dart';
 import '../providers/providers.dart';
 import '../services/theme_prefs.dart';
+import '../theme/app_theme.dart';
 import '../widgets/add_todo_sheet.dart';
 import '../widgets/blinking_dot.dart';
 import '../widgets/calendar_sidebar.dart';
@@ -332,7 +333,11 @@ class _DashboardCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        border: Border.all(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? kCardBorderDark
+              : kCardBorderLight,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.06),

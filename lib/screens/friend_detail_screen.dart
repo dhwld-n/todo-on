@@ -10,6 +10,7 @@ import '../data/korean_holidays.dart';
 import '../models/category.dart';
 import '../models/todo_item.dart';
 import '../providers/providers.dart';
+import '../theme/app_theme.dart';
 
 const double _kBreakpoint = 700;
 const int _kMaxChipsPerDay = 3;
@@ -182,7 +183,11 @@ class _Card extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        border: Border.all(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? kCardBorderDark
+              : kCardBorderLight,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.06),
