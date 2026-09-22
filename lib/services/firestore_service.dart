@@ -66,6 +66,15 @@ class FirestoreService {
     await batch.commit();
   }
 
+  /// Persists a new drag-and-drop order for all categories.
+  Future<void> reorderCategories(List<String> orderedIds) async {
+    final batch = _db.batch();
+    for (var i = 0; i < orderedIds.length; i++) {
+      batch.update(_categories.doc(orderedIds[i]), {'order': i});
+    }
+    await batch.commit();
+  }
+
   Future<void> deleteCategory(String categoryId) async {
     final batch = _db.batch();
     batch.delete(_categories.doc(categoryId));

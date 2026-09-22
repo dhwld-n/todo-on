@@ -63,6 +63,19 @@ class _ManageCategoriesSheetState extends ConsumerState<ManageCategoriesSheet> {
     setState(() => _isPrivate = false);
   }
 
+  Future<void> _reorder(
+    List<TodoCategory> categories,
+    int oldIndex,
+    int newIndex,
+  ) async {
+    final reordered = List<TodoCategory>.from(categories);
+    final moved = reordered.removeAt(oldIndex);
+    reordered.insert(newIndex, moved);
+    final service = ref.read(firestoreServiceProvider);
+    if (service == null) return;
+    await service.reorderCategories(reordered.map((c) => c.id).toList());
+  }
+
   Future<void> _deleteCategory(String id) async {
     final service = ref.read(firestoreServiceProvider);
     if (service == null) return;
@@ -104,36 +117,49 @@ class _ManageCategoriesSheetState extends ConsumerState<ManageCategoriesSheet> {
           Text('카테고리 관리', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 16),
           categoriesAsync.when(
-            data: (categories) => Column(
+            data: (categories) => ReorderableListView(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              buildDefaultDragHandles: false,
+              onReorderItem: (oldIndex, newIndex) =>
+                  _reorder(categories, oldIndex, newIndex),
               children: [
-                for (final c in categories)
+                for (var i = 0; i < categories.length; i++)
                   ListTile(
-                    onTap: () => _editCategory(c),
+                    key: ValueKey(categories[i].id),
+                    onTap: () => _editCategory(categories[i]),
                     leading: CircleAvatar(
-                      backgroundColor: Color(c.colorValue),
+                      backgroundColor: Color(categories[i].colorValue),
                       radius: 10,
                     ),
-                    title: Text(c.name),
+                    title: Text(categories[i].name),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
                           icon: Icon(
-                            c.isPrivate
+                            categories[i].isPrivate
                                 ? Icons.lock_outline
                                 : Icons.lock_open_outlined,
-                            color: c.isPrivate
+                            color: categories[i].isPrivate
                                 ? Theme.of(context).colorScheme.primary
                                 : Theme.of(context).disabledColor,
                           ),
-                          tooltip: c.isPrivate
+                          tooltip: categories[i].isPrivate
                               ? '비공개 (친구에게 안 보임)'
                               : '공개 (친구에게 보임)',
-                          onPressed: () => _togglePrivate(c),
+                          onPressed: () => _togglePrivate(categories[i]),
                         ),
                         IconButton(
                           icon: const Icon(Icons.delete_outline),
-                          onPressed: () => _deleteCategory(c.id),
+                          onPressed: () => _deleteCategory(categories[i].id),
+                        ),
+                        ReorderableDragStartListener(
+                          index: i,
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 4),
+                            child: Icon(Icons.drag_handle),
+                          ),
                         ),
                       ],
                     ),
