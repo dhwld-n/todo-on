@@ -335,8 +335,9 @@ class _DashboardCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
           color: Theme.of(context).brightness == Brightness.dark
-              ? kCardBorderDark
+              ? Colors.white.withValues(alpha: 0.14)
               : kCardBorderLight,
+          width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
