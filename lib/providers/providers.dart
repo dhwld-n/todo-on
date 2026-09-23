@@ -121,6 +121,25 @@ final chatFriendLastReadProvider = StreamProvider.autoDispose
       return service.watchFriendLastRead(friendUid);
     });
 
+/// True if any friend has sent a message since our last read of that chat -
+/// same unread rule as each row in [ChatListPane], just OR'd across friends
+/// so the 채팅 tab icon can show a badge without opening the list.
+final hasUnreadChatProvider = Provider<bool>((ref) {
+  final uids = ref.watch(followingProvider).value ?? const [];
+  final myUid = ref.watch(authStateProvider).value?.uid;
+  for (final uid in uids) {
+    final messages = ref.watch(chatMessagesProvider(uid)).value ?? const [];
+    final lastRead = ref.watch(chatLastReadProvider(uid)).value;
+    final hasUnread = messages.any(
+      (m) =>
+          m.senderUid != myUid &&
+          (lastRead == null || m.createdAt.isAfter(lastRead)),
+    );
+    if (hasUnread) return true;
+  }
+  return false;
+});
+
 final habitsProvider = StreamProvider<List<Habit>>((ref) {
   final service = ref.watch(firestoreServiceProvider);
   if (service == null) return const Stream.empty();

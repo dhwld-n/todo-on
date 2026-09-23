@@ -208,6 +208,7 @@ class _ModeTabRail extends ConsumerWidget {
             icon: Icons.chat_bubble_outline,
             label: '채팅',
             selected: mode == ContentMode.chat,
+            showBadge: ref.watch(hasUnreadChatProvider),
             onTap: () =>
                 ref.read(contentModeProvider.notifier).state = ContentMode.chat,
           ),
