@@ -280,6 +280,17 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
           _controller.selection = TextSelection.collapsed(
             offset: _controller.text.length,
           );
+          if (entry != null &&
+              entry.segments.isEmpty &&
+              entry.content.isNotEmpty) {
+            ref
+                .read(firestoreServiceProvider)
+                ?.seedLegacyDiarySegment(
+                  widget.friendUid,
+                  dateKey,
+                  entry.content.length,
+                );
+          }
         }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -363,7 +374,9 @@ class _SegmentBreakdown extends StatelessWidget {
           .replaceAll('\n', ' ')
           .trim();
       start = end;
-      if (chunk.isEmpty) continue;
+      // Empty uid marks a legacy segment seeded for pre-feature text with
+      // no real author to attribute - leave it out of the breakdown.
+      if (chunk.isEmpty || segment.uid.isEmpty) continue;
       final preview = chunk.length > _kSegmentPreviewLength
           ? '${chunk.substring(0, _kSegmentPreviewLength)}…'
           : chunk;

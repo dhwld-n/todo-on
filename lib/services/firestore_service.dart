@@ -208,6 +208,19 @@ class FirestoreService {
     }, SetOptions(merge: true));
   }
 
+  /// Entries written before per-author segments existed have no history to
+  /// attribute - seed an unowned segment covering the existing text so the
+  /// next real edit only claims the part actually added after it.
+  Future<void> seedLegacyDiarySegment(
+    String otherUid,
+    String dateKey,
+    int contentLength,
+  ) {
+    return _sharedDiaryEntries(otherUid).doc(dateKey).set({
+      'segments': [DiarySegment(uid: '', upTo: contentLength).toMap()],
+    }, SetOptions(merge: true));
+  }
+
   // Same pair id as the shared diary - one deterministic 1:1 space per
   // friend pair, just a different subcollection under it.
   DocumentReference<Map<String, dynamic>> _chatDoc(String otherUid) =>
