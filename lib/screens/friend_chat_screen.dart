@@ -77,8 +77,11 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
                   controller: _scrollController,
                   padding: const EdgeInsets.all(16),
                   itemCount: messages.length,
-                  itemBuilder: (context, index) =>
-                      _MessageBubble(message: messages[index], isMe: messages[index].senderUid == myUid),
+                  itemBuilder: (context, index) => _MessageBubble(
+                    message: messages[index],
+                    isMe: messages[index].senderUid == myUid,
+                    otherUid: widget.uid,
+                  ),
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
@@ -118,52 +121,133 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   }
 }
 
-class _MessageBubble extends StatelessWidget {
+class _MessageBubble extends ConsumerWidget {
   final ChatMessage message;
   final bool isMe;
+  final String otherUid;
 
-  const _MessageBubble({required this.message, required this.isMe});
+  const _MessageBubble({
+    required this.message,
+    required this.isMe,
+    required this.otherUid,
+  });
+
+  Future<void> _showActions(BuildContext context, WidgetRef ref) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('수정'),
+              onTap: () => Navigator.of(context).pop('edit'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline),
+              title: const Text('삭제'),
+              onTap: () => Navigator.of(context).pop('delete'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!context.mounted || action == null) return;
+
+    if (action == 'edit') {
+      final editController = TextEditingController(text: message.text);
+      final newText = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('메시지 수정'),
+          content: TextField(controller: editController, autofocus: true),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: () =>
+                  Navigator.of(context).pop(editController.text.trim()),
+              child: const Text('저장'),
+            ),
+          ],
+        ),
+      );
+      if (newText != null && newText.isNotEmpty && newText != message.text) {
+        await ref
+            .read(firestoreServiceProvider)
+            ?.updateChatMessage(otherUid, message.id, newText);
+      }
+    } else if (action == 'delete') {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('메시지를 삭제할까요?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('삭제'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true) {
+        await ref
+            .read(firestoreServiceProvider)
+            ?.deleteChatMessage(otherUid, message.id);
+      }
+    }
+  }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: isMe
-              ? colorScheme.primary
-              : colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(isMe ? 16 : 4),
-            bottomRight: Radius.circular(isMe ? 4 : 16),
+      child: GestureDetector(
+        onLongPress: isMe ? () => _showActions(context, ref) : null,
+        child: Container(
+          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: isMe
+                ? colorScheme.primary
+                : colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(16),
+              topRight: const Radius.circular(16),
+              bottomLeft: Radius.circular(isMe ? 16 : 4),
+              bottomRight: Radius.circular(isMe ? 4 : 16),
+            ),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              message.text,
-              style: TextStyle(
-                color: isMe ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                message.text,
+                style: TextStyle(
+                  color: isMe ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
+                ),
               ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              DateFormat('HH:mm').format(message.createdAt),
-              style: TextStyle(
-                fontSize: 10,
-                color: (isMe ? colorScheme.onPrimary : colorScheme.onSurfaceVariant)
-                    .withValues(alpha: 0.7),
+              const SizedBox(height: 2),
+              Text(
+                '${DateFormat('HH:mm').format(message.createdAt)}${message.edited ? ' · 수정됨' : ''}',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: (isMe ? colorScheme.onPrimary : colorScheme.onSurfaceVariant)
+                      .withValues(alpha: 0.7),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

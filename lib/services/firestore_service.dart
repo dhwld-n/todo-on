@@ -229,6 +229,17 @@ class FirestoreService {
     });
   }
 
+  Future<void> updateChatMessage(String otherUid, String messageId, String text) {
+    return _chatMessages(otherUid).doc(messageId).update({
+      'text': text,
+      'editedAt': Timestamp.fromDate(DateTime.now()),
+    });
+  }
+
+  Future<void> deleteChatMessage(String otherUid, String messageId) {
+    return _chatMessages(otherUid).doc(messageId).delete();
+  }
+
   Stream<List<Habit>> watchHabits() {
     return _habits
         .orderBy('order')

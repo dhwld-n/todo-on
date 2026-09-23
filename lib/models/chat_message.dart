@@ -5,12 +5,14 @@ class ChatMessage {
   final String senderUid;
   final String text;
   final DateTime createdAt;
+  final bool edited;
 
   const ChatMessage({
     required this.id,
     required this.senderUid,
     required this.text,
     required this.createdAt,
+    this.edited = false,
   });
 
   factory ChatMessage.fromFirestore(
@@ -23,6 +25,7 @@ class ChatMessage {
       senderUid: data['senderUid'] as String? ?? '',
       text: data['text'] as String? ?? '',
       createdAt: createdTimestamp?.toDate() ?? DateTime.now(),
+      edited: data['editedAt'] != null,
     );
   }
 }
