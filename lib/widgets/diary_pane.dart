@@ -115,10 +115,7 @@ class _PrivateDiaryEditorState extends ConsumerState<_PrivateDiaryEditor> {
           expands: true,
           textAlignVertical: TextAlignVertical.top,
           style: const TextStyle(fontFamily: 'GriunFromsol', height: 1.5),
-          decoration: const InputDecoration(
-            hintText: '오늘 하루는 어땠나요?',
-            border: InputBorder.none,
-          ),
+          decoration: const InputDecoration(hintText: '오늘 하루는 어땠나요?'),
           onChanged: (_) => _scheduleSave(dateKey),
         );
       },
@@ -268,7 +265,6 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
                 ),
                 decoration: const InputDecoration(
                   hintText: '오늘 있었던 일을 함께 나눠보세요',
-                  border: InputBorder.none,
                 ),
                 onChanged: (_) => _scheduleSave(dateKey),
               ),
