@@ -274,10 +274,15 @@ class FirestoreService {
         .map((snap) => snap.docs.map(ChatMessage.fromFirestore).toList());
   }
 
-  Future<void> sendChatMessage(String otherUid, String text) {
+  Future<void> sendChatMessage(
+    String otherUid,
+    String text, {
+    String? imageBase64,
+  }) {
     return _chatMessages(otherUid).add({
       'senderUid': uid,
       'text': text,
+      'imageBase64': ?imageBase64,
       'createdAt': Timestamp.fromDate(DateTime.now()),
     });
   }

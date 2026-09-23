@@ -4,6 +4,7 @@ class ChatMessage {
   final String id;
   final String senderUid;
   final String text;
+  final String? imageBase64;
   final DateTime createdAt;
   final bool edited;
 
@@ -11,6 +12,7 @@ class ChatMessage {
     required this.id,
     required this.senderUid,
     required this.text,
+    this.imageBase64,
     required this.createdAt,
     this.edited = false,
   });
@@ -24,6 +26,7 @@ class ChatMessage {
       id: doc.id,
       senderUid: data['senderUid'] as String? ?? '',
       text: data['text'] as String? ?? '',
+      imageBase64: data['imageBase64'] as String?,
       createdAt: createdTimestamp?.toDate() ?? DateTime.now(),
       edited: data['editedAt'] != null,
     );

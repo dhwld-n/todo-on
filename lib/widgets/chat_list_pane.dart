@@ -135,7 +135,9 @@ class _ChatFriendTile extends ConsumerWidget {
               : lastMessage == null
               ? '대화를 시작해보세요'
               : (lastMessage.senderUid == myUid ? '나: ' : '') +
-                    lastMessage.text,
+                    (lastMessage.imageBase64 != null
+                        ? '사진을 보냈어요'
+                        : lastMessage.text),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(

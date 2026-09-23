@@ -1,5 +1,10 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image/image.dart' as img;
 
 import '../models/chat_message.dart';
 import '../providers/providers.dart';
@@ -48,6 +53,31 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
     _controller.clear();
     try {
       await ref.read(firestoreServiceProvider)?.sendChatMessage(widget.uid, text);
+      _scrollToBottom();
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  Future<void> _sendImage() async {
+    if (_sending) return;
+    final file = await FilePicker.pickFile(type: FileType.image);
+    if (file == null) return;
+    setState(() => _sending = true);
+    try {
+      final bytes = await file.readAsBytes();
+      final decoded = img.decodeImage(bytes);
+      if (decoded == null) return;
+      final resized = img.copyResize(
+        decoded,
+        width: decoded.width >= decoded.height ? 1080 : null,
+        height: decoded.height > decoded.width ? 1080 : null,
+      );
+      final jpeg = img.encodeJpg(resized, quality: 78);
+      final base64 = base64Encode(Uint8List.fromList(jpeg));
+      await ref
+          .read(firestoreServiceProvider)
+          ?.sendChatMessage(widget.uid, '', imageBase64: base64);
       _scrollToBottom();
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -115,6 +145,10 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
               child: Row(
                 children: [
+                  IconButton(
+                    onPressed: _sending ? null : _sendImage,
+                    icon: const Icon(Icons.add_photo_alternate_outlined),
+                  ),
                   Expanded(
                     child: TextField(
                       controller: _controller,
@@ -156,17 +190,19 @@ class _MessageBubble extends ConsumerWidget {
   });
 
   Future<void> _showActions(BuildContext context, WidgetRef ref) async {
+    final hasImage = message.imageBase64 != null;
     final action = await showModalBottomSheet<String>(
       context: context,
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(Icons.edit_outlined),
-              title: const Text('수정'),
-              onTap: () => Navigator.of(context).pop('edit'),
-            ),
+            if (!hasImage)
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: const Text('수정'),
+                onTap: () => Navigator.of(context).pop('edit'),
+              ),
             ListTile(
               leading: const Icon(Icons.delete_outline),
               title: const Text('삭제'),
@@ -228,9 +264,22 @@ class _MessageBubble extends ConsumerWidget {
     }
   }
 
+  void _openFullImage(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => Dialog(
+        insetPadding: const EdgeInsets.all(12),
+        child: InteractiveViewer(
+          child: Image.memory(base64Decode(message.imageBase64!)),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
+    final hasImage = message.imageBase64 != null;
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Column(
@@ -240,15 +289,15 @@ class _MessageBubble extends ConsumerWidget {
         children: [
           GestureDetector(
             onLongPress: isMe ? () => _showActions(context, ref) : null,
+            onTap: hasImage ? () => _openFullImage(context) : null,
             child: Container(
               constraints: BoxConstraints(
                 maxWidth: MediaQuery.of(context).size.width * 0.72,
               ),
               margin: const EdgeInsets.symmetric(vertical: 4),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 10,
-              ),
+              padding: hasImage
+                  ? const EdgeInsets.all(4)
+                  : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 color: isMe
                     ? colorScheme.primary
@@ -260,34 +309,43 @@ class _MessageBubble extends ConsumerWidget {
                   bottomRight: Radius.circular(isMe ? 4 : 16),
                 ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    message.text,
-                    style: TextStyle(
-                      color: isMe
-                          ? colorScheme.onPrimary
-                          : colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  if (message.edited) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      '수정됨',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color:
-                            (isMe
-                                    ? colorScheme.onPrimary
-                                    : colorScheme.onSurfaceVariant)
-                                .withValues(alpha: 0.7),
+              child: hasImage
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.memory(
+                        base64Decode(message.imageBase64!),
+                        width: double.infinity,
+                        fit: BoxFit.cover,
                       ),
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          message.text,
+                          style: TextStyle(
+                            color: isMe
+                                ? colorScheme.onPrimary
+                                : colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        if (message.edited) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            '수정됨',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color:
+                                  (isMe
+                                          ? colorScheme.onPrimary
+                                          : colorScheme.onSurfaceVariant)
+                                      .withValues(alpha: 0.7),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                  ],
-                ],
-              ),
             ),
           ),
           if (showRead)
