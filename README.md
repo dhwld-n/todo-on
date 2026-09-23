@@ -1,6 +1,6 @@
 # TODO on 📝
 
-친구들끼리 쓰는 가벼운 할 일 관리 앱이에요. Windows 데스크톱과 Android에서 Firebase로 실시간 동기화됩니다.
+친구들끼리 쓰는 가벼운 할 일 관리 앱이에요. Windows 데스크톱에서 Firebase로 실시간 동기화됩니다.
 
 ## 다운로드
 

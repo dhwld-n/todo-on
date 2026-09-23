@@ -9,8 +9,10 @@ import '../providers/providers.dart';
 import '../services/update_service.dart';
 
 Future<void> openDownloadPage() {
-  final url = !kIsWeb && Platform.isAndroid ? kDownloadPageUrl : kReleasesPageUrl;
-  return launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  return launchUrl(
+    Uri.parse(kReleasesPageUrl),
+    mode: LaunchMode.externalApplication,
+  );
 }
 
 void showUpdateDialog(BuildContext context, UpdateInfo info) {
