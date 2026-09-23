@@ -588,7 +588,7 @@ class _FriendTodoList extends StatelessWidget {
                   );
                 }
 
-                if (nonEmptySections.length < 3) {
+                if (nonEmptySections.length < 2) {
                   return ListView(
                     controller: scrollController,
                     padding: const EdgeInsets.only(bottom: 16),
@@ -601,7 +601,7 @@ class _FriendTodoList extends StatelessWidget {
                     ],
                   );
                 }
-                // 3+ categories: lay them out as responsive columns instead of
+                // 2+ categories: lay them out as responsive columns instead of
                 // one long stacked list, matching the home screen's own list.
                 return LayoutBuilder(
                   builder: (context, constraints) {

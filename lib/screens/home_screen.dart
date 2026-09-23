@@ -460,7 +460,7 @@ class _TodoListPane extends ConsumerWidget {
                     ),
                 ];
 
-                if (sections.length < 3) {
+                if (sections.length < 2) {
                   return ListView(
                     controller: scrollController,
                     padding: const EdgeInsets.only(bottom: 16),
@@ -474,7 +474,7 @@ class _TodoListPane extends ConsumerWidget {
                     ],
                   );
                 }
-                // 3+ categories: lay them out as responsive columns instead of
+                // 2+ categories: lay them out as responsive columns instead of
                 // one long stacked list, so wide windows aren't mostly empty
                 // space. Falls back to a single column on narrow widths.
                 return LayoutBuilder(
