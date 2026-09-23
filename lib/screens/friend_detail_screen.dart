@@ -27,17 +27,13 @@ class FriendDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _FriendDetailScreenState extends ConsumerState<FriendDetailScreen> {
-  DateTime? _selectedDate;
+  DateTime? _selectedDate = DateTime.now();
   DateTime _focusedMonth = DateTime.now();
 
   void _selectDay(DateTime day) {
     setState(() {
       _focusedMonth = day;
-      if (_selectedDate != null && isSameDay(_selectedDate!, day)) {
-        _selectedDate = null;
-      } else {
-        _selectedDate = day;
-      }
+      _selectedDate = day;
     });
   }
 
