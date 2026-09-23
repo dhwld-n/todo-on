@@ -37,11 +37,12 @@ class ChatListPane extends ConsumerWidget {
                     ),
                   );
                 }
+                final sorted = _sortByRecency(ref, uids);
                 return ListView.separated(
-                  itemCount: uids.length,
+                  itemCount: sorted.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (context, index) =>
-                      _ChatFriendTile(uid: uids[index]),
+                      _ChatFriendTile(uid: sorted[index]),
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
@@ -52,6 +53,25 @@ class ChatListPane extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Newest last message first; friends with no messages yet sink to the
+/// bottom in their original (follow) order.
+List<String> _sortByRecency(WidgetRef ref, List<String> uids) {
+  final withTime = uids.map((uid) {
+    final messages = ref.watch(chatMessagesProvider(uid)).value;
+    final lastTime = (messages == null || messages.isEmpty)
+        ? null
+        : messages.last.createdAt;
+    return MapEntry(uid, lastTime);
+  }).toList();
+  withTime.sort((a, b) {
+    if (a.value == null || b.value == null) {
+      return a.value == null ? (b.value == null ? 0 : 1) : -1;
+    }
+    return b.value!.compareTo(a.value!);
+  });
+  return [for (final e in withTime) e.key];
 }
 
 class _ChatFriendTile extends ConsumerWidget {
