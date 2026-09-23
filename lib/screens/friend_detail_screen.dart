@@ -574,7 +574,12 @@ class _FriendTodoList extends StatelessWidget {
                     _SectionData(category: null, todos: byCategory[null]!),
                 ];
 
-                if (sections.every((s) => s.todos.isEmpty)) {
+                final nonEmptySections = [
+                  for (final s in sections)
+                    if (s.todos.isNotEmpty) s,
+                ];
+
+                if (nonEmptySections.isEmpty) {
                   return Center(
                     child: Text(
                       selectedDate == null ? '할 일이 없어요.' : '이 날엔 할 일이 없어요.',
@@ -583,17 +588,50 @@ class _FriendTodoList extends StatelessWidget {
                   );
                 }
 
-                return ListView(
-                  controller: scrollController,
-                  padding: const EdgeInsets.only(bottom: 16),
-                  children: [
-                    for (final section in sections)
-                      if (section.todos.isNotEmpty)
+                if (nonEmptySections.length < 3) {
+                  return ListView(
+                    controller: scrollController,
+                    padding: const EdgeInsets.only(bottom: 16),
+                    children: [
+                      for (final section in nonEmptySections)
                         _ReadOnlyCategorySection(
                           category: section.category,
                           todos: section.todos,
                         ),
-                  ],
+                    ],
+                  );
+                }
+                // 3+ categories: lay them out as responsive columns instead of
+                // one long stacked list, matching the home screen's own list.
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    const minColumnWidth = 300.0;
+                    const gap = 12.0;
+                    final columns = (constraints.maxWidth / minColumnWidth)
+                        .floor()
+                        .clamp(1, nonEmptySections.length);
+                    final columnWidth =
+                        (constraints.maxWidth - gap * (columns - 1)) /
+                        columns;
+                    return SingleChildScrollView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Wrap(
+                        spacing: gap,
+                        runSpacing: gap,
+                        children: [
+                          for (final section in nonEmptySections)
+                            SizedBox(
+                              width: columnWidth,
+                              child: _ReadOnlyCategorySection(
+                                category: section.category,
+                                todos: section.todos,
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
