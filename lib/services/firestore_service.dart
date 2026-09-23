@@ -118,6 +118,20 @@ class FirestoreService {
     if (hasChanges) await batch.commit();
   }
 
+  /// One-time self-heal for accounts whose nickname only ever made it into
+  /// Firebase Auth's displayName (e.g. signed up before `saveProfile` was
+  /// wired into signup) - friend/chat/diary features read the Firestore
+  /// copy, so without this they fall back to showing a raw uid.
+  Future<void> backfillNicknameFromAuth(String? authDisplayName) async {
+    final trimmed = authDisplayName?.trim();
+    if (trimmed == null || trimmed.isEmpty) return;
+    final doc = await _profile.get();
+    final existing = (doc.data()?['nickname'] as String?)?.trim();
+    if (existing == null || existing.isEmpty) {
+      await saveProfile(nickname: trimmed);
+    }
+  }
+
   Future<void> addTodo(TodoItem todo) {
     return _todos.doc(todo.id).set(todo.toFirestore());
   }
