@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/chat_message.dart';
 import '../providers/providers.dart';
 import '../screens/friend_chat_screen.dart';
 
@@ -68,15 +69,30 @@ class _ChatFriendTile extends ConsumerWidget {
         : uid.substring(0, 8);
     final photoBase64 = profile?['photoBase64'] as String?;
 
+    final myUid = ref.watch(authStateProvider).value?.uid ?? '';
+    final messages = ref.watch(chatMessagesProvider(uid)).value ?? const <ChatMessage>[];
+    final lastRead = ref.watch(chatLastReadProvider(uid)).value;
+    final lastMessage = messages.isEmpty ? null : messages.last;
+    final unreadCount = messages
+        .where(
+          (m) =>
+              m.senderUid != myUid &&
+              (lastRead == null || m.createdAt.isAfter(lastRead)),
+        )
+        .length;
+
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        color: colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(14),
       ),
       child: ListTile(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         leading: CircleAvatar(
-          backgroundColor: Theme.of(context).colorScheme.primary,
+          radius: 24,
+          backgroundColor: colorScheme.primary,
           backgroundImage: photoBase64 != null
               ? MemoryImage(base64Decode(photoBase64))
               : null,
@@ -87,12 +103,66 @@ class _ChatFriendTile extends ConsumerWidget {
                 )
               : null,
         ),
-        title: Text(displayText),
-        trailing: const Icon(Icons.chevron_right),
+        title: Text(
+          displayText,
+          style: TextStyle(
+            fontWeight: unreadCount > 0 ? FontWeight.w800 : FontWeight.w600,
+          ),
+        ),
+        subtitle: Text(
+          unreadCount > 0
+              ? '새 메시지 $unreadCount개'
+              : lastMessage == null
+              ? '대화를 시작해보세요'
+              : (lastMessage.senderUid == myUid ? '나: ' : '') +
+                    lastMessage.text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: unreadCount > 0
+                ? colorScheme.primary
+                : Theme.of(context).disabledColor,
+            fontWeight: unreadCount > 0 ? FontWeight.w700 : FontWeight.normal,
+          ),
+        ),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            if (lastMessage != null)
+              Text(
+                _relativeTime(lastMessage.createdAt),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Theme.of(context).disabledColor,
+                ),
+              ),
+            if (unreadCount > 0) ...[
+              const SizedBox(height: 6),
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: colorScheme.primary,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ],
+        ),
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => FriendChatScreen(uid: uid)),
         ),
       ),
     );
   }
+}
+
+String _relativeTime(DateTime dateTime) {
+  final diff = DateTime.now().difference(dateTime);
+  if (diff.inMinutes < 1) return '방금';
+  if (diff.inMinutes < 60) return '${diff.inMinutes}분';
+  if (diff.inHours < 24) return '${diff.inHours}시간';
+  if (diff.inDays < 7) return '${diff.inDays}일';
+  return '${dateTime.month}/${dateTime.day}';
 }

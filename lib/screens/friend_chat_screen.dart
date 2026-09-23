@@ -20,6 +20,14 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   bool _sending = false;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(firestoreServiceProvider)?.markChatRead(widget.uid);
+    });
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();

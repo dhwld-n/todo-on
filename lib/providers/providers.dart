@@ -107,6 +107,13 @@ final chatMessagesProvider = StreamProvider.autoDispose
       return service.watchChatMessages(friendUid);
     });
 
+final chatLastReadProvider = StreamProvider.autoDispose
+    .family<DateTime?, String>((ref, friendUid) {
+      final service = ref.watch(firestoreServiceProvider);
+      if (service == null) return const Stream.empty();
+      return service.watchChatLastRead(friendUid);
+    });
+
 final habitsProvider = StreamProvider<List<Habit>>((ref) {
   final service = ref.watch(firestoreServiceProvider);
   if (service == null) return const Stream.empty();

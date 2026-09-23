@@ -208,11 +208,26 @@ class FirestoreService {
 
   // Same pair id as the shared diary - one deterministic 1:1 space per
   // friend pair, just a different subcollection under it.
+  DocumentReference<Map<String, dynamic>> _chatDoc(String otherUid) =>
+      _db.collection('chats').doc(sharedDiaryId(otherUid));
+
   CollectionReference<Map<String, dynamic>> _chatMessages(String otherUid) =>
-      _db
-          .collection('chats')
-          .doc(sharedDiaryId(otherUid))
-          .collection('messages');
+      _chatDoc(otherUid).collection('messages');
+
+  /// Per-user last-read timestamp for this chat, keyed by uid so both
+  /// sides' read state lives on the same doc without clobbering each other.
+  Stream<DateTime?> watchChatLastRead(String otherUid) {
+    return _chatDoc(otherUid).snapshots().map((doc) {
+      final lastRead = doc.data()?['lastRead'] as Map<String, dynamic>?;
+      return (lastRead?[uid] as Timestamp?)?.toDate();
+    });
+  }
+
+  Future<void> markChatRead(String otherUid) {
+    return _chatDoc(otherUid).set({
+      'lastRead': {uid: Timestamp.fromDate(DateTime.now())},
+    }, SetOptions(merge: true));
+  }
 
   Stream<List<ChatMessage>> watchChatMessages(String otherUid) {
     return _chatMessages(otherUid)
