@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 /// Keep this in sync with pubspec.yaml's `version:` (the part before `+`).
-const String kAppVersion = '1.6.5';
+const String kAppVersion = '1.6.6';
 
 const String _kReleasesApiUrl =
     'https://api.github.com/repos/dhwld-n/todo-on/releases/latest';

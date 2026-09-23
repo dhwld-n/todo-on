@@ -198,11 +198,13 @@ class FirestoreService {
     String otherUid,
     String dateKey,
     String content,
+    List<DiarySegment> segments,
   ) {
     return _sharedDiaryEntries(otherUid).doc(dateKey).set({
       'content': content,
       'updatedAt': Timestamp.fromDate(DateTime.now()),
       'updatedBy': uid,
+      'segments': segments.map((s) => s.toMap()).toList(),
     }, SetOptions(merge: true));
   }
 
