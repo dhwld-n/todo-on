@@ -4,6 +4,7 @@ import '../models/category.dart';
 import '../models/diary_entry.dart';
 import '../models/habit.dart';
 import '../models/habit_log.dart';
+import '../models/shared_diary_entry.dart';
 import '../models/todo_item.dart';
 
 class FirestoreService {
@@ -165,6 +166,42 @@ class FirestoreService {
     return _diary.doc(dateKey).set({
       'content': content,
       'updatedAt': Timestamp.fromDate(DateTime.now()),
+    }, SetOptions(merge: true));
+  }
+
+  /// The two participants' uids, sorted so both sides derive the same id
+  /// for their shared diary regardless of who started it.
+  String sharedDiaryId(String otherUid) {
+    final ids = [uid, otherUid]..sort();
+    return ids.join('_');
+  }
+
+  CollectionReference<Map<String, dynamic>> _sharedDiaryEntries(
+    String otherUid,
+  ) => _db
+      .collection('sharedDiaries')
+      .doc(sharedDiaryId(otherUid))
+      .collection('entries');
+
+  Stream<SharedDiaryEntry?> watchSharedDiaryEntry(
+    String otherUid,
+    String dateKey,
+  ) {
+    return _sharedDiaryEntries(otherUid)
+        .doc(dateKey)
+        .snapshots()
+        .map((doc) => doc.exists ? SharedDiaryEntry.fromFirestore(doc) : null);
+  }
+
+  Future<void> saveSharedDiaryEntry(
+    String otherUid,
+    String dateKey,
+    String content,
+  ) {
+    return _sharedDiaryEntries(otherUid).doc(dateKey).set({
+      'content': content,
+      'updatedAt': Timestamp.fromDate(DateTime.now()),
+      'updatedBy': uid,
     }, SetOptions(merge: true));
   }
 

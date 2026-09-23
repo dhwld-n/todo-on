@@ -8,6 +8,7 @@ import '../models/category.dart';
 import '../models/diary_entry.dart';
 import '../models/habit.dart';
 import '../models/habit_log.dart';
+import '../models/shared_diary_entry.dart';
 import '../models/todo_item.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
@@ -78,6 +79,24 @@ final diaryEntryProvider = StreamProvider.autoDispose
       final service = ref.watch(firestoreServiceProvider);
       if (service == null) return const Stream.empty();
       return service.watchDiaryEntry(dateKey);
+    });
+
+enum DiaryTab { private, shared }
+
+final diaryTabProvider = StateProvider<DiaryTab>((ref) => DiaryTab.private);
+
+/// Which friend's exchange diary is currently open. Null until the user
+/// picks one (defaults to the first friend once the friend list loads).
+final sharedDiaryFriendProvider = StateProvider<String?>((ref) => null);
+
+final sharedDiaryEntryProvider = StreamProvider.autoDispose
+    .family<SharedDiaryEntry?, ({String otherUid, String dateKey})>((
+      ref,
+      params,
+    ) {
+      final service = ref.watch(firestoreServiceProvider);
+      if (service == null) return const Stream.empty();
+      return service.watchSharedDiaryEntry(params.otherUid, params.dateKey);
     });
 
 final habitsProvider = StreamProvider<List<Habit>>((ref) {
