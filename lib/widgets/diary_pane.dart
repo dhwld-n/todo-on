@@ -214,50 +214,73 @@ class _SharedDiaryBody extends ConsumerStatefulWidget {
 
 class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
   final TextEditingController _controller = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
   Timer? _debounce;
   String? _loadedKey;
+  String? _dateKey;
+  bool _editing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(_handleFocusChange);
+  }
 
   @override
   void dispose() {
+    _focusNode.removeListener(_handleFocusChange);
+    _focusNode.dispose();
     _debounce?.cancel();
     _controller.dispose();
     super.dispose();
   }
 
-  void _scheduleSave(String dateKey) {
+  void _handleFocusChange() {
+    if (!_focusNode.hasFocus && _editing) {
+      _debounce?.cancel();
+      _save();
+      setState(() => _editing = false);
+    }
+  }
+
+  void _save() {
+    final dateKey = _dateKey;
+    final myUid = ref.read(authStateProvider).value?.uid;
+    if (dateKey == null || myUid == null) return;
+    final oldSegments = ref
+            .read(
+              sharedDiaryEntryProvider((
+                otherUid: widget.friendUid,
+                dateKey: dateKey,
+              )),
+            )
+            .value
+            ?.segments ??
+        const <DiarySegment>[];
+    final newSegments = DiarySegment.update(
+      oldSegments,
+      myUid,
+      _controller.text.length,
+    );
+    ref
+        .read(firestoreServiceProvider)
+        ?.saveSharedDiaryEntry(
+          widget.friendUid,
+          dateKey,
+          _controller.text,
+          newSegments,
+        );
+  }
+
+  void _scheduleSave() {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 600), () {
-      final myUid = ref.read(authStateProvider).value?.uid;
-      if (myUid == null) return;
-      final oldSegments = ref
-              .read(
-                sharedDiaryEntryProvider((
-                  otherUid: widget.friendUid,
-                  dateKey: dateKey,
-                )),
-              )
-              .value
-              ?.segments ??
-          const <DiarySegment>[];
-      final newSegments = DiarySegment.update(
-        oldSegments,
-        myUid,
-        _controller.text.length,
-      );
-      ref
-          .read(firestoreServiceProvider)
-          ?.saveSharedDiaryEntry(
-            widget.friendUid,
-            dateKey,
-            _controller.text,
-            newSegments,
-          );
-    });
+    _debounce = Timer(const Duration(milliseconds: 600), _save);
   }
 
   @override
   Widget build(BuildContext context) {
     final dateKey = dateKeyFor(widget.date);
+    _dateKey = dateKey;
     final entryKey = '${widget.friendUid}_$dateKey';
     final entryAsync = ref.watch(
       sharedDiaryEntryProvider((otherUid: widget.friendUid, dateKey: dateKey)),
@@ -276,6 +299,7 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
       data: (entry) {
         if (_loadedKey != entryKey) {
           _loadedKey = entryKey;
+          _editing = false;
           _controller.text = entry?.content ?? '';
           _controller.selection = TextSelection.collapsed(
             offset: _controller.text.length,
@@ -292,35 +316,46 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
                 );
           }
         }
+        final showEditor = _editing || _controller.text.isEmpty;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: TextField(
-                controller: _controller,
-                maxLines: null,
-                expands: true,
-                textAlignVertical: TextAlignVertical.top,
-                style: const TextStyle(
-                  fontFamily: 'GriunFromsol',
-                  height: 1.5,
-                ),
-                decoration: const InputDecoration(
-                  hintText: '오늘 있었던 일을 함께 나눠보세요',
-                ),
-                onChanged: (_) => _scheduleSave(dateKey),
-              ),
+              child: showEditor
+                  ? TextField(
+                      controller: _controller,
+                      focusNode: _focusNode,
+                      autofocus: _editing,
+                      maxLines: null,
+                      expands: true,
+                      textAlignVertical: TextAlignVertical.top,
+                      style: const TextStyle(
+                        fontFamily: 'GriunFromsol',
+                        height: 1.5,
+                      ),
+                      decoration: const InputDecoration(
+                        hintText: '오늘 있었던 일을 함께 나눠보세요',
+                      ),
+                      onChanged: (_) => _scheduleSave(),
+                    )
+                  : GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onTap: () {
+                        setState(() => _editing = true);
+                        WidgetsBinding.instance.addPostFrameCallback(
+                          (_) => _focusNode.requestFocus(),
+                        );
+                      },
+                      child: SingleChildScrollView(
+                        child: _AttributedDiaryText(
+                          entry: entry!,
+                          myUid: myUid,
+                          myNickname: myNickname,
+                          friendNickname: friendNickname,
+                        ),
+                      ),
+                    ),
             ),
-            if (entry != null && entry.segments.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: _SegmentBreakdown(
-                  entry: entry,
-                  myUid: myUid,
-                  myNickname: myNickname,
-                  friendNickname: friendNickname,
-                ),
-              ),
             if (entry != null)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
@@ -347,15 +382,16 @@ String _displayName(Map<String, dynamic>? profile, String uid) {
   return uid.length >= 8 ? uid.substring(0, 8) : uid;
 }
 
-const int _kSegmentPreviewLength = 28;
-
-class _SegmentBreakdown extends StatelessWidget {
+/// Read-only rendering of the shared diary text with a "- 닉네임" marker
+/// right after each contributor's block, tap-to-edit switches to the
+/// plain TextField in the parent.
+class _AttributedDiaryText extends StatelessWidget {
   final SharedDiaryEntry entry;
   final String? myUid;
   final String myNickname;
   final String friendNickname;
 
-  const _SegmentBreakdown({
+  const _AttributedDiaryText({
     required this.entry,
     required this.myUid,
     required this.myNickname,
@@ -364,47 +400,33 @@ class _SegmentBreakdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rows = <Widget>[];
+    const baseStyle = TextStyle(fontFamily: 'GriunFromsol', height: 1.5);
+    final markerStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+      color: Theme.of(context).disabledColor,
+      fontWeight: FontWeight.w700,
+    );
+    final spans = <InlineSpan>[];
     var start = 0;
     for (final segment in entry.segments) {
       final end = segment.upTo.clamp(0, entry.content.length);
       if (end <= start) continue;
-      final chunk = entry.content
-          .substring(start, end)
-          .replaceAll('\n', ' ')
-          .trim();
+      final chunk = entry.content.substring(start, end);
       start = end;
+      if (chunk.isEmpty) continue;
+      spans.add(TextSpan(text: chunk, style: baseStyle));
       // Empty uid marks a legacy segment seeded for pre-feature text with
-      // no real author to attribute - leave it out of the breakdown.
-      if (chunk.isEmpty || segment.uid.isEmpty) continue;
-      final preview = chunk.length > _kSegmentPreviewLength
-          ? '${chunk.substring(0, _kSegmentPreviewLength)}…'
-          : chunk;
-      final nickname = segment.uid == myUid ? myNickname : friendNickname;
-      rows.add(
-        Padding(
-          padding: const EdgeInsets.only(bottom: 2),
-          child: Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: '$nickname  ',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                TextSpan(text: '"$preview"'),
-              ],
-            ),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).disabledColor,
-            ),
-          ),
-        ),
-      );
+      // no real author to attribute - leave it unmarked.
+      if (segment.uid.isNotEmpty) {
+        final nickname = segment.uid == myUid ? myNickname : friendNickname;
+        final leadingNewline = chunk.endsWith('\n') ? '' : '\n';
+        spans.add(
+          TextSpan(text: '$leadingNewline- $nickname\n', style: markerStyle),
+        );
+      }
     }
-    if (rows.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: rows,
-    );
+    if (spans.isEmpty) {
+      spans.add(TextSpan(text: entry.content, style: baseStyle));
+    }
+    return Text.rich(TextSpan(children: spans));
   }
 }
