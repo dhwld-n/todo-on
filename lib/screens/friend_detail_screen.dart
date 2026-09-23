@@ -11,6 +11,7 @@ import '../models/category.dart';
 import '../models/todo_item.dart';
 import '../providers/providers.dart';
 import '../theme/app_theme.dart';
+import '../widgets/todo_tile.dart';
 import 'friend_chat_screen.dart';
 
 const double _kBreakpoint = 700;
@@ -658,33 +659,7 @@ class _ReadOnlyCategorySection extends StatelessWidget {
           ),
         ),
         for (final todo in todos)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 4, 16, 4),
-            child: Row(
-              children: [
-                Icon(
-                  todo.isDone
-                      ? Icons.check_circle
-                      : Icons.radio_button_unchecked,
-                  size: 18,
-                  color: todo.isDone
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).disabledColor,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    todo.title,
-                    style: TextStyle(
-                      color: todo.isDone
-                          ? Theme.of(context).disabledColor
-                          : null,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          TodoTile(todo: todo, category: category),
       ],
     );
   }
