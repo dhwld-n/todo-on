@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/category.dart';
+import '../models/chat_message.dart';
 import '../models/diary_entry.dart';
 import '../models/habit.dart';
 import '../models/habit_log.dart';
@@ -203,6 +204,29 @@ class FirestoreService {
       'updatedAt': Timestamp.fromDate(DateTime.now()),
       'updatedBy': uid,
     }, SetOptions(merge: true));
+  }
+
+  // Same pair id as the shared diary - one deterministic 1:1 space per
+  // friend pair, just a different subcollection under it.
+  CollectionReference<Map<String, dynamic>> _chatMessages(String otherUid) =>
+      _db
+          .collection('chats')
+          .doc(sharedDiaryId(otherUid))
+          .collection('messages');
+
+  Stream<List<ChatMessage>> watchChatMessages(String otherUid) {
+    return _chatMessages(otherUid)
+        .orderBy('createdAt')
+        .snapshots()
+        .map((snap) => snap.docs.map(ChatMessage.fromFirestore).toList());
+  }
+
+  Future<void> sendChatMessage(String otherUid, String text) {
+    return _chatMessages(otherUid).add({
+      'senderUid': uid,
+      'text': text,
+      'createdAt': Timestamp.fromDate(DateTime.now()),
+    });
   }
 
   Stream<List<Habit>> watchHabits() {

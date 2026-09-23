@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:intl/intl.dart';
 
 import '../models/category.dart';
+import '../models/chat_message.dart';
 import '../models/diary_entry.dart';
 import '../models/habit.dart';
 import '../models/habit_log.dart';
@@ -97,6 +98,13 @@ final sharedDiaryEntryProvider = StreamProvider.autoDispose
       final service = ref.watch(firestoreServiceProvider);
       if (service == null) return const Stream.empty();
       return service.watchSharedDiaryEntry(params.otherUid, params.dateKey);
+    });
+
+final chatMessagesProvider = StreamProvider.autoDispose
+    .family<List<ChatMessage>, String>((ref, friendUid) {
+      final service = ref.watch(firestoreServiceProvider);
+      if (service == null) return const Stream.empty();
+      return service.watchChatMessages(friendUid);
     });
 
 final habitsProvider = StreamProvider<List<Habit>>((ref) {

@@ -11,6 +11,7 @@ import '../models/category.dart';
 import '../models/todo_item.dart';
 import '../providers/providers.dart';
 import '../theme/app_theme.dart';
+import 'friend_chat_screen.dart';
 
 const double _kBreakpoint = 700;
 const int _kMaxChipsPerDay = 3;
@@ -100,7 +101,20 @@ class _FriendDetailScreenState extends ConsumerState<FriendDetailScreen> {
     final categoriesAsync = ref.watch(friendCategoriesProvider(widget.uid));
 
     return Scaffold(
-      appBar: AppBar(title: Text(displayText)),
+      appBar: AppBar(
+        title: Text(displayText),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.chat_bubble_outline),
+            tooltip: '채팅',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => FriendChatScreen(uid: widget.uid),
+              ),
+            ),
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: LayoutBuilder(
