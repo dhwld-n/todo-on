@@ -62,7 +62,7 @@ final focusedMonthProvider = StateProvider<DateTime>((ref) => DateTime.now());
 
 final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.light);
 
-enum ContentMode { todo, diary, friends, habits }
+enum ContentMode { todo, diary, friends, habits, chat }
 
 final contentModeProvider = StateProvider<ContentMode>(
   (ref) => ContentMode.todo,

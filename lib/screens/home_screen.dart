@@ -11,6 +11,7 @@ import '../theme/app_theme.dart';
 import '../widgets/add_todo_sheet.dart';
 import '../widgets/blinking_dot.dart';
 import '../widgets/calendar_sidebar.dart';
+import '../widgets/chat_list_pane.dart';
 import '../widgets/diary_pane.dart';
 import '../widgets/friends_pane.dart';
 import '../widgets/habits_pane.dart';
@@ -91,6 +92,7 @@ class HomeScreen extends ConsumerWidget {
                 ContentMode.diary => DiaryPane(date: activeDate),
                 ContentMode.friends => const FriendsPane(),
                 ContentMode.habits => const HabitsPane(),
+                ContentMode.chat => const ChatListPane(),
                 ContentMode.todo => const _TodoListPane(),
               },
             );
@@ -200,6 +202,14 @@ class _ModeTabRail extends ConsumerWidget {
             selected: mode == ContentMode.friends,
             onTap: () => ref.read(contentModeProvider.notifier).state =
                 ContentMode.friends,
+          ),
+          const SizedBox(height: 12),
+          _ModeTabButton(
+            icon: Icons.chat_bubble_outline,
+            label: '채팅',
+            selected: mode == ContentMode.chat,
+            onTap: () =>
+                ref.read(contentModeProvider.notifier).state = ContentMode.chat,
           ),
           const SizedBox(height: 12),
           _ModeTabButton(
