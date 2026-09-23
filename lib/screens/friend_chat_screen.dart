@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../models/chat_message.dart';
 import '../providers/providers.dart';
@@ -64,6 +63,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
         : widget.uid.substring(0, 8);
     final myUid = ref.watch(authStateProvider).value?.uid ?? '';
     final messagesAsync = ref.watch(chatMessagesProvider(widget.uid));
+    final friendLastRead = ref.watch(chatFriendLastReadProvider(widget.uid)).value;
 
     return Scaffold(
       appBar: AppBar(title: Text(displayText)),
@@ -81,15 +81,28 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
                   );
                 }
                 _scrollToBottom();
+                final lastMineIndex = messages.lastIndexWhere(
+                  (m) => m.senderUid == myUid,
+                );
                 return ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.all(16),
                   itemCount: messages.length,
-                  itemBuilder: (context, index) => _MessageBubble(
-                    message: messages[index],
-                    isMe: messages[index].senderUid == myUid,
-                    otherUid: widget.uid,
-                  ),
+                  itemBuilder: (context, index) {
+                    final message = messages[index];
+                    final isMe = message.senderUid == myUid;
+                    final showRead =
+                        isMe &&
+                        index == lastMineIndex &&
+                        friendLastRead != null &&
+                        !friendLastRead.isBefore(message.createdAt);
+                    return _MessageBubble(
+                      message: message,
+                      isMe: isMe,
+                      otherUid: widget.uid,
+                      showRead: showRead,
+                    );
+                  },
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
@@ -133,11 +146,13 @@ class _MessageBubble extends ConsumerWidget {
   final ChatMessage message;
   final bool isMe;
   final String otherUid;
+  final bool showRead;
 
   const _MessageBubble({
     required this.message,
     required this.isMe,
     required this.otherUid,
+    this.showRead = false,
   });
 
   Future<void> _showActions(BuildContext context, WidgetRef ref) async {
@@ -218,45 +233,75 @@ class _MessageBubble extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: GestureDetector(
-        onLongPress: isMe ? () => _showActions(context, ref) : null,
-        child: Container(
-          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: isMe
-                ? colorScheme.primary
-                : colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(16),
-              topRight: const Radius.circular(16),
-              bottomLeft: Radius.circular(isMe ? 16 : 4),
-              bottomRight: Radius.circular(isMe ? 4 : 16),
+      child: Column(
+        crossAxisAlignment: isMe
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onLongPress: isMe ? () => _showActions(context, ref) : null,
+            child: Container(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.72,
+              ),
+              margin: const EdgeInsets.symmetric(vertical: 4),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 10,
+              ),
+              decoration: BoxDecoration(
+                color: isMe
+                    ? colorScheme.primary
+                    : colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.only(
+                  topLeft: const Radius.circular(16),
+                  topRight: const Radius.circular(16),
+                  bottomLeft: Radius.circular(isMe ? 16 : 4),
+                  bottomRight: Radius.circular(isMe ? 4 : 16),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    message.text,
+                    style: TextStyle(
+                      color: isMe
+                          ? colorScheme.onPrimary
+                          : colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  if (message.edited) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      '수정됨',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color:
+                            (isMe
+                                    ? colorScheme.onPrimary
+                                    : colorScheme.onSurfaceVariant)
+                                .withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                message.text,
-                style: TextStyle(
-                  color: isMe ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '${DateFormat('HH:mm').format(message.createdAt)}${message.edited ? ' · 수정됨' : ''}',
+          if (showRead)
+            Padding(
+              padding: const EdgeInsets.only(right: 4, bottom: 4),
+              child: Text(
+                '읽음',
                 style: TextStyle(
                   fontSize: 10,
-                  color: (isMe ? colorScheme.onPrimary : colorScheme.onSurfaceVariant)
-                      .withValues(alpha: 0.7),
+                  color: Theme.of(context).disabledColor,
                 ),
               ),
-            ],
-          ),
-        ),
+            ),
+        ],
       ),
     );
   }

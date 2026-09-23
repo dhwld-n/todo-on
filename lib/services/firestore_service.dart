@@ -229,6 +229,15 @@ class FirestoreService {
     }, SetOptions(merge: true));
   }
 
+  /// The other side's last-read timestamp, so a sent message can show a
+  /// "읽음" receipt once they've caught up to it.
+  Stream<DateTime?> watchFriendLastRead(String otherUid) {
+    return _chatDoc(otherUid).snapshots().map((doc) {
+      final lastRead = doc.data()?['lastRead'] as Map<String, dynamic>?;
+      return (lastRead?[otherUid] as Timestamp?)?.toDate();
+    });
+  }
+
   Stream<List<ChatMessage>> watchChatMessages(String otherUid) {
     return _chatMessages(otherUid)
         .orderBy('createdAt')
