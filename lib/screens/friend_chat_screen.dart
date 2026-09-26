@@ -22,6 +22,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final _composerFocus = FocusNode();
+  final _bubbleKeys = <String, GlobalKey>{};
   bool _sending = false;
   ChatMessage? _replyTo;
 
@@ -44,6 +45,22 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   // The list is reversed, so offset 0 is the newest message.
   void _scrollToLatest() {
     if (_scrollController.hasClients) _scrollController.jumpTo(0);
+  }
+
+  void _startReply(ChatMessage message) {
+    setState(() => _replyTo = message);
+    _composerFocus.requestFocus();
+    // After the reply bar lays out (it shrinks the list), center the bubble
+    // being replied to so it isn't pushed off the edge.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final bubble = _bubbleKeys[message.id]?.currentContext;
+      if (bubble == null) return;
+      Scrollable.ensureVisible(
+        bubble,
+        alignment: 0.5,
+        duration: const Duration(milliseconds: 200),
+      );
+    });
   }
 
   Future<void> _send() async {
@@ -137,6 +154,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
                         friendLastRead != null &&
                         !friendLastRead.isBefore(message.createdAt);
                     return _MessageBubble(
+                      key: _bubbleKeys.putIfAbsent(message.id, GlobalKey.new),
                       message: message,
                       isMe: isMe,
                       otherUid: widget.uid,
@@ -144,10 +162,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
                       repliedMessage: message.replyToId == null
                           ? null
                           : byId[message.replyToId],
-                      onReply: (m) => setState(() {
-                        _replyTo = m;
-                        _composerFocus.requestFocus();
-                      }),
+                      onReply: _startReply,
                     );
                   },
                 );
@@ -245,6 +260,7 @@ class _MessageBubble extends ConsumerWidget {
   final ValueChanged<ChatMessage>? onReply;
 
   const _MessageBubble({
+    super.key,
     required this.message,
     required this.isMe,
     required this.otherUid,
