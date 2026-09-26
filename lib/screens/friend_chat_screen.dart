@@ -41,12 +41,9 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
     super.dispose();
   }
 
-  void _scrollToBottom() {
-    if (!_scrollController.hasClients) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollController.hasClients) return;
-      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-    });
+  // The list is reversed, so offset 0 is the newest message.
+  void _scrollToLatest() {
+    if (_scrollController.hasClients) _scrollController.jumpTo(0);
   }
 
   Future<void> _send() async {
@@ -62,7 +59,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
       await ref
           .read(firestoreServiceProvider)
           ?.sendChatMessage(widget.uid, text, replyToId: replyToId);
-      _scrollToBottom();
+      _scrollToLatest();
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -87,7 +84,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
       await ref
           .read(firestoreServiceProvider)
           ?.sendChatMessage(widget.uid, '', imageBase64: base64);
-      _scrollToBottom();
+      _scrollToLatest();
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -119,16 +116,19 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
                     ),
                   );
                 }
-                _scrollToBottom();
                 final lastMineIndex = messages.lastIndexWhere(
                   (m) => m.senderUid == myUid,
                 );
                 final byId = {for (final m in messages) m.id: m};
+                // Reversed so the list stays anchored at the newest message:
+                // rebuilds and the composer growing (reply bar) can't move it.
                 return ListView.builder(
                   controller: _scrollController,
+                  reverse: true,
                   padding: const EdgeInsets.all(16),
                   itemCount: messages.length,
-                  itemBuilder: (context, index) {
+                  itemBuilder: (context, reversedIndex) {
+                    final index = messages.length - 1 - reversedIndex;
                     final message = messages[index];
                     final isMe = message.senderUid == myUid;
                     final showRead =
