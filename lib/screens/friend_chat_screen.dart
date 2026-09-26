@@ -146,7 +146,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
                           : byId[message.replyToId],
                       onReply: (m) => setState(() {
                         _replyTo = m;
-                        FocusScope.of(context).requestFocus(_composerFocus);
+                        _composerFocus.requestFocus();
                       }),
                     );
                   },
