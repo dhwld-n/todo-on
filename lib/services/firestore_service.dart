@@ -278,11 +278,13 @@ class FirestoreService {
     String otherUid,
     String text, {
     String? imageBase64,
+    String? replyToId,
   }) {
     return _chatMessages(otherUid).add({
       'senderUid': uid,
       'text': text,
       'imageBase64': ?imageBase64,
+      'replyToId': ?replyToId,
       'createdAt': Timestamp.fromDate(DateTime.now()),
     });
   }
