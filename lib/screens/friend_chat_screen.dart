@@ -361,6 +361,7 @@ class _MessageBubble extends ConsumerWidget {
         children: [
           GestureDetector(
             onLongPress: () => _showActions(context, ref),
+            onSecondaryTap: () => _showActions(context, ref),
             onTap: hasImage ? () => _openFullImage(context) : null,
             child: Container(
               constraints: BoxConstraints(
