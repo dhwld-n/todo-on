@@ -48,18 +48,34 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   }
 
   void _startReply(ChatMessage message) {
+    final oldViewport = _scrollController.hasClients
+        ? _scrollController.position.viewportDimension
+        : null;
     setState(() => _replyTo = message);
     _composerFocus.requestFocus();
-    // After the reply bar lays out (it shrinks the list), center the bubble
-    // being replied to so it isn't pushed off the edge.
+    // The reply bar shrinks the list from the bottom, which in a reversed
+    // list shifts every bubble up. Scroll by the same amount so the chat
+    // stays put, then nudge only if the replied-to bubble ended up hidden.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (oldViewport != null && _scrollController.hasClients) {
+        final position = _scrollController.position;
+        final shrink = oldViewport - position.viewportDimension;
+        if (shrink > 0) {
+          position.jumpTo(
+            (position.pixels + shrink)
+                .clamp(position.minScrollExtent, position.maxScrollExtent)
+                .toDouble(),
+          );
+        }
+      }
       final bubble = _bubbleKeys[message.id]?.currentContext;
       if (bubble == null) return;
-      Scrollable.ensureVisible(
-        bubble,
-        alignment: 0.5,
-        duration: const Duration(milliseconds: 200),
-      );
+      for (final policy in [
+        ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+        ScrollPositionAlignmentPolicy.keepVisibleAtStart,
+      ]) {
+        Scrollable.ensureVisible(bubble, alignmentPolicy: policy);
+      }
     });
   }
 
