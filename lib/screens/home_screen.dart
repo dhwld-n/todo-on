@@ -34,8 +34,10 @@ class HomeScreen extends ConsumerWidget {
     final mode = ref.watch(contentModeProvider);
     final activeDate = selectedDate ?? DateTime.now();
     final calendarExpanded = ref.watch(mobileCalendarExpandedProvider);
+    final isAndroid = ref.watch(isAndroidPlatformProvider);
 
     return Scaffold(
+      bottomNavigationBar: isAndroid ? const _ModeBottomNav() : null,
       appBar: AppBar(
         title: Row(
           mainAxisSize: MainAxisSize.min,
@@ -96,6 +98,28 @@ class HomeScreen extends ConsumerWidget {
                 ContentMode.todo => const _TodoListPane(),
               },
             );
+            if (isAndroid) {
+              final showCalendarFirst =
+                  mode == ContentMode.todo && calendarExpanded;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const ProfileHeader(),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: showCalendarFirst
+                        ? _DashboardCard(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: CalendarSidebar(
+                              onDaySelected: (_) =>
+                                  _showDayTodosSheet(context),
+                            ),
+                          )
+                        : contentCard,
+                  ),
+                ],
+              );
+            }
             if (wide) {
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -328,6 +352,185 @@ class _ModeTabButton extends StatelessWidget {
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
                 color: selected ? Colors.white : colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ModeBottomNav extends ConsumerWidget {
+  const _ModeBottomNav();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(contentModeProvider);
+    final updateInfo = ref.watch(updateInfoProvider).value;
+    final updateSeen = ref.watch(updateSeenProvider);
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 16,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: _ModeNavItem(
+                icon: Icons.checklist_rtl,
+                label: 'TODO',
+                selected: mode == ContentMode.todo,
+                onTap: () => ref.read(contentModeProvider.notifier).state =
+                    ContentMode.todo,
+              ),
+            ),
+            Expanded(
+              child: _ModeNavItem(
+                icon: Icons.people_outline,
+                label: '친구',
+                selected: mode == ContentMode.friends,
+                onTap: () => ref.read(contentModeProvider.notifier).state =
+                    ContentMode.friends,
+              ),
+            ),
+            Expanded(
+              child: _ModeNavItem(
+                icon: Icons.chat_bubble_outline,
+                label: '채팅',
+                selected: mode == ContentMode.chat,
+                showBadge: ref.watch(hasUnreadChatProvider),
+                onTap: () => ref.read(contentModeProvider.notifier).state =
+                    ContentMode.chat,
+              ),
+            ),
+            Expanded(
+              child: _ModeNavItem(
+                icon: Icons.menu_book_outlined,
+                label: '일기',
+                selected: mode == ContentMode.diary,
+                showBadge: ref.watch(hasUnseenSharedDiaryProvider),
+                onTap: () => ref.read(contentModeProvider.notifier).state =
+                    ContentMode.diary,
+              ),
+            ),
+            Expanded(
+              child: _ModeNavItem(
+                icon: Icons.local_fire_department_outlined,
+                label: '습관',
+                selected: mode == ContentMode.habits,
+                onTap: () => ref.read(contentModeProvider.notifier).state =
+                    ContentMode.habits,
+              ),
+            ),
+            Expanded(
+              child: _ModeNavItem(
+                icon: Icons.system_update_alt,
+                label: '업데이트',
+                selected: false,
+                showBadge: updateInfo != null && !updateSeen,
+                onTap: () async {
+                  // The startup check can be stale if a release came out
+                  // while the app was open, so check again on every tap.
+                  final info = await ref.refresh(updateInfoProvider.future);
+                  if (!context.mounted) return;
+                  if (info == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('이미 최신 버전이에요')),
+                    );
+                    return;
+                  }
+                  ref.read(updateSeenProvider.notifier).state = true;
+                  showUpdateDialog(context, info);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ModeNavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final bool showBadge;
+
+  const _ModeNavItem({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.showBadge = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? colorScheme.primary.withValues(alpha: 0.14)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  icon,
+                  size: 22,
+                  color: selected
+                      ? colorScheme.primary
+                      : colorScheme.onSurfaceVariant,
+                ),
+                if (showBadge)
+                  Positioned(
+                    right: -3,
+                    top: -3,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: colorScheme.surface,
+                          width: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: selected
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant,
               ),
             ),
           ],

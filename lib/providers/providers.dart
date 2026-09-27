@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
@@ -61,6 +64,12 @@ final selectedDateProvider = StateProvider<DateTime?>(
 final focusedMonthProvider = StateProvider<DateTime>((ref) => DateTime.now());
 
 final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.light);
+
+/// True when running as the Android app, so the UI can switch to a
+/// phone-shaped layout (bottom nav) instead of the desktop side rail.
+final isAndroidPlatformProvider = Provider<bool>(
+  (ref) => !kIsWeb && Platform.isAndroid,
+);
 
 enum ContentMode { todo, diary, friends, habits, chat }
 
