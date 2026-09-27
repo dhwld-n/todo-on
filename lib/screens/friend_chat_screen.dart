@@ -9,6 +9,15 @@ import 'package:image/image.dart' as img;
 import '../models/chat_message.dart';
 import '../providers/providers.dart';
 
+// Decode each photo once. Fresh bytes on every rebuild make a new
+// MemoryImage, so the photo reloads at zero height for a moment, the list's
+// length collapses and the scroll position gets dragged to the bottom.
+final _photoBytes = <String, Uint8List>{};
+Uint8List _photoOf(ChatMessage message) => _photoBytes.putIfAbsent(
+  message.id,
+  () => base64Decode(message.imageBase64!),
+);
+
 class FriendChatScreen extends ConsumerStatefulWidget {
   final String uid;
 
@@ -374,7 +383,7 @@ class _MessageBubble extends ConsumerWidget {
       builder: (_) => Dialog(
         insetPadding: const EdgeInsets.all(12),
         child: InteractiveViewer(
-          child: Image.memory(base64Decode(message.imageBase64!)),
+          child: Image.memory(_photoOf(message)),
         ),
       ),
     );
@@ -451,7 +460,7 @@ class _MessageBubble extends ConsumerWidget {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: Image.memory(
-                        base64Decode(message.imageBase64!),
+                        _photoOf(message),
                         width: double.infinity,
                         fit: BoxFit.cover,
                       ),
