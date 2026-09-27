@@ -43,7 +43,7 @@ class DiaryPane extends ConsumerWidget {
                             DiaryTab.private,
                   ),
                   ChoiceChip(
-                    label: const Text('공유 일기'),
+                    label: const Text('교환일기'),
                     selected: tab == DiaryTab.shared,
                     onSelected: (_) =>
                         ref.read(diaryTabProvider.notifier).state =
