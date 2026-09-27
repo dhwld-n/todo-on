@@ -234,15 +234,19 @@ class _ModeTabRail extends ConsumerWidget {
             label: '업데이트',
             selected: false,
             showBadge: updateInfo != null && !updateSeen,
-            onTap: () {
-              if (updateInfo == null) {
+            onTap: () async {
+              // The startup check can be stale if a release came out while
+              // the app was open, so check again on every tap.
+              final info = await ref.refresh(updateInfoProvider.future);
+              if (!context.mounted) return;
+              if (info == null) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('이미 최신 버전이에요')),
                 );
                 return;
               }
               ref.read(updateSeenProvider.notifier).state = true;
-              showUpdateDialog(context, updateInfo);
+              showUpdateDialog(context, info);
             },
           ),
         ],
