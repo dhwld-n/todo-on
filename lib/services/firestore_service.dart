@@ -222,6 +222,18 @@ class FirestoreService {
     }, SetOptions(merge: true));
   }
 
+  /// Records that I've seen the edit made at [editedAt] (the entry's own
+  /// updatedAt, so it compares exactly regardless of either device's clock).
+  Future<void> markSharedDiarySeen(
+    String otherUid,
+    String dateKey,
+    DateTime editedAt,
+  ) {
+    return _sharedDiaryEntries(otherUid).doc(dateKey).set({
+      'seenAt': {uid: Timestamp.fromDate(editedAt)},
+    }, SetOptions(merge: true));
+  }
+
   /// Entries written before per-author segments existed have no history to
   /// attribute - seed an unowned segment covering the existing text so the
   /// next real edit only claims the part actually added after it.

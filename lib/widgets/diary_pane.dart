@@ -156,6 +156,7 @@ class _SharedDiaryEditor extends ConsumerWidget {
                 for (final friendUid in uids)
                   _FriendChip(
                     uid: friendUid,
+                    dateKey: dateKeyFor(date),
                     selected: friendUid == activeUid,
                     onTap: () => ref
                         .read(sharedDiaryFriendProvider.notifier)
@@ -178,11 +179,13 @@ class _SharedDiaryEditor extends ConsumerWidget {
 
 class _FriendChip extends ConsumerWidget {
   final String uid;
+  final String dateKey;
   final bool selected;
   final VoidCallback onTap;
 
   const _FriendChip({
     required this.uid,
+    required this.dateKey,
     required this.selected,
     required this.onTap,
   });
@@ -194,10 +197,18 @@ class _FriendChip extends ConsumerWidget {
     final displayText = (nickname != null && nickname.isNotEmpty)
         ? nickname
         : uid.substring(0, 8);
-    return ChoiceChip(
-      label: Text(displayText),
-      selected: selected,
-      onSelected: (_) => onTap(),
+    final myUid = ref.watch(authStateProvider).value?.uid ?? '';
+    final entry = ref
+        .watch(sharedDiaryEntryProvider((otherUid: uid, dateKey: dateKey)))
+        .value;
+    return Badge(
+      smallSize: 9,
+      isLabelVisible: entry?.hasUnseenEditFor(myUid) ?? false,
+      child: ChoiceChip(
+        label: Text(displayText),
+        selected: selected,
+        onSelected: (_) => onTap(),
+      ),
     );
   }
 }
@@ -315,6 +326,14 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
                   entry.content.length,
                 );
           }
+        }
+        if (entry != null && myUid != null && entry.hasUnseenEditFor(myUid)) {
+          // Open on screen = seen; clears the dot on this friend's chip.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref
+                .read(firestoreServiceProvider)
+                ?.markSharedDiarySeen(widget.friendUid, dateKey, entry.updatedAt);
+          });
         }
         final showEditor = _editing || _controller.text.isEmpty;
         return Column(

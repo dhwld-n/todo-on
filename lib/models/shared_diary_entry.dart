@@ -43,13 +43,26 @@ class SharedDiaryEntry {
   final String updatedBy;
   final List<DiarySegment> segments;
 
+  /// Per uid, the [updatedAt] of the last edit that person has seen. Stored
+  /// as the edit's own timestamp (not "now") so the two devices' clocks
+  /// never have to agree.
+  final Map<String, DateTime> seenAt;
+
   const SharedDiaryEntry({
     required this.dateKey,
     required this.content,
     required this.updatedAt,
     required this.updatedBy,
     this.segments = const [],
+    this.seenAt = const {},
   });
+
+  /// The other person edited this after [uid] last looked at it.
+  bool hasUnseenEditFor(String uid) {
+    if (updatedBy.isEmpty || updatedBy == uid) return false;
+    final seen = seenAt[uid];
+    return seen == null || seen.isBefore(updatedAt);
+  }
 
   factory SharedDiaryEntry.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> doc,
@@ -57,6 +70,7 @@ class SharedDiaryEntry {
     final data = doc.data()!;
     final updatedTimestamp = data['updatedAt'] as Timestamp?;
     final rawSegments = data['segments'] as List<dynamic>? ?? const [];
+    final rawSeenAt = data['seenAt'] as Map<String, dynamic>? ?? const {};
     return SharedDiaryEntry(
       dateKey: doc.id,
       content: data['content'] as String? ?? '',
@@ -65,6 +79,10 @@ class SharedDiaryEntry {
       segments: rawSegments
           .map((s) => DiarySegment.fromMap(s as Map<String, dynamic>))
           .toList(),
+      seenAt: {
+        for (final e in rawSeenAt.entries)
+          if (e.value is Timestamp) e.key: (e.value as Timestamp).toDate(),
+      },
     );
   }
 }
