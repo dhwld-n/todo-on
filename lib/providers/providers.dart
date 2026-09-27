@@ -100,6 +100,25 @@ final sharedDiaryEntryProvider = StreamProvider.autoDispose
       return service.watchSharedDiaryEntry(params.otherUid, params.dateKey);
     });
 
+/// Dates a friend edited in our shared diary that I haven't seen yet.
+final unseenSharedDiaryDatesProvider = StreamProvider.autoDispose
+    .family<List<String>, String>((ref, friendUid) {
+      final service = ref.watch(firestoreServiceProvider);
+      if (service == null) return const Stream.empty();
+      return service.watchUnseenSharedDiaryDates(friendUid);
+    });
+
+/// Any friend has a shared-diary edit I haven't seen, for the 일기 tab dot.
+final hasUnseenSharedDiaryProvider = Provider<bool>((ref) {
+  final uids = ref.watch(followingProvider).value ?? const [];
+  // Watch every friend (no early return) so none of their streams drop.
+  final unseen = [
+    for (final uid in uids)
+      ref.watch(unseenSharedDiaryDatesProvider(uid)).value?.isNotEmpty ?? false,
+  ];
+  return unseen.contains(true);
+});
+
 final chatMessagesProvider = StreamProvider.autoDispose
     .family<List<ChatMessage>, String>((ref, friendUid) {
       final service = ref.watch(firestoreServiceProvider);

@@ -222,6 +222,21 @@ class FirestoreService {
     }, SetOptions(merge: true));
   }
 
+  /// Date keys (sorted) of shared entries [otherUid] edited after I last
+  /// saw them, across every date.
+  Stream<List<String>> watchUnseenSharedDiaryDates(String otherUid) {
+    return _sharedDiaryEntries(otherUid)
+        .where('updatedBy', isEqualTo: otherUid)
+        .snapshots()
+        .map(
+          (snap) => [
+            for (final doc in snap.docs)
+              if (SharedDiaryEntry.fromFirestore(doc).hasUnseenEditFor(uid))
+                doc.id,
+          ]..sort(),
+        );
+  }
+
   /// Records that I've seen the edit made at [editedAt] (the entry's own
   /// updatedAt, so it compares exactly regardless of either device's clock).
   Future<void> markSharedDiarySeen(
@@ -301,7 +316,11 @@ class FirestoreService {
     });
   }
 
-  Future<void> updateChatMessage(String otherUid, String messageId, String text) {
+  Future<void> updateChatMessage(
+    String otherUid,
+    String messageId,
+    String text,
+  ) {
     return _chatMessages(otherUid).doc(messageId).update({
       'text': text,
       'editedAt': Timestamp.fromDate(DateTime.now()),
@@ -344,7 +363,10 @@ class FirestoreService {
   }) {
     final docId = '${habitId}_$dateKey';
     if (completed) {
-      return _habitLogs.doc(docId).set({'habitId': habitId, 'dateKey': dateKey});
+      return _habitLogs.doc(docId).set({
+        'habitId': habitId,
+        'dateKey': dateKey,
+      });
     }
     return _habitLogs.doc(docId).delete();
   }

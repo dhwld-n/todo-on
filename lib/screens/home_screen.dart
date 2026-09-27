@@ -217,6 +217,7 @@ class _ModeTabRail extends ConsumerWidget {
             icon: Icons.menu_book_outlined,
             label: '일기',
             selected: mode == ContentMode.diary,
+            showBadge: ref.watch(hasUnseenSharedDiaryProvider),
             onTap: () => ref.read(contentModeProvider.notifier).state =
                 ContentMode.diary,
           ),

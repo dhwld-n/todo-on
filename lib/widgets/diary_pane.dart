@@ -156,13 +156,16 @@ class _SharedDiaryEditor extends ConsumerWidget {
                 for (final friendUid in uids)
                   _FriendChip(
                     uid: friendUid,
-                    dateKey: dateKeyFor(date),
                     selected: friendUid == activeUid,
-                    onTap: () => ref
-                        .read(sharedDiaryFriendProvider.notifier)
-                        .state = friendUid,
+                    onTap: () =>
+                        ref.read(sharedDiaryFriendProvider.notifier).state =
+                            friendUid,
                   ),
               ],
+            ),
+            _UnseenDates(
+              friendUid: activeUid,
+              currentDateKey: dateKeyFor(date),
             ),
             const SizedBox(height: 16),
             Expanded(
@@ -179,13 +182,11 @@ class _SharedDiaryEditor extends ConsumerWidget {
 
 class _FriendChip extends ConsumerWidget {
   final String uid;
-  final String dateKey;
   final bool selected;
   final VoidCallback onTap;
 
   const _FriendChip({
     required this.uid,
-    required this.dateKey,
     required this.selected,
     required this.onTap,
   });
@@ -197,17 +198,60 @@ class _FriendChip extends ConsumerWidget {
     final displayText = (nickname != null && nickname.isNotEmpty)
         ? nickname
         : uid.substring(0, 8);
-    final myUid = ref.watch(authStateProvider).value?.uid ?? '';
-    final entry = ref
-        .watch(sharedDiaryEntryProvider((otherUid: uid, dateKey: dateKey)))
-        .value;
+    final unseen = ref.watch(unseenSharedDiaryDatesProvider(uid)).value;
     return Badge(
       smallSize: 9,
-      isLabelVisible: entry?.hasUnseenEditFor(myUid) ?? false,
+      isLabelVisible: unseen?.isNotEmpty ?? false,
       child: ChoiceChip(
         label: Text(displayText),
         selected: selected,
         onSelected: (_) => onTap(),
+      ),
+    );
+  }
+}
+
+/// Other dates this friend wrote on that I haven't seen yet; tapping one
+/// jumps the diary there (opening it marks it seen).
+class _UnseenDates extends ConsumerWidget {
+  final String friendUid;
+  final String currentDateKey;
+
+  const _UnseenDates({required this.friendUid, required this.currentDateKey});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final dates = [
+      for (final key
+          in ref.watch(unseenSharedDiaryDatesProvider(friendUid)).value ??
+              const <String>[])
+        if (key != currentDateKey) key,
+    ];
+    if (dates.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text('다른 날 새로 쓴 내용:', style: Theme.of(context).textTheme.bodySmall),
+          for (final key in dates)
+            ActionChip(
+              avatar: Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.error,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              label: Text(DateFormat('M월 d일').format(DateTime.parse(key))),
+              visualDensity: VisualDensity.compact,
+              onPressed: () => ref.read(selectedDateProvider.notifier).state =
+                  DateTime.parse(key),
+            ),
+        ],
       ),
     );
   }
@@ -258,7 +302,8 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
     final dateKey = _dateKey;
     final myUid = ref.read(authStateProvider).value?.uid;
     if (dateKey == null || myUid == null) return;
-    final oldSegments = ref
+    final oldSegments =
+        ref
             .read(
               sharedDiaryEntryProvider((
                 otherUid: widget.friendUid,
@@ -332,7 +377,11 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             ref
                 .read(firestoreServiceProvider)
-                ?.markSharedDiarySeen(widget.friendUid, dateKey, entry.updatedAt);
+                ?.markSharedDiarySeen(
+                  widget.friendUid,
+                  dateKey,
+                  entry.updatedAt,
+                );
           });
         }
         final showEditor = _editing || _controller.text.isEmpty;
