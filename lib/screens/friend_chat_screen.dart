@@ -142,6 +142,14 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
     final myUid = ref.watch(authStateProvider).value?.uid ?? '';
     final messagesAsync = ref.watch(chatMessagesProvider(widget.uid));
     final friendLastRead = ref.watch(chatFriendLastReadProvider(widget.uid)).value;
+    // initState only marks read on open; keep marking while the chat stays
+    // open so the friend's messages don't show up as unread for them.
+    ref.listen(chatMessagesProvider(widget.uid), (_, next) {
+      final newest = next.value?.lastOrNull;
+      if (newest != null && newest.senderUid != myUid) {
+        ref.read(firestoreServiceProvider)?.markChatRead(widget.uid);
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(title: Text(displayText)),
@@ -173,17 +181,24 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
                     final index = messages.length - 1 - reversedIndex;
                     final message = messages[index];
                     final isMe = message.senderUid == myUid;
-                    final showRead =
-                        isMe &&
-                        index == lastMineIndex &&
+                    final read =
                         friendLastRead != null &&
                         !friendLastRead.isBefore(message.createdAt);
+                    // Every unread message of mine says so; once all are
+                    // read, just the latest says 읽음.
+                    final readLabel = !isMe
+                        ? null
+                        : !read
+                        ? '안읽음'
+                        : index == lastMineIndex
+                        ? '읽음'
+                        : null;
                     return _MessageBubble(
                       key: _bubbleKeys.putIfAbsent(message.id, GlobalKey.new),
                       message: message,
                       isMe: isMe,
                       otherUid: widget.uid,
-                      showRead: showRead,
+                      readLabel: readLabel,
                       repliedMessage: message.replyToId == null
                           ? null
                           : byId[message.replyToId],
@@ -280,7 +295,7 @@ class _MessageBubble extends ConsumerWidget {
   final ChatMessage message;
   final bool isMe;
   final String otherUid;
-  final bool showRead;
+  final String? readLabel;
   final ChatMessage? repliedMessage;
   final ValueChanged<ChatMessage>? onReply;
 
@@ -289,7 +304,7 @@ class _MessageBubble extends ConsumerWidget {
     required this.message,
     required this.isMe,
     required this.otherUid,
-    this.showRead = false,
+    this.readLabel,
     this.repliedMessage,
     this.onReply,
   });
@@ -493,14 +508,17 @@ class _MessageBubble extends ConsumerWidget {
               ),
             ),
           ),
-          if (showRead)
+          if (readLabel != null)
             Padding(
               padding: const EdgeInsets.only(right: 4, bottom: 4),
               child: Text(
-                '읽음',
+                readLabel!,
                 style: TextStyle(
                   fontSize: 10,
-                  color: Theme.of(context).disabledColor,
+                  fontWeight: readLabel == '안읽음' ? FontWeight.w700 : null,
+                  color: readLabel == '안읽음'
+                      ? colorScheme.primary
+                      : Theme.of(context).disabledColor,
                 ),
               ),
             ),
