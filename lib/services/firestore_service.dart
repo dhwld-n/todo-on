@@ -391,6 +391,20 @@ class FirestoreService {
     return _profile.set({'themeMode': themeMode}, SetOptions(merge: true));
   }
 
+  Future<void> saveDday({required String label, required DateTime date}) {
+    return _profile.set({
+      'ddayLabel': label,
+      'ddayDate': Timestamp.fromDate(date),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> clearDday() {
+    return _profile.set({
+      'ddayLabel': FieldValue.delete(),
+      'ddayDate': FieldValue.delete(),
+    }, SetOptions(merge: true));
+  }
+
   CollectionReference<Map<String, dynamic>> get _following =>
       _db.collection('users').doc(uid).collection('following');
 

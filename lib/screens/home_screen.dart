@@ -12,6 +12,7 @@ import '../widgets/add_todo_sheet.dart';
 import '../widgets/blinking_dot.dart';
 import '../widgets/calendar_sidebar.dart';
 import '../widgets/chat_list_pane.dart';
+import '../widgets/dday_banner.dart';
 import '../widgets/diary_pane.dart';
 import '../widgets/friends_pane.dart';
 import '../widgets/habits_pane.dart';
@@ -603,6 +604,7 @@ class _TodoListPane extends ConsumerWidget {
 
     return Column(
       children: [
+        const DdayBanner(),
         if (selectedDate != null)
           Container(
             width: double.infinity,
