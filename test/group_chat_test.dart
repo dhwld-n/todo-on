@@ -143,7 +143,7 @@ void main() {
     tester,
   ) async {
     await _openGroup(tester, {});
-    await tester.tap(find.byIcon(Icons.people_outline));
+    await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
 
     expect(find.text('참여자 3명'), findsOneWidget);
@@ -152,6 +152,7 @@ void main() {
     // My own uid ('') falls back to the empty-string prefix; just check the
     // "(나)" marker shows for exactly one member.
     expect(find.textContaining('(나)'), findsOneWidget);
+    expect(find.text('나가기'), findsOneWidget);
   });
 
   testWidgets('group chat with the newest message is listed above the friend', (

@@ -185,21 +185,17 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
         title: Text(title, overflow: TextOverflow.ellipsis),
         actions: [
           IconButton(
-            icon: const Icon(Icons.people_outline),
+            icon: const Icon(Icons.menu),
             tooltip: '참여자',
             onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
           ),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'leave') _leaveGroup();
-            },
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: 'leave', child: Text('나가기')),
-            ],
-          ),
         ],
       ),
-      endDrawer: _MembersDrawer(members: widget.group.members, myUid: myUid),
+      endDrawer: _MembersDrawer(
+        members: widget.group.members,
+        myUid: myUid,
+        onLeave: _leaveGroup,
+      ),
       body: Column(
         children: [
           Expanded(
@@ -340,8 +336,13 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
 class _MembersDrawer extends StatelessWidget {
   final List<String> members;
   final String myUid;
+  final VoidCallback onLeave;
 
-  const _MembersDrawer({required this.members, required this.myUid});
+  const _MembersDrawer({
+    required this.members,
+    required this.myUid,
+    required this.onLeave,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -367,6 +368,15 @@ class _MembersDrawer extends StatelessWidget {
                     _MemberProfileTile(uid: uid, isMe: uid == myUid),
                 ],
               ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text('나가기'),
+              onTap: () {
+                Navigator.of(context).pop();
+                onLeave();
+              },
             ),
           ],
         ),
