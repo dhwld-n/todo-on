@@ -416,11 +416,19 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
                         );
                       },
                       child: SingleChildScrollView(
-                        child: _AttributedDiaryText(
-                          entry: entry!,
-                          myUid: myUid,
-                          myNickname: myNickname,
-                          friendNickname: friendNickname,
+                        // Text.rich sizes to its own (often short) content
+                        // width unless forced wider, unlike the TextField
+                        // editor above it (expands: true does that for
+                        // free) - without this the entry renders in a
+                        // narrow column with blank space beside it.
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: _AttributedDiaryText(
+                            entry: entry!,
+                            myUid: myUid,
+                            myNickname: myNickname,
+                            friendNickname: friendNickname,
+                          ),
                         ),
                       ),
                     ),
