@@ -153,6 +153,38 @@ final unseenDiaryGroupDatesProvider = StreamProvider.autoDispose
       return service.watchUnseenDiaryGroupDates(groupId);
     });
 
+final myDiaryDatesProvider = StreamProvider<Set<String>>((ref) {
+  final service = ref.watch(firestoreServiceProvider);
+  if (service == null) return const Stream.empty();
+  return service.watchDiaryDates();
+});
+
+final sharedDiaryDatesProvider = StreamProvider.autoDispose
+    .family<Set<String>, String>((ref, friendUid) {
+      final service = ref.watch(firestoreServiceProvider);
+      if (service == null) return const Stream.empty();
+      return service.watchSharedDiaryDates(friendUid);
+    });
+
+final diaryGroupDatesProvider = StreamProvider.autoDispose
+    .family<Set<String>, String>((ref, groupId) {
+      final service = ref.watch(firestoreServiceProvider);
+      if (service == null) return const Stream.empty();
+      return service.watchDiaryGroupDates(groupId);
+    });
+
+/// Date keys with text in any exchange diary (1:1 or group), for the
+/// calendar's exchange-diary marker; [myDiaryDatesProvider] is the private one.
+final exchangeDiaryDatesProvider = Provider<Set<String>>((ref) {
+  final uids = ref.watch(followingProvider).value ?? const [];
+  final groups = ref.watch(myDiaryGroupsProvider).value ?? const [];
+  return {
+    for (final uid in uids) ...?ref.watch(sharedDiaryDatesProvider(uid)).value,
+    for (final group in groups)
+      ...?ref.watch(diaryGroupDatesProvider(group.id)).value,
+  };
+});
+
 /// Any friend or diary group has a shared-diary edit I haven't seen, for
 /// the 일기 tab dot.
 final hasUnseenSharedDiaryProvider = Provider<bool>((ref) {

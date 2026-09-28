@@ -179,6 +179,26 @@ class FirestoreService {
         .map((doc) => doc.exists ? DiaryEntry.fromFirestore(doc) : null);
   }
 
+  /// Date keys of the entries in [entries] that actually have text - clearing
+  /// a diary saves '' rather than deleting the doc.
+  Stream<Set<String>> _datesWithContent(
+    CollectionReference<Map<String, dynamic>> entries,
+  ) => entries.snapshots().map(
+    (snap) => {
+      for (final doc in snap.docs)
+        if (((doc.data()['content'] as String?) ?? '').trim().isNotEmpty)
+          doc.id,
+    },
+  );
+
+  Stream<Set<String>> watchDiaryDates() => _datesWithContent(_diary);
+
+  Stream<Set<String>> watchSharedDiaryDates(String otherUid) =>
+      _datesWithContent(_sharedDiaryEntries(otherUid));
+
+  Stream<Set<String>> watchDiaryGroupDates(String groupId) =>
+      _datesWithContent(_diaryGroupEntries(groupId));
+
   Future<void> saveDiaryEntry(String dateKey, String content) {
     return _diary.doc(dateKey).set({
       'content': content,
@@ -300,7 +320,10 @@ class FirestoreService {
     });
   }
 
-  Stream<SharedDiaryEntry?> watchDiaryGroupEntry(String groupId, String dateKey) {
+  Stream<SharedDiaryEntry?> watchDiaryGroupEntry(
+    String groupId,
+    String dateKey,
+  ) {
     return _diaryGroupEntries(groupId)
         .doc(dateKey)
         .snapshots()
@@ -324,15 +347,12 @@ class FirestoreService {
   /// Date keys (sorted) of group entries edited by someone else after I
   /// last saw them, across every date.
   Stream<List<String>> watchUnseenDiaryGroupDates(String groupId) {
-    return _diaryGroupEntries(groupId)
-        .snapshots()
-        .map(
-          (snap) => [
-            for (final doc in snap.docs)
-              if (SharedDiaryEntry.fromFirestore(doc).hasUnseenEditFor(uid))
-                doc.id,
-          ]..sort(),
-        );
+    return _diaryGroupEntries(groupId).snapshots().map(
+      (snap) => [
+        for (final doc in snap.docs)
+          if (SharedDiaryEntry.fromFirestore(doc).hasUnseenEditFor(uid)) doc.id,
+      ]..sort(),
+    );
   }
 
   Future<void> markDiaryGroupSeen(
@@ -454,9 +474,7 @@ class FirestoreService {
     return _groupChatDoc(groupId).snapshots().map((doc) {
       final lastRead = doc.data()?['lastRead'] as Map<String, dynamic>?;
       if (lastRead == null) return const {};
-      return lastRead.map(
-        (k, v) => MapEntry(k, (v as Timestamp).toDate()),
-      );
+      return lastRead.map((k, v) => MapEntry(k, (v as Timestamp).toDate()));
     });
   }
 

@@ -10,6 +10,43 @@ import '../providers/providers.dart';
 
 const int _kMaxChipsPerDay = 3;
 
+// Diary-day markers - picked to read on both the light and dark themes.
+const kMyDiaryColor = Color(0xFFF0A04B);
+const kExchangeDiaryColor = Color(0xFF3DBFA8);
+
+/// "내 일기" / "교환일기" book beside a day's number.
+class _DiaryMark extends StatelessWidget {
+  static const size = 10.0;
+
+  final Color color;
+
+  const _DiaryMark({super.key, required this.color});
+
+  @override
+  Widget build(BuildContext context) =>
+      Icon(Icons.menu_book_rounded, size: size, color: color);
+}
+
+class _DiaryLegendItem extends StatelessWidget {
+  final Color color;
+  final String label;
+
+  const _DiaryLegendItem({required this.color, required this.label});
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(Icons.menu_book_rounded, size: 13, color: color),
+      const SizedBox(width: 4),
+      Text(
+        label,
+        style: TextStyle(fontSize: 11, color: Theme.of(context).disabledColor),
+      ),
+    ],
+  );
+}
+
 void _showYearMonthPicker(
   BuildContext context,
   WidgetRef ref,
@@ -77,11 +114,7 @@ class CalendarSidebar extends ConsumerWidget {
   /// callback needs a day every time, not an occasional null.
   final ValueChanged<DateTime>? onDaySelected;
 
-  const CalendarSidebar({
-    super.key,
-    this.scrollController,
-    this.onDaySelected,
-  });
+  const CalendarSidebar({super.key, this.scrollController, this.onDaySelected});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -90,6 +123,9 @@ class CalendarSidebar extends ConsumerWidget {
     final selectedDate = ref.watch(selectedDateProvider);
     final focusedMonth = ref.watch(focusedMonthProvider);
     final todos = todosAsync.value ?? const [];
+    final myDiaryDates =
+        ref.watch(myDiaryDatesProvider).value ?? const <String>{};
+    final exchangeDiaryDates = ref.watch(exchangeDiaryDatesProvider);
     final categoriesById = {
       for (final c in categoriesAsync.value ?? const <TodoCategory>[]) c.id: c,
     };
@@ -114,6 +150,7 @@ class CalendarSidebar extends ConsumerWidget {
       final colorScheme = Theme.of(context).colorScheme;
       final holidayName = holidayNameFor(day);
       const holidayColor = Color(0xFFE24C4C);
+      final dateKey = dateKeyFor(day);
 
       return Container(
         width: double.infinity,
@@ -131,22 +168,52 @@ class CalendarSidebar extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Center(
-              child: Text(
-                '${day.day}',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isToday || isSelected || holidayName != null
-                      ? FontWeight.w800
-                      : FontWeight.w500,
-                  color: isOutside
-                      ? Theme.of(context).disabledColor
-                      : holidayName != null
-                      ? holidayColor
-                      : isSelected
-                      ? colorScheme.primary
-                      : null,
-                ),
+            // [내 일기][day][교환일기]: both slots always reserve their width
+            // so the number stays centered, and a row can't overlap the way
+            // corner-pinned marks did in a ~43px phone cell. scaleDown is
+            // the backstop for anything narrower.
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: _DiaryMark.size,
+                    child: !isOutside && myDiaryDates.contains(dateKey)
+                        ? _DiaryMark(
+                            key: ValueKey('my-diary-$dateKey'),
+                            color: kMyDiaryColor,
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 2),
+                  Text(
+                    '${day.day}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: isToday || isSelected || holidayName != null
+                          ? FontWeight.w800
+                          : FontWeight.w500,
+                      color: isOutside
+                          ? Theme.of(context).disabledColor
+                          : holidayName != null
+                          ? holidayColor
+                          : isSelected
+                          ? colorScheme.primary
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  SizedBox(
+                    width: _DiaryMark.size,
+                    child: !isOutside && exchangeDiaryDates.contains(dateKey)
+                        ? _DiaryMark(
+                            key: ValueKey('exchange-diary-$dateKey'),
+                            color: kExchangeDiaryColor,
+                          )
+                        : null,
+                  ),
+                ],
               ),
             ),
             if (holidayName != null && !isOutside)
@@ -262,6 +329,17 @@ class CalendarSidebar extends ConsumerWidget {
                     cellBuilder(context, day, isSelected: true),
                 outsideBuilder: (context, day, focusedDay) =>
                     cellBuilder(context, day, isOutside: true),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(12, 4, 12, 8),
+              child: Wrap(
+                spacing: 14,
+                alignment: WrapAlignment.center,
+                children: [
+                  _DiaryLegendItem(color: kMyDiaryColor, label: '내 일기'),
+                  _DiaryLegendItem(color: kExchangeDiaryColor, label: '교환일기'),
+                ],
               ),
             ),
           ],
