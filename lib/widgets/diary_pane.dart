@@ -268,6 +268,29 @@ class _SharedDiaryBody extends ConsumerStatefulWidget {
   ConsumerState<_SharedDiaryBody> createState() => _SharedDiaryBodyState();
 }
 
+/// Splits a shared diary entry into the locked (already-turned-in) prefix
+/// and the segments behind it. Only a writer's own still-open trailing
+/// segment is editable; anything before that - the other person's text, or
+/// the writer's own earlier turns - is locked.
+(String, List<DiarySegment>) splitDiaryEditable(
+  SharedDiaryEntry? entry,
+  String? myUid,
+) {
+  final content = entry?.content ?? '';
+  final segments = entry?.segments ?? const <DiarySegment>[];
+  if (segments.isEmpty) return ('', segments);
+  if (segments.last.uid == myUid) {
+    final start = segments.length >= 2
+        ? segments[segments.length - 2].upTo.clamp(0, content.length)
+        : 0;
+    return (
+      content.substring(0, start),
+      segments.sublist(0, segments.length - 1),
+    );
+  }
+  return (content, segments);
+}
+
 class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
@@ -275,6 +298,10 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
   String? _loadedKey;
   String? _dateKey;
   bool _editing = false;
+  // The part of the entry that isn't my own trailing writing - shown
+  // read-only so a friend's text (or my own older turns) can't be edited.
+  String _lockedPrefix = '';
+  List<DiarySegment> _lockedSegments = const [];
 
   @override
   void initState() {
@@ -314,17 +341,18 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
             .value
             ?.segments ??
         const <DiarySegment>[];
+    final newContent = _lockedPrefix + _controller.text;
     final newSegments = DiarySegment.update(
       oldSegments,
       myUid,
-      _controller.text.length,
+      newContent.length,
     );
     ref
         .read(firestoreServiceProvider)
         ?.saveSharedDiaryEntry(
           widget.friendUid,
           dateKey,
-          _controller.text,
+          newContent,
           newSegments,
         );
   }
@@ -357,7 +385,13 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
         if (_loadedKey != entryKey) {
           _loadedKey = entryKey;
           _editing = false;
-          _controller.text = entry?.content ?? '';
+          final (lockedPrefix, lockedSegments) = splitDiaryEditable(
+            entry,
+            myUid,
+          );
+          _lockedPrefix = lockedPrefix;
+          _lockedSegments = lockedSegments;
+          _controller.text = entry?.content.substring(lockedPrefix.length) ?? '';
           _controller.selection = TextSelection.collapsed(
             offset: _controller.text.length,
           );
@@ -391,21 +425,50 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
           children: [
             Expanded(
               child: showEditor
-                  ? TextField(
-                      controller: _controller,
-                      focusNode: _focusNode,
-                      autofocus: _editing,
-                      maxLines: null,
-                      expands: true,
-                      textAlignVertical: TextAlignVertical.top,
-                      style: const TextStyle(
-                        fontFamily: 'GriunFromsol',
-                        height: 1.5,
-                      ),
-                      decoration: const InputDecoration(
-                        hintText: '오늘 있었던 일을 함께 나눠보세요',
-                      ),
-                      onChanged: (_) => _scheduleSave(),
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_lockedPrefix.isNotEmpty)
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxHeight: 120),
+                            child: SingleChildScrollView(
+                              child: SizedBox(
+                                width: double.infinity,
+                                child: _AttributedDiaryText(
+                                  entry: SharedDiaryEntry(
+                                    dateKey: dateKey,
+                                    content: _lockedPrefix,
+                                    updatedAt: entry?.updatedAt ?? DateTime.now(),
+                                    updatedBy: entry?.updatedBy ?? '',
+                                    segments: _lockedSegments,
+                                  ),
+                                  myUid: myUid,
+                                  myNickname: myNickname,
+                                  friendNickname: friendNickname,
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (_lockedPrefix.isNotEmpty) const SizedBox(height: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: _controller,
+                            focusNode: _focusNode,
+                            autofocus: _editing,
+                            maxLines: null,
+                            expands: true,
+                            textAlignVertical: TextAlignVertical.top,
+                            style: const TextStyle(
+                              fontFamily: 'GriunFromsol',
+                              height: 1.5,
+                            ),
+                            decoration: const InputDecoration(
+                              hintText: '오늘 있었던 일을 함께 나눠보세요',
+                            ),
+                            onChanged: (_) => _scheduleSave(),
+                          ),
+                        ),
+                      ],
                     )
                   : GestureDetector(
                       behavior: HitTestBehavior.translucent,
