@@ -136,7 +136,8 @@ class _SharedDiaryEditor extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final followingAsync = ref.watch(followingProvider);
-    final groups = ref.watch(myDiaryGroupsProvider).value ?? const <DiaryGroup>[];
+    final groups =
+        ref.watch(myDiaryGroupsProvider).value ?? const <DiaryGroup>[];
     return followingAsync.when(
       data: (uids) {
         if (uids.isEmpty && groups.isEmpty) {
@@ -164,56 +165,71 @@ class _SharedDiaryEditor extends ConsumerWidget {
           }
         }
         final unseenDates = selectedGroup != null
-            ? ref.watch(unseenDiaryGroupDatesProvider(selectedGroup.id)).value ??
+            ? ref
+                      .watch(unseenDiaryGroupDatesProvider(selectedGroup.id))
+                      .value ??
                   const <String>[]
             : ref.watch(unseenSharedDiaryDatesProvider(activeUid!)).value ??
                   const <String>[];
+        // On a phone with the keyboard up, the friend chips (often several
+        // rows) would squeeze the input down to nothing - hide them while
+        // typing, nobody switches friends mid-sentence.
+        final keyboardOpen = _keyboardOpen(context);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final friendUid in uids)
-                        _FriendChip(
-                          uid: friendUid,
-                          selected: selectedGroup == null && friendUid == activeUid,
-                          onTap: () {
-                            ref.read(sharedDiaryGroupProvider.notifier).state =
-                                null;
-                            ref.read(sharedDiaryFriendProvider.notifier).state =
-                                friendUid;
-                          },
-                        ),
-                      for (final group in groups)
-                        _DiaryGroupChip(
-                          group: group,
-                          selected: selectedGroup?.id == group.id,
-                          onTap: () =>
-                              ref.read(sharedDiaryGroupProvider.notifier).state =
-                                  group.id,
-                        ),
-                    ],
+            if (!keyboardOpen) ...[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final friendUid in uids)
+                          _FriendChip(
+                            uid: friendUid,
+                            selected:
+                                selectedGroup == null && friendUid == activeUid,
+                            onTap: () {
+                              ref
+                                      .read(sharedDiaryGroupProvider.notifier)
+                                      .state =
+                                  null;
+                              ref
+                                      .read(sharedDiaryFriendProvider.notifier)
+                                      .state =
+                                  friendUid;
+                            },
+                          ),
+                        for (final group in groups)
+                          _DiaryGroupChip(
+                            group: group,
+                            selected: selectedGroup?.id == group.id,
+                            onTap: () =>
+                                ref
+                                        .read(sharedDiaryGroupProvider.notifier)
+                                        .state =
+                                    group.id,
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.group_add_outlined),
-                  tooltip: '교환일기 그룹 만들기',
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () => _showCreateDiaryGroupSheet(context, ref),
-                ),
-              ],
-            ),
-            _UnseenDates(
-              unseenDates: unseenDates,
-              currentDateKey: dateKeyFor(date),
-            ),
-            const SizedBox(height: 16),
+                  IconButton(
+                    icon: const Icon(Icons.group_add_outlined),
+                    tooltip: '교환일기 그룹 만들기',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => _showCreateDiaryGroupSheet(context, ref),
+                  ),
+                ],
+              ),
+              _UnseenDates(
+                unseenDates: unseenDates,
+                currentDateKey: dateKeyFor(date),
+              ),
+              const SizedBox(height: 16),
+            ],
             Expanded(
               child: selectedGroup != null
                   ? _DiaryGroupBody(date: date, group: selectedGroup)
@@ -244,7 +260,8 @@ class _CreateDiaryGroupSheet extends ConsumerStatefulWidget {
       _CreateDiaryGroupSheetState();
 }
 
-class _CreateDiaryGroupSheetState extends ConsumerState<_CreateDiaryGroupSheet> {
+class _CreateDiaryGroupSheetState
+    extends ConsumerState<_CreateDiaryGroupSheet> {
   final _nameController = TextEditingController();
   final _selected = <String>{};
   bool _creating = false;
@@ -342,8 +359,7 @@ class _CreateDiaryGroupSheetState extends ConsumerState<_CreateDiaryGroupSheet> 
                     ],
                   );
                 },
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
+                loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, _) => Text('오류: $e'),
               ),
             ),
@@ -407,7 +423,12 @@ class _DiaryGroupChip extends ConsumerWidget {
         ? group.name!.trim()
         : group.members
               .where((m) => m != myUid)
-              .map((m) => displayNameFor(ref.watch(friendProfileProvider(m)).value, m))
+              .map(
+                (m) => displayNameFor(
+                  ref.watch(friendProfileProvider(m)).value,
+                  m,
+                ),
+              )
               .join(', ');
     final unseen = ref.watch(unseenDiaryGroupDatesProvider(group.id)).value;
     return Badge(
@@ -531,6 +552,16 @@ class _SharedDiaryBody extends ConsumerStatefulWidget {
   return (content, segments);
 }
 
+/// Scaffold strips the keyboard inset out of the MediaQuery its body sees,
+/// so read it straight off the view.
+bool _keyboardOpen(BuildContext context) =>
+    View.of(context).viewInsets.bottom > 0;
+
+/// The read-only text above the editor gets less room while the soft
+/// keyboard is up, so the input itself stays visible on a phone.
+double _lockedBoxMaxHeight(BuildContext context) =>
+    _keyboardOpen(context) ? 64 : 120;
+
 /// What to save for a shared diary edit, or null if nothing actually
 /// changed. Tapping in and blurring back out without typing anything must
 /// not create a zero-length "turn" for whoever merely looked - that would
@@ -545,7 +576,10 @@ class _SharedDiaryBody extends ConsumerStatefulWidget {
   final newContent = lockedPrefix + typedTail;
   if (newContent == (oldEntry?.content ?? '')) return null;
   final oldSegments = oldEntry?.segments ?? const <DiarySegment>[];
-  return (newContent, DiarySegment.update(oldSegments, myUid, newContent.length));
+  return (
+    newContent,
+    DiarySegment.update(oldSegments, myUid, newContent.length),
+  );
 }
 
 class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
@@ -587,9 +621,14 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
     final dateKey = _dateKey;
     final myUid = ref.read(authStateProvider).value?.uid;
     if (dateKey == null || myUid == null) return;
-    final oldEntry = ref.read(
-      sharedDiaryEntryProvider((otherUid: widget.friendUid, dateKey: dateKey)),
-    ).value;
+    final oldEntry = ref
+        .read(
+          sharedDiaryEntryProvider((
+            otherUid: widget.friendUid,
+            dateKey: dateKey,
+          )),
+        )
+        .value;
     final result = computeDiarySave(
       oldEntry: oldEntry,
       lockedPrefix: _lockedPrefix,
@@ -642,7 +681,8 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
           );
           _lockedPrefix = lockedPrefix;
           _lockedSegments = lockedSegments;
-          _controller.text = entry?.content.substring(lockedPrefix.length) ?? '';
+          _controller.text =
+              entry?.content.substring(lockedPrefix.length) ?? '';
           _controller.selection = TextSelection.collapsed(
             offset: _controller.text.length,
           );
@@ -681,7 +721,9 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
                       children: [
                         if (_lockedPrefix.isNotEmpty)
                           ConstrainedBox(
-                            constraints: const BoxConstraints(maxHeight: 120),
+                            constraints: BoxConstraints(
+                              maxHeight: _lockedBoxMaxHeight(context),
+                            ),
                             child: SingleChildScrollView(
                               child: SizedBox(
                                 width: double.infinity,
@@ -689,12 +731,14 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
                                   entry: SharedDiaryEntry(
                                     dateKey: dateKey,
                                     content: _lockedPrefix,
-                                    updatedAt: entry?.updatedAt ?? DateTime.now(),
+                                    updatedAt:
+                                        entry?.updatedAt ?? DateTime.now(),
                                     updatedBy: entry?.updatedBy ?? '',
                                     segments: _lockedSegments,
                                   ),
-                                  nicknameFor: (uid) =>
-                                      uid == myUid ? myNickname : friendNickname,
+                                  nicknameFor: (uid) => uid == myUid
+                                      ? myNickname
+                                      : friendNickname,
                                 ),
                               ),
                             ),
@@ -816,9 +860,11 @@ class _DiaryGroupBodyState extends ConsumerState<_DiaryGroupBody> {
     final dateKey = _dateKey;
     final myUid = ref.read(authStateProvider).value?.uid;
     if (dateKey == null || myUid == null) return;
-    final oldEntry = ref.read(
-      diaryGroupEntryProvider((groupId: widget.group.id, dateKey: dateKey)),
-    ).value;
+    final oldEntry = ref
+        .read(
+          diaryGroupEntryProvider((groupId: widget.group.id, dateKey: dateKey)),
+        )
+        .value;
     final result = computeDiarySave(
       oldEntry: oldEntry,
       lockedPrefix: _lockedPrefix,
@@ -829,7 +875,12 @@ class _DiaryGroupBodyState extends ConsumerState<_DiaryGroupBody> {
     final (newContent, newSegments) = result;
     ref
         .read(firestoreServiceProvider)
-        ?.saveDiaryGroupEntry(widget.group.id, dateKey, newContent, newSegments);
+        ?.saveDiaryGroupEntry(
+          widget.group.id,
+          dateKey,
+          newContent,
+          newSegments,
+        );
   }
 
   void _scheduleSave() {
@@ -865,7 +916,8 @@ class _DiaryGroupBodyState extends ConsumerState<_DiaryGroupBody> {
           );
           _lockedPrefix = lockedPrefix;
           _lockedSegments = lockedSegments;
-          _controller.text = entry?.content.substring(lockedPrefix.length) ?? '';
+          _controller.text =
+              entry?.content.substring(lockedPrefix.length) ?? '';
           _controller.selection = TextSelection.collapsed(
             offset: _controller.text.length,
           );
@@ -889,7 +941,9 @@ class _DiaryGroupBodyState extends ConsumerState<_DiaryGroupBody> {
                       children: [
                         if (_lockedPrefix.isNotEmpty)
                           ConstrainedBox(
-                            constraints: const BoxConstraints(maxHeight: 120),
+                            constraints: BoxConstraints(
+                              maxHeight: _lockedBoxMaxHeight(context),
+                            ),
                             child: SingleChildScrollView(
                               child: SizedBox(
                                 width: double.infinity,
@@ -897,7 +951,8 @@ class _DiaryGroupBodyState extends ConsumerState<_DiaryGroupBody> {
                                   entry: SharedDiaryEntry(
                                     dateKey: dateKey,
                                     content: _lockedPrefix,
-                                    updatedAt: entry?.updatedAt ?? DateTime.now(),
+                                    updatedAt:
+                                        entry?.updatedAt ?? DateTime.now(),
                                     updatedBy: entry?.updatedBy ?? '',
                                     segments: _lockedSegments,
                                   ),

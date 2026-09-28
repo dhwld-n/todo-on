@@ -36,6 +36,9 @@ class HomeScreen extends ConsumerWidget {
     final activeDate = selectedDate ?? DateTime.now();
     final calendarExpanded = ref.watch(mobileCalendarExpandedProvider);
     final isAndroid = ref.watch(isAndroidPlatformProvider);
+    // Read here, above the Scaffold: it strips the keyboard inset out of the
+    // MediaQuery its body sees.
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     return Scaffold(
       bottomNavigationBar: isAndroid ? const _ModeBottomNav() : null,
@@ -102,18 +105,21 @@ class HomeScreen extends ConsumerWidget {
             if (isAndroid) {
               final showCalendarFirst =
                   mode == ContentMode.todo && calendarExpanded;
+              // With the soft keyboard up there's barely room for the
+              // input itself - drop the profile header while typing.
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const ProfileHeader(),
-                  const SizedBox(height: 12),
+                  if (!keyboardOpen) ...[
+                    const ProfileHeader(),
+                    const SizedBox(height: 12),
+                  ],
                   Expanded(
                     child: showCalendarFirst
                         ? _DashboardCard(
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             child: CalendarSidebar(
-                              onDaySelected: (_) =>
-                                  _showDayTodosSheet(context),
+                              onDaySelected: (_) => _showDayTodosSheet(context),
                             ),
                           )
                         : contentCard,
@@ -266,9 +272,9 @@ class _ModeTabRail extends ConsumerWidget {
               final info = await ref.refresh(updateInfoProvider.future);
               if (!context.mounted) return;
               if (info == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('이미 최신 버전이에요')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('이미 최신 버전이에요')));
                 return;
               }
               ref.read(updateSeenProvider.notifier).state = true;
@@ -338,7 +344,9 @@ class _ModeTabButton extends StatelessWidget {
                         color: Colors.redAccent,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: selected ? colorScheme.primary : colorScheme.surface,
+                          color: selected
+                              ? colorScheme.primary
+                              : colorScheme.surface,
                           width: 1.5,
                         ),
                       ),
@@ -695,8 +703,7 @@ class _TodoListPane extends ConsumerWidget {
                         .floor()
                         .clamp(1, sections.length);
                     final columnWidth =
-                        (constraints.maxWidth - gap * (columns - 1)) /
-                        columns;
+                        (constraints.maxWidth - gap * (columns - 1)) / columns;
                     return SingleChildScrollView(
                       controller: scrollController,
                       padding: const EdgeInsets.only(bottom: 16),
