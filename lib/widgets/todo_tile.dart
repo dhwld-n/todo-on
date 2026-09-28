@@ -38,7 +38,7 @@ class TodoTile extends StatelessWidget {
                       : () => onToggle!(!todo.isDone),
                   child: Image.asset(
                     todo.isDone
-                        ? 'assets/icons/cat_checked.png'
+                        ? 'assets/icons/cat_checked1.png'
                         : 'assets/icons/cat_unchecked.png',
                     width: 96,
                     height: 96,
