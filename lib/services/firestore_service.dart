@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/category.dart';
 import '../models/chat_message.dart';
 import '../models/diary_entry.dart';
+import '../models/diary_group.dart';
 import '../models/group_chat.dart';
 import '../models/habit.dart';
 import '../models/habit_log.dart';
@@ -260,6 +261,87 @@ class FirestoreService {
   ) {
     return _sharedDiaryEntries(otherUid).doc(dateKey).set({
       'segments': [DiarySegment(uid: '', upTo: contentLength).toMap()],
+    }, SetOptions(merge: true));
+  }
+
+  // A multi-member exchange diary - separate top-level collection like
+  // groupChats, for the same reason: no fixed pairId to key a doc off of.
+  DocumentReference<Map<String, dynamic>> _diaryGroupDoc(String groupId) =>
+      _db.collection('diaryGroups').doc(groupId);
+
+  CollectionReference<Map<String, dynamic>> _diaryGroupEntries(
+    String groupId,
+  ) => _diaryGroupDoc(groupId).collection('entries');
+
+  Future<String> createDiaryGroup({
+    required List<String> memberUids,
+    String? name,
+  }) async {
+    final doc = await _db.collection('diaryGroups').add({
+      'name': name,
+      'members': [uid, ...memberUids],
+      'createdBy': uid,
+      'createdAt': Timestamp.fromDate(DateTime.now()),
+    });
+    return doc.id;
+  }
+
+  Stream<List<DiaryGroup>> watchMyDiaryGroups() {
+    return _db
+        .collection('diaryGroups')
+        .where('members', arrayContains: uid)
+        .snapshots()
+        .map((snap) => snap.docs.map(DiaryGroup.fromFirestore).toList());
+  }
+
+  Future<void> leaveDiaryGroup(String groupId) {
+    return _diaryGroupDoc(groupId).update({
+      'members': FieldValue.arrayRemove([uid]),
+    });
+  }
+
+  Stream<SharedDiaryEntry?> watchDiaryGroupEntry(String groupId, String dateKey) {
+    return _diaryGroupEntries(groupId)
+        .doc(dateKey)
+        .snapshots()
+        .map((doc) => doc.exists ? SharedDiaryEntry.fromFirestore(doc) : null);
+  }
+
+  Future<void> saveDiaryGroupEntry(
+    String groupId,
+    String dateKey,
+    String content,
+    List<DiarySegment> segments,
+  ) {
+    return _diaryGroupEntries(groupId).doc(dateKey).set({
+      'content': content,
+      'updatedAt': Timestamp.fromDate(DateTime.now()),
+      'updatedBy': uid,
+      'segments': segments.map((s) => s.toMap()).toList(),
+    }, SetOptions(merge: true));
+  }
+
+  /// Date keys (sorted) of group entries edited by someone else after I
+  /// last saw them, across every date.
+  Stream<List<String>> watchUnseenDiaryGroupDates(String groupId) {
+    return _diaryGroupEntries(groupId)
+        .snapshots()
+        .map(
+          (snap) => [
+            for (final doc in snap.docs)
+              if (SharedDiaryEntry.fromFirestore(doc).hasUnseenEditFor(uid))
+                doc.id,
+          ]..sort(),
+        );
+  }
+
+  Future<void> markDiaryGroupSeen(
+    String groupId,
+    String dateKey,
+    DateTime editedAt,
+  ) {
+    return _diaryGroupEntries(groupId).doc(dateKey).set({
+      'seenAt': {uid: Timestamp.fromDate(editedAt)},
     }, SetOptions(merge: true));
   }
 

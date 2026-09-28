@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import '../models/category.dart';
 import '../models/chat_message.dart';
 import '../models/diary_entry.dart';
+import '../models/diary_group.dart';
 import '../models/group_chat.dart';
 import '../models/habit.dart';
 import '../models/habit_log.dart';
@@ -118,13 +119,48 @@ final unseenSharedDiaryDatesProvider = StreamProvider.autoDispose
       return service.watchUnseenSharedDiaryDates(friendUid);
     });
 
-/// Any friend has a shared-diary edit I haven't seen, for the 일기 tab dot.
+/// Diary groups (multi-person exchange diaries) I'm a member of.
+final myDiaryGroupsProvider = StreamProvider<List<DiaryGroup>>((ref) {
+  final service = ref.watch(firestoreServiceProvider);
+  if (service == null) return const Stream.empty();
+  return service.watchMyDiaryGroups();
+});
+
+/// Which diary group is currently open, if any - takes priority over
+/// [sharedDiaryFriendProvider] while set. Null falls back to friend mode.
+final sharedDiaryGroupProvider = StateProvider<String?>((ref) => null);
+
+final diaryGroupEntryProvider = StreamProvider.autoDispose
+    .family<SharedDiaryEntry?, ({String groupId, String dateKey})>((
+      ref,
+      params,
+    ) {
+      final service = ref.watch(firestoreServiceProvider);
+      if (service == null) return const Stream.empty();
+      return service.watchDiaryGroupEntry(params.groupId, params.dateKey);
+    });
+
+/// Dates a diary group entry was edited by someone else that I haven't
+/// seen yet.
+final unseenDiaryGroupDatesProvider = StreamProvider.autoDispose
+    .family<List<String>, String>((ref, groupId) {
+      final service = ref.watch(firestoreServiceProvider);
+      if (service == null) return const Stream.empty();
+      return service.watchUnseenDiaryGroupDates(groupId);
+    });
+
+/// Any friend or diary group has a shared-diary edit I haven't seen, for
+/// the 일기 tab dot.
 final hasUnseenSharedDiaryProvider = Provider<bool>((ref) {
   final uids = ref.watch(followingProvider).value ?? const [];
-  // Watch every friend (no early return) so none of their streams drop.
+  final groups = ref.watch(myDiaryGroupsProvider).value ?? const [];
+  // Watch every friend/group (no early return) so none of their streams drop.
   final unseen = [
     for (final uid in uids)
       ref.watch(unseenSharedDiaryDatesProvider(uid)).value?.isNotEmpty ?? false,
+    for (final group in groups)
+      ref.watch(unseenDiaryGroupDatesProvider(group.id)).value?.isNotEmpty ??
+          false,
   ];
   return unseen.contains(true);
 });

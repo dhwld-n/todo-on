@@ -118,6 +118,8 @@ void main() {
     Future<bool> tabDot(Map<String, List<String>> perFriend) async {
       final container = ProviderContainer(
         overrides: [
+          authStateProvider.overrideWith((ref) => Stream.value(null)),
+          firestoreServiceProvider.overrideWithValue(null),
           followingProvider.overrideWith((ref) => Stream.value(following)),
           unseenSharedDiaryDatesProvider.overrideWith(
             (ref, uid) => Stream.value(perFriend[uid]!),

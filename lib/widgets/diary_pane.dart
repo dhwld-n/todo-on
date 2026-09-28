@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../models/diary_group.dart';
 import '../models/shared_diary_entry.dart';
 import '../providers/providers.dart';
 import '../utils/display_name.dart';
@@ -135,9 +136,10 @@ class _SharedDiaryEditor extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final followingAsync = ref.watch(followingProvider);
+    final groups = ref.watch(myDiaryGroupsProvider).value ?? const <DiaryGroup>[];
     return followingAsync.when(
       data: (uids) {
-        if (uids.isEmpty) {
+        if (uids.isEmpty && groups.isEmpty) {
           return Center(
             child: Text(
               '친구를 추가하면 함께 쓰는 일기를 만들 수 있어요.',
@@ -145,38 +147,278 @@ class _SharedDiaryEditor extends ConsumerWidget {
             ),
           );
         }
-        final selected = ref.watch(sharedDiaryFriendProvider);
-        final activeUid = uids.contains(selected) ? selected! : uids.first;
+        final selectedGroupId = ref.watch(sharedDiaryGroupProvider);
+        DiaryGroup? selectedGroup;
+        for (final g in groups) {
+          if (g.id == selectedGroupId) selectedGroup = g;
+        }
+        final selectedFriend = ref.watch(sharedDiaryFriendProvider);
+        String? activeUid;
+        if (selectedGroup == null) {
+          if (uids.contains(selectedFriend)) {
+            activeUid = selectedFriend;
+          } else if (uids.isNotEmpty) {
+            activeUid = uids.first;
+          } else if (groups.isNotEmpty) {
+            selectedGroup = groups.first;
+          }
+        }
+        final unseenDates = selectedGroup != null
+            ? ref.watch(unseenDiaryGroupDatesProvider(selectedGroup.id)).value ??
+                  const <String>[]
+            : ref.watch(unseenSharedDiaryDatesProvider(activeUid!)).value ??
+                  const <String>[];
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (final friendUid in uids)
-                  _FriendChip(
-                    uid: friendUid,
-                    selected: friendUid == activeUid,
-                    onTap: () =>
-                        ref.read(sharedDiaryFriendProvider.notifier).state =
-                            friendUid,
+                Expanded(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final friendUid in uids)
+                        _FriendChip(
+                          uid: friendUid,
+                          selected: selectedGroup == null && friendUid == activeUid,
+                          onTap: () {
+                            ref.read(sharedDiaryGroupProvider.notifier).state =
+                                null;
+                            ref.read(sharedDiaryFriendProvider.notifier).state =
+                                friendUid;
+                          },
+                        ),
+                      for (final group in groups)
+                        _DiaryGroupChip(
+                          group: group,
+                          selected: selectedGroup?.id == group.id,
+                          onTap: () =>
+                              ref.read(sharedDiaryGroupProvider.notifier).state =
+                                  group.id,
+                        ),
+                    ],
                   ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.group_add_outlined),
+                  tooltip: '교환일기 그룹 만들기',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => _showCreateDiaryGroupSheet(context, ref),
+                ),
               ],
             ),
             _UnseenDates(
-              friendUid: activeUid,
+              unseenDates: unseenDates,
               currentDateKey: dateKeyFor(date),
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: _SharedDiaryBody(date: date, friendUid: activeUid),
+              child: selectedGroup != null
+                  ? _DiaryGroupBody(date: date, group: selectedGroup)
+                  : _SharedDiaryBody(date: date, friendUid: activeUid!),
             ),
           ],
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('오류: $e')),
+    );
+  }
+}
+
+Future<void> _showCreateDiaryGroupSheet(BuildContext context, WidgetRef ref) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    builder: (_) => const _CreateDiaryGroupSheet(),
+  );
+}
+
+class _CreateDiaryGroupSheet extends ConsumerStatefulWidget {
+  const _CreateDiaryGroupSheet();
+
+  @override
+  ConsumerState<_CreateDiaryGroupSheet> createState() =>
+      _CreateDiaryGroupSheetState();
+}
+
+class _CreateDiaryGroupSheetState extends ConsumerState<_CreateDiaryGroupSheet> {
+  final _nameController = TextEditingController();
+  final _selected = <String>{};
+  bool _creating = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _create() async {
+    if (_selected.length < 2 || _creating) return;
+    setState(() => _creating = true);
+    final groupId = await ref
+        .read(firestoreServiceProvider)
+        ?.createDiaryGroup(
+          memberUids: _selected.toList(),
+          name: _nameController.text.trim().isEmpty
+              ? null
+              : _nameController.text.trim(),
+        );
+    if (!mounted) return;
+    Navigator.of(context).pop();
+    if (groupId != null) {
+      ref.read(sharedDiaryGroupProvider.notifier).state = groupId;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final followingAsync = ref.watch(followingProvider);
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              '교환일기 그룹 만들기',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: '그룹 이름 (선택)',
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '2명 이상 선택해주세요.',
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).disabledColor,
+              ),
+            ),
+            Flexible(
+              child: followingAsync.when(
+                data: (uids) {
+                  if (uids.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      child: Text(
+                        '친구를 먼저 추가해주세요.',
+                        style: TextStyle(
+                          color: Theme.of(context).disabledColor,
+                        ),
+                      ),
+                    );
+                  }
+                  return ListView(
+                    shrinkWrap: true,
+                    children: [
+                      for (final uid in uids)
+                        _DiaryGroupMemberCheckboxTile(
+                          uid: uid,
+                          selected: _selected.contains(uid),
+                          onChanged: (v) => setState(() {
+                            if (v) {
+                              _selected.add(uid);
+                            } else {
+                              _selected.remove(uid);
+                            }
+                          }),
+                        ),
+                    ],
+                  );
+                },
+                loading: () =>
+                    const Center(child: CircularProgressIndicator()),
+                error: (e, _) => Text('오류: $e'),
+              ),
+            ),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: _selected.length < 2 || _creating ? null : _create,
+              child: _creating
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('만들기'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DiaryGroupMemberCheckboxTile extends ConsumerWidget {
+  final String uid;
+  final bool selected;
+  final ValueChanged<bool> onChanged;
+
+  const _DiaryGroupMemberCheckboxTile({
+    required this.uid,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(friendProfileProvider(uid)).value;
+    return CheckboxListTile(
+      value: selected,
+      onChanged: (v) => onChanged(v ?? false),
+      title: Text(displayNameFor(profile, uid)),
+      controlAffinity: ListTileControlAffinity.leading,
+      dense: true,
+    );
+  }
+}
+
+class _DiaryGroupChip extends ConsumerWidget {
+  final DiaryGroup group;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _DiaryGroupChip({
+    required this.group,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final myUid = ref.watch(authStateProvider).value?.uid ?? '';
+    final label = (group.name?.trim().isNotEmpty ?? false)
+        ? group.name!.trim()
+        : group.members
+              .where((m) => m != myUid)
+              .map((m) => displayNameFor(ref.watch(friendProfileProvider(m)).value, m))
+              .join(', ');
+    final unseen = ref.watch(unseenDiaryGroupDatesProvider(group.id)).value;
+    return Badge(
+      smallSize: 9,
+      isLabelVisible: unseen?.isNotEmpty ?? false,
+      child: ChoiceChip(
+        avatar: const Icon(Icons.groups, size: 16),
+        label: Text(label.isEmpty ? '그룹' : label),
+        selected: selected,
+        onSelected: (_) => onTap(),
+      ),
     );
   }
 }
@@ -212,20 +454,18 @@ class _FriendChip extends ConsumerWidget {
   }
 }
 
-/// Other dates this friend wrote on that I haven't seen yet; tapping one
-/// jumps the diary there (opening it marks it seen).
+/// Other dates this friend or group wrote on that I haven't seen yet;
+/// tapping one jumps the diary there (opening it marks it seen).
 class _UnseenDates extends ConsumerWidget {
-  final String friendUid;
+  final List<String> unseenDates;
   final String currentDateKey;
 
-  const _UnseenDates({required this.friendUid, required this.currentDateKey});
+  const _UnseenDates({required this.unseenDates, required this.currentDateKey});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dates = [
-      for (final key
-          in ref.watch(unseenSharedDiaryDatesProvider(friendUid)).value ??
-              const <String>[])
+      for (final key in unseenDates)
         if (key != currentDateKey) key,
     ];
     if (dates.isEmpty) return const SizedBox.shrink();
@@ -453,9 +693,8 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
                                     updatedBy: entry?.updatedBy ?? '',
                                     segments: _lockedSegments,
                                   ),
-                                  myUid: myUid,
-                                  myNickname: myNickname,
-                                  friendNickname: friendNickname,
+                                  nicknameFor: (uid) =>
+                                      uid == myUid ? myNickname : friendNickname,
                                 ),
                               ),
                             ),
@@ -499,9 +738,8 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
                           width: double.infinity,
                           child: _AttributedDiaryText(
                             entry: entry!,
-                            myUid: myUid,
-                            myNickname: myNickname,
-                            friendNickname: friendNickname,
+                            nicknameFor: (uid) =>
+                                uid == myUid ? myNickname : friendNickname,
                           ),
                         ),
                       ),
@@ -527,22 +765,215 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
   }
 }
 
+/// Same collaborative-editing shape as [_SharedDiaryBody] but for a
+/// multi-member [DiaryGroup] instead of a single friend - the lock/save
+/// logic (splitDiaryEditable / computeDiarySave) doesn't care how many
+/// people are writing, only who wrote last.
+class _DiaryGroupBody extends ConsumerStatefulWidget {
+  final DateTime date;
+  final DiaryGroup group;
+
+  const _DiaryGroupBody({required this.date, required this.group});
+
+  @override
+  ConsumerState<_DiaryGroupBody> createState() => _DiaryGroupBodyState();
+}
+
+class _DiaryGroupBodyState extends ConsumerState<_DiaryGroupBody> {
+  final TextEditingController _controller = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
+  Timer? _debounce;
+  String? _loadedKey;
+  String? _dateKey;
+  bool _editing = false;
+  String _lockedPrefix = '';
+  List<DiarySegment> _lockedSegments = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(_handleFocusChange);
+  }
+
+  @override
+  void dispose() {
+    _focusNode.removeListener(_handleFocusChange);
+    _focusNode.dispose();
+    _debounce?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _handleFocusChange() {
+    if (!_focusNode.hasFocus && _editing) {
+      _debounce?.cancel();
+      _save();
+      setState(() => _editing = false);
+    }
+  }
+
+  void _save() {
+    final dateKey = _dateKey;
+    final myUid = ref.read(authStateProvider).value?.uid;
+    if (dateKey == null || myUid == null) return;
+    final oldEntry = ref.read(
+      diaryGroupEntryProvider((groupId: widget.group.id, dateKey: dateKey)),
+    ).value;
+    final result = computeDiarySave(
+      oldEntry: oldEntry,
+      lockedPrefix: _lockedPrefix,
+      typedTail: _controller.text,
+      myUid: myUid,
+    );
+    if (result == null) return;
+    final (newContent, newSegments) = result;
+    ref
+        .read(firestoreServiceProvider)
+        ?.saveDiaryGroupEntry(widget.group.id, dateKey, newContent, newSegments);
+  }
+
+  void _scheduleSave() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 600), _save);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dateKey = dateKeyFor(widget.date);
+    _dateKey = dateKey;
+    final entryKey = '${widget.group.id}_$dateKey';
+    final entryAsync = ref.watch(
+      diaryGroupEntryProvider((groupId: widget.group.id, dateKey: dateKey)),
+    );
+    final myUid = ref.watch(authStateProvider).value?.uid;
+    final myNickname = displayNameFor(
+      ref.watch(profileDocProvider).value,
+      myUid ?? '',
+    );
+    String nicknameFor(String uid) => uid == myUid
+        ? myNickname
+        : displayNameFor(ref.watch(friendProfileProvider(uid)).value, uid);
+
+    return entryAsync.when(
+      data: (entry) {
+        if (_loadedKey != entryKey) {
+          _loadedKey = entryKey;
+          _editing = false;
+          final (lockedPrefix, lockedSegments) = splitDiaryEditable(
+            entry,
+            myUid,
+          );
+          _lockedPrefix = lockedPrefix;
+          _lockedSegments = lockedSegments;
+          _controller.text = entry?.content.substring(lockedPrefix.length) ?? '';
+          _controller.selection = TextSelection.collapsed(
+            offset: _controller.text.length,
+          );
+        }
+        if (entry != null && myUid != null && entry.hasUnseenEditFor(myUid)) {
+          // Open on screen = seen; clears the dot on this group's chip.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref
+                .read(firestoreServiceProvider)
+                ?.markDiaryGroupSeen(widget.group.id, dateKey, entry.updatedAt);
+          });
+        }
+        final showEditor = _editing || _controller.text.isEmpty;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: showEditor
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_lockedPrefix.isNotEmpty)
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxHeight: 120),
+                            child: SingleChildScrollView(
+                              child: SizedBox(
+                                width: double.infinity,
+                                child: _AttributedDiaryText(
+                                  entry: SharedDiaryEntry(
+                                    dateKey: dateKey,
+                                    content: _lockedPrefix,
+                                    updatedAt: entry?.updatedAt ?? DateTime.now(),
+                                    updatedBy: entry?.updatedBy ?? '',
+                                    segments: _lockedSegments,
+                                  ),
+                                  nicknameFor: nicknameFor,
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (_lockedPrefix.isNotEmpty) const SizedBox(height: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: _controller,
+                            focusNode: _focusNode,
+                            autofocus: _editing,
+                            maxLines: null,
+                            expands: true,
+                            textAlignVertical: TextAlignVertical.top,
+                            style: const TextStyle(
+                              fontFamily: 'GriunFromsol',
+                              height: 1.5,
+                            ),
+                            decoration: const InputDecoration(
+                              hintText: '오늘 있었던 일을 함께 나눠보세요',
+                            ),
+                            onChanged: (_) => _scheduleSave(),
+                          ),
+                        ),
+                      ],
+                    )
+                  : GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onTap: () {
+                        setState(() => _editing = true);
+                        WidgetsBinding.instance.addPostFrameCallback(
+                          (_) => _focusNode.requestFocus(),
+                        );
+                      },
+                      child: SingleChildScrollView(
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: _AttributedDiaryText(
+                            entry: entry!,
+                            nicknameFor: nicknameFor,
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
+            if (entry != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  '마지막 수정: ${entry.updatedBy == myUid ? '나' : nicknameFor(entry.updatedBy)} · '
+                  '${DateFormat('a h:mm', 'ko_KR').format(entry.updatedAt)}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).disabledColor,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('오류: $e')),
+    );
+  }
+}
 
 /// Read-only rendering of the shared diary text with a "- 닉네임" marker
 /// right after each contributor's block, tap-to-edit switches to the
 /// plain TextField in the parent.
 class _AttributedDiaryText extends StatelessWidget {
   final SharedDiaryEntry entry;
-  final String? myUid;
-  final String myNickname;
-  final String friendNickname;
+  final String Function(String uid) nicknameFor;
 
-  const _AttributedDiaryText({
-    required this.entry,
-    required this.myUid,
-    required this.myNickname,
-    required this.friendNickname,
-  });
+  const _AttributedDiaryText({required this.entry, required this.nicknameFor});
 
   @override
   Widget build(BuildContext context) {
@@ -563,7 +994,7 @@ class _AttributedDiaryText extends StatelessWidget {
       // Empty uid marks a legacy segment seeded for pre-feature text with
       // no real author to attribute - leave it unmarked.
       if (segment.uid.isNotEmpty) {
-        final nickname = segment.uid == myUid ? myNickname : friendNickname;
+        final nickname = nicknameFor(segment.uid);
         final leadingNewline = chunk.endsWith('\n') ? '' : '\n';
         spans.add(
           TextSpan(text: '$leadingNewline- $nickname\n', style: markerStyle),
