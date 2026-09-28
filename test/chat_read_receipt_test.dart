@@ -34,16 +34,18 @@ Future<void> _openChat(WidgetTester tester, DateTime? friendLastRead) async {
 }
 
 void main() {
-  testWidgets('each unread message of mine says 안읽음', (tester) async {
-    // Friend read up to msg 2; my msgs 3, 4, 5 are unread.
+  testWidgets('only my latest message says 안읽음, not every unread one', (
+    tester,
+  ) async {
+    // Friend read up to msg 2; my msgs 3, 4, 5 are still unread.
     await _openChat(tester, DateTime(2026, 1, 1, 0, 2));
-    expect(find.text('안읽음'), findsNWidgets(3));
+    expect(find.text('안읽음'), findsOneWidget);
     expect(find.text('읽음'), findsNothing);
   });
 
-  testWidgets('never read: every message of mine says 안읽음', (tester) async {
+  testWidgets('never read: only my latest message says 안읽음', (tester) async {
     await _openChat(tester, null);
-    expect(find.text('안읽음'), findsNWidgets(5));
+    expect(find.text('안읽음'), findsOneWidget);
   });
 
   testWidgets('all read: only my latest message says 읽음', (tester) async {

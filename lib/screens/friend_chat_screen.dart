@@ -184,14 +184,10 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
                     final read =
                         friendLastRead != null &&
                         !friendLastRead.isBefore(message.createdAt);
-                    // Every unread message of mine says so; once all are
-                    // read, just the latest says 읽음.
-                    final readLabel = !isMe
-                        ? null
-                        : !read
-                        ? '안읽음'
-                        : index == lastMineIndex
-                        ? '읽음'
+                    // Only the last message I sent gets a label (읽음/안읽음),
+                    // KakaoTalk-style, not every unread bubble.
+                    final readLabel = (isMe && index == lastMineIndex)
+                        ? (read ? '읽음' : '안읽음')
                         : null;
                     return _MessageBubble(
                       key: _bubbleKeys.putIfAbsent(message.id, GlobalKey.new),
