@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../data/korean_holidays.dart';
@@ -37,11 +38,15 @@ class _DiaryLegendItem extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      Icon(Icons.menu_book_rounded, size: 13, color: color),
+      Icon(Icons.menu_book_rounded, size: 16, color: color),
       const SizedBox(width: 4),
       Text(
         label,
-        style: TextStyle(fontSize: 11, color: Theme.of(context).disabledColor),
+        style: TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w600,
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
+        ),
       ),
     ],
   );
@@ -309,18 +314,49 @@ class CalendarSidebar extends ConsumerWidget {
               onPageChanged: (focusedDay) {
                 ref.read(focusedMonthProvider.notifier).state = focusedDay;
               },
-              onHeaderTapped: (focusedDay) =>
-                  _showYearMonthPicker(context, ref, focusedDay),
               calendarFormat: CalendarFormat.month,
+              // The header row centers the chevrons on the whole title +
+              // legend block; the extra bottom padding lifts them back level
+              // with the month title.
               headerStyle: const HeaderStyle(
                 formatButtonVisible: false,
-                titleCentered: true,
-                titleTextStyle: TextStyle(
-                  fontFamily: 'GriunCocochoitoon',
-                  fontSize: 20,
-                ),
+                leftChevronPadding: EdgeInsets.fromLTRB(12, 12, 12, 36),
+                rightChevronPadding: EdgeInsets.fromLTRB(12, 12, 12, 36),
               ),
               calendarBuilders: CalendarBuilders(
+                // Title + diary legend right under it, where it's seen.
+                // A custom title drops table_calendar's own tap handler, so
+                // the year/month picker is wired back up here.
+                headerTitleBuilder: (context, day) => GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _showYearMonthPicker(context, ref, day),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        DateFormat.yMMMM('ko_KR').format(day),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontFamily: 'GriunCocochoitoon',
+                          fontSize: 20,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      const Wrap(
+                        spacing: 14,
+                        runSpacing: 4,
+                        alignment: WrapAlignment.center,
+                        children: [
+                          _DiaryLegendItem(color: kMyDiaryColor, label: '내 일기'),
+                          _DiaryLegendItem(
+                            color: kExchangeDiaryColor,
+                            label: '교환일기',
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
                 defaultBuilder: (context, day, focusedDay) =>
                     cellBuilder(context, day),
                 todayBuilder: (context, day, focusedDay) =>
@@ -329,17 +365,6 @@ class CalendarSidebar extends ConsumerWidget {
                     cellBuilder(context, day, isSelected: true),
                 outsideBuilder: (context, day, focusedDay) =>
                     cellBuilder(context, day, isOutside: true),
-              ),
-            ),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(12, 4, 12, 8),
-              child: Wrap(
-                spacing: 14,
-                alignment: WrapAlignment.center,
-                children: [
-                  _DiaryLegendItem(color: kMyDiaryColor, label: '내 일기'),
-                  _DiaryLegendItem(color: kExchangeDiaryColor, label: '교환일기'),
-                ],
               ),
             ),
           ],

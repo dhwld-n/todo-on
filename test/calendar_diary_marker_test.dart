@@ -90,6 +90,23 @@ void main() {
     expect(find.text('교환일기'), findsOneWidget);
   });
 
+  testWidgets(
+    'legend sits under the month title, which still opens the picker',
+    (tester) async {
+      await _pump(tester, 800);
+
+      final title = tester.getRect(find.text('2026년 9월'));
+      final legend = tester.getRect(find.text('내 일기'));
+      final weekday = tester.getRect(find.text('일').first);
+      expect(legend.top, greaterThan(title.bottom));
+      expect(legend.bottom, lessThan(weekday.top));
+
+      await tester.tap(find.text('2026년 9월'));
+      await tester.pumpAndSettle();
+      expect(find.text('완료'), findsOneWidget);
+    },
+  );
+
   testWidgets('on a phone-width calendar the markers clear the day number', (
     tester,
   ) async {
