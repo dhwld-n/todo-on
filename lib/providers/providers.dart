@@ -200,6 +200,13 @@ final hasUnreadChatProvider = Provider<bool>((ref) {
   return false;
 });
 
+/// Drives the OS-level app icon badge (Windows taskbar overlay for now):
+/// true while there's an unread chat message or an unseen shared-diary edit.
+final hasAnyBadgeProvider = Provider<bool>(
+  (ref) =>
+      ref.watch(hasUnreadChatProvider) || ref.watch(hasUnseenSharedDiaryProvider),
+);
+
 final habitsProvider = StreamProvider<List<Habit>>((ref) {
   final service = ref.watch(firestoreServiceProvider);
   if (service == null) return const Stream.empty();

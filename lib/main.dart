@@ -3,10 +3,12 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:windows_taskbar/windows_taskbar.dart';
 
 import 'firebase_options.dart';
 import 'providers/providers.dart';
@@ -87,6 +89,18 @@ class TodoMateApp extends ConsumerWidget {
         saveCachedThemeMode(resolved);
       }
     });
+    if (!kIsWeb && Platform.isWindows) {
+      ref.listen(hasAnyBadgeProvider, (_, hasBadge) {
+        if (hasBadge) {
+          WindowsTaskbar.setOverlayIcon(
+            ThumbnailToolbarAssetIcon('assets/icons/badge_dot.ico'),
+            tooltip: '읽지 않은 알림이 있어요',
+          );
+        } else {
+          WindowsTaskbar.resetOverlayIcon();
+        }
+      });
+    }
     return MaterialApp(
       title: 'TODO on',
       debugShowCheckedModeBanner: false,
