@@ -8,9 +8,13 @@ import 'package:url_launcher/url_launcher.dart';
 import '../providers/providers.dart';
 import '../services/update_service.dart';
 
+bool get _isAndroid => !kIsWeb && Platform.isAndroid;
+
+/// On Android this starts the latest apk download straight away; elsewhere
+/// it opens the GitHub releases page.
 Future<void> openDownloadPage() {
   return launchUrl(
-    Uri.parse(kReleasesPageUrl),
+    Uri.parse(_isAndroid ? kLatestApkUrl : kReleasesPageUrl),
     mode: LaunchMode.externalApplication,
   );
 }
@@ -147,7 +151,11 @@ class _UpdateDialogState extends State<_UpdateDialog> {
                       Navigator.of(context).pop();
                       openDownloadPage();
                     },
-              child: Text(_canAutoUpdate ? '지금 업데이트' : '다운로드 페이지 열기'),
+              child: Text(
+                _canAutoUpdate
+                    ? '지금 업데이트'
+                    : (_isAndroid ? 'apk 받기' : '다운로드 페이지 열기'),
+              ),
             ),
           ],
         );

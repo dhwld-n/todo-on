@@ -4,12 +4,17 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 /// Keep this in sync with pubspec.yaml's `version:` (the part before `+`).
-const String kAppVersion = '1.6.42';
+const String kAppVersion = '1.6.43';
 
 const String _kReleasesApiUrl =
     'https://api.github.com/repos/dhwld-n/todo-on/releases/latest';
 const String kReleasesPageUrl =
     'https://github.com/dhwld-n/todo-on/releases/latest';
+
+/// Always the newest release's apk - each release attaches it under this
+/// fixed, version-less name so the link never goes stale.
+const String kLatestApkUrl =
+    'https://github.com/dhwld-n/todo-on/releases/latest/download/TODOon.apk';
 
 class UpdateInfo {
   final String latestVersion;
