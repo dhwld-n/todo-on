@@ -633,6 +633,7 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
   String? _loadedKey;
   String? _dateKey;
   bool _editing = false;
+  String? _syncedContent;
   // The part of the entry that isn't my own trailing writing - shown
   // read-only so a friend's text (or my own older turns) can't be edited.
   String _lockedPrefix = '';
@@ -654,7 +655,9 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
   }
 
   void _handleFocusChange() {
-    if (!_focusNode.hasFocus && _editing) {
+    if (_focusNode.hasFocus) {
+      _editing = true;
+    } else if (_editing) {
       _debounce?.cancel();
       _save();
       setState(() => _editing = false);
@@ -716,9 +719,12 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
 
     return entryAsync.when(
       data: (entry) {
-        if (_loadedKey != entryKey) {
+        // Re-split on a date switch, and on anyone's new write while I'm
+        // not mid-typing, so the text above the box stays live.
+        if (_loadedKey != entryKey ||
+            (!_editing && entry?.content != _syncedContent)) {
           _loadedKey = entryKey;
-          _editing = false;
+          _syncedContent = entry?.content;
           final (lockedPrefix, lockedSegments) = splitDiaryEditable(
             entry,
             myUid,
@@ -754,84 +760,56 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
                 );
           });
         }
-        final showEditor = _editing || _controller.text.isEmpty;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: showEditor
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (_lockedPrefix.isNotEmpty)
-                          ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxHeight: _lockedBoxMaxHeight(context),
-                            ),
-                            child: SingleChildScrollView(
-                              child: SizedBox(
-                                width: double.infinity,
-                                child: _AttributedDiaryText(
-                                  entry: SharedDiaryEntry(
-                                    dateKey: dateKey,
-                                    content: _lockedPrefix,
-                                    updatedAt:
-                                        entry?.updatedAt ?? DateTime.now(),
-                                    updatedBy: entry?.updatedBy ?? '',
-                                    segments: _lockedSegments,
-                                  ),
-                                  nicknameFor: (uid) => uid == myUid
-                                      ? myNickname
-                                      : friendNickname,
-                                ),
-                              ),
-                            ),
-                          ),
-                        if (_lockedPrefix.isNotEmpty) const SizedBox(height: 8),
-                        Expanded(
-                          child: TextField(
-                            controller: _controller,
-                            focusNode: _focusNode,
-                            autofocus: _editing,
-                            maxLines: null,
-                            expands: true,
-                            textAlignVertical: TextAlignVertical.top,
-                            style: const TextStyle(
-                              fontFamily: 'GriunFromsol',
-                              height: 1.5,
-                            ),
-                            decoration: const InputDecoration(
-                              hintText: '오늘 있었던 일을 함께 나눠보세요',
-                            ),
-                            onChanged: (_) => _scheduleSave(),
-                          ),
-                        ),
-                      ],
-                    )
-                  : GestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      onTap: () {
-                        setState(() => _editing = true);
-                        WidgetsBinding.instance.addPostFrameCallback(
-                          (_) => _focusNode.requestFocus(),
-                        );
-                      },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_lockedPrefix.isNotEmpty)
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: _lockedBoxMaxHeight(context),
+                      ),
                       child: SingleChildScrollView(
-                        // Text.rich sizes to its own (often short) content
-                        // width unless forced wider, unlike the TextField
-                        // editor above it (expands: true does that for
-                        // free) - without this the entry renders in a
-                        // narrow column with blank space beside it.
                         child: SizedBox(
                           width: double.infinity,
                           child: _AttributedDiaryText(
-                            entry: entry!,
+                            entry: SharedDiaryEntry(
+                              dateKey: dateKey,
+                              content: _lockedPrefix,
+                              updatedAt: entry?.updatedAt ?? DateTime.now(),
+                              updatedBy: entry?.updatedBy ?? '',
+                              segments: _lockedSegments,
+                            ),
                             nicknameFor: (uid) =>
                                 uid == myUid ? myNickname : friendNickname,
                           ),
                         ),
                       ),
                     ),
+                  if (_lockedPrefix.isNotEmpty) const SizedBox(height: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      focusNode: _focusNode,
+                      autofocus: _editing,
+                      maxLines: null,
+                      expands: true,
+                      textAlignVertical: TextAlignVertical.top,
+                      style: const TextStyle(
+                        fontFamily: 'GriunFromsol',
+                        height: 1.5,
+                      ),
+                      decoration: const InputDecoration(
+                        hintText: '오늘 있었던 일을 함께 나눠보세요',
+                      ),
+                      onChanged: (_) => _scheduleSave(),
+                    ),
+                  ),
+                ],
+              ),
             ),
             if (entry != null)
               Padding(
@@ -874,6 +852,7 @@ class _DiaryGroupBodyState extends ConsumerState<_DiaryGroupBody> {
   String? _loadedKey;
   String? _dateKey;
   bool _editing = false;
+  String? _syncedContent;
   String _lockedPrefix = '';
   List<DiarySegment> _lockedSegments = const [];
 
@@ -893,7 +872,9 @@ class _DiaryGroupBodyState extends ConsumerState<_DiaryGroupBody> {
   }
 
   void _handleFocusChange() {
-    if (!_focusNode.hasFocus && _editing) {
+    if (_focusNode.hasFocus) {
+      _editing = true;
+    } else if (_editing) {
       _debounce?.cancel();
       _save();
       setState(() => _editing = false);
@@ -951,9 +932,12 @@ class _DiaryGroupBodyState extends ConsumerState<_DiaryGroupBody> {
 
     return entryAsync.when(
       data: (entry) {
-        if (_loadedKey != entryKey) {
+        // Re-split on a date switch, and on anyone's new write while I'm
+        // not mid-typing, so the text above the box stays live.
+        if (_loadedKey != entryKey ||
+            (!_editing && entry?.content != _syncedContent)) {
           _loadedKey = entryKey;
-          _editing = false;
+          _syncedContent = entry?.content;
           final (lockedPrefix, lockedSegments) = splitDiaryEditable(
             entry,
             myUid,
@@ -974,76 +958,55 @@ class _DiaryGroupBodyState extends ConsumerState<_DiaryGroupBody> {
                 ?.markDiaryGroupSeen(widget.group.id, dateKey, entry.updatedAt);
           });
         }
-        final showEditor = _editing || _controller.text.isEmpty;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: showEditor
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (_lockedPrefix.isNotEmpty)
-                          ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxHeight: _lockedBoxMaxHeight(context),
-                            ),
-                            child: SingleChildScrollView(
-                              child: SizedBox(
-                                width: double.infinity,
-                                child: _AttributedDiaryText(
-                                  entry: SharedDiaryEntry(
-                                    dateKey: dateKey,
-                                    content: _lockedPrefix,
-                                    updatedAt:
-                                        entry?.updatedAt ?? DateTime.now(),
-                                    updatedBy: entry?.updatedBy ?? '',
-                                    segments: _lockedSegments,
-                                  ),
-                                  nicknameFor: nicknameFor,
-                                ),
-                              ),
-                            ),
-                          ),
-                        if (_lockedPrefix.isNotEmpty) const SizedBox(height: 8),
-                        Expanded(
-                          child: TextField(
-                            controller: _controller,
-                            focusNode: _focusNode,
-                            autofocus: _editing,
-                            maxLines: null,
-                            expands: true,
-                            textAlignVertical: TextAlignVertical.top,
-                            style: const TextStyle(
-                              fontFamily: 'GriunFromsol',
-                              height: 1.5,
-                            ),
-                            decoration: const InputDecoration(
-                              hintText: '오늘 있었던 일을 함께 나눠보세요',
-                            ),
-                            onChanged: (_) => _scheduleSave(),
-                          ),
-                        ),
-                      ],
-                    )
-                  : GestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      onTap: () {
-                        setState(() => _editing = true);
-                        WidgetsBinding.instance.addPostFrameCallback(
-                          (_) => _focusNode.requestFocus(),
-                        );
-                      },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_lockedPrefix.isNotEmpty)
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: _lockedBoxMaxHeight(context),
+                      ),
                       child: SingleChildScrollView(
                         child: SizedBox(
                           width: double.infinity,
                           child: _AttributedDiaryText(
-                            entry: entry!,
+                            entry: SharedDiaryEntry(
+                              dateKey: dateKey,
+                              content: _lockedPrefix,
+                              updatedAt: entry?.updatedAt ?? DateTime.now(),
+                              updatedBy: entry?.updatedBy ?? '',
+                              segments: _lockedSegments,
+                            ),
                             nicknameFor: nicknameFor,
                           ),
                         ),
                       ),
                     ),
+                  if (_lockedPrefix.isNotEmpty) const SizedBox(height: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      focusNode: _focusNode,
+                      autofocus: _editing,
+                      maxLines: null,
+                      expands: true,
+                      textAlignVertical: TextAlignVertical.top,
+                      style: const TextStyle(
+                        fontFamily: 'GriunFromsol',
+                        height: 1.5,
+                      ),
+                      decoration: const InputDecoration(
+                        hintText: '오늘 있었던 일을 함께 나눠보세요',
+                      ),
+                      onChanged: (_) => _scheduleSave(),
+                    ),
+                  ),
+                ],
+              ),
             ),
             if (entry != null)
               Padding(

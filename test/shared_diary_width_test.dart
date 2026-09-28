@@ -16,6 +16,7 @@ void main() {
       content: '아 덥다',
       updatedAt: DateTime(2026, 9, 28, 10),
       updatedBy: 'friend_a',
+      segments: const [DiarySegment(uid: 'friend_a', upTo: 4)],
     );
 
     final overrides = <Override>[

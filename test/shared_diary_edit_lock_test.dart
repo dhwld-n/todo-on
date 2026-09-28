@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
@@ -6,6 +7,11 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:todo_on/models/shared_diary_entry.dart';
 import 'package:todo_on/providers/providers.dart';
 import 'package:todo_on/widgets/diary_pane.dart';
+
+class _Me extends Fake implements User {
+  @override
+  String get uid => 'me';
+}
 
 void main() {
   group('splitDiaryEditable', () {
@@ -104,53 +110,109 @@ void main() {
     });
   });
 
-  testWidgets('tapping a friend-authored entry locks it instead of loading it into the editor', (
-    tester,
-  ) async {
-    await initializeDateFormatting('ko_KR');
-    const content = '친구가 쓴 글';
-    final entry = SharedDiaryEntry(
-      dateKey: '2026-09-28',
-      content: content,
-      updatedAt: DateTime(2026, 9, 28, 10),
-      updatedBy: 'friend_a',
-      segments: [DiarySegment(uid: 'friend_a', upTo: content.length)],
-    );
-    final overrides = <Override>[
-      authStateProvider.overrideWith((ref) => Stream.value(null)),
-      firestoreServiceProvider.overrideWithValue(null),
-      diaryTabProvider.overrideWith((ref) => DiaryTab.shared),
-      followingProvider.overrideWith((ref) => Stream.value(['friend_a'])),
-      friendProfileProvider.overrideWith(
-        (ref, uid) => Stream.value({'nickname': '친구'}),
-      ),
-      unseenSharedDiaryDatesProvider.overrideWith(
-        (ref, uid) => Stream.value(const <String>[]),
-      ),
-      sharedDiaryEntryProvider.overrideWith((ref, key) => Stream.value(entry)),
-    ];
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: overrides,
-        child: MaterialApp(
-          home: Scaffold(body: DiaryPane(date: DateTime(2026, 9, 28))),
+  testWidgets(
+    'tapping a friend-authored entry locks it instead of loading it into the editor',
+    (tester) async {
+      await initializeDateFormatting('ko_KR');
+      const content = '친구가 쓴 글';
+      final entry = SharedDiaryEntry(
+        dateKey: '2026-09-28',
+        content: content,
+        updatedAt: DateTime(2026, 9, 28, 10),
+        updatedBy: 'friend_a',
+        segments: [DiarySegment(uid: 'friend_a', upTo: content.length)],
+      );
+      final overrides = <Override>[
+        authStateProvider.overrideWith((ref) => Stream.value(null)),
+        firestoreServiceProvider.overrideWithValue(null),
+        diaryTabProvider.overrideWith((ref) => DiaryTab.shared),
+        followingProvider.overrideWith((ref) => Stream.value(['friend_a'])),
+        friendProfileProvider.overrideWith(
+          (ref, uid) => Stream.value({'nickname': '친구'}),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+        unseenSharedDiaryDatesProvider.overrideWith(
+          (ref, uid) => Stream.value(const <String>[]),
+        ),
+        sharedDiaryEntryProvider.overrideWith(
+          (ref, key) => Stream.value(entry),
+        ),
+      ];
 
-    final bodyFinder = find.byWidgetPredicate(
-      (w) => w is RichText && w.text.toPlainText().contains('친구가 쓴 글'),
-    );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: overrides,
+          child: MaterialApp(
+            home: Scaffold(body: DiaryPane(date: DateTime(2026, 9, 28))),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    // Enter edit mode by tapping the read-only body.
-    await tester.tap(bodyFinder);
-    await tester.pumpAndSettle();
+      final bodyFinder = find.byWidgetPredicate(
+        (w) => w is RichText && w.text.toPlainText().contains('친구가 쓴 글'),
+      );
 
-    // The friend's text stays visible but outside the editable field.
-    expect(bodyFinder, findsOneWidget);
-    final textField = tester.widget<TextField>(find.byType(TextField));
-    expect(textField.controller!.text, isEmpty);
-  });
+      // Enter edit mode by tapping the read-only body.
+      await tester.tap(bodyFinder);
+      await tester.pumpAndSettle();
+
+      // The friend's text stays visible but outside the editable field.
+      expect(bodyFinder, findsOneWidget);
+      final textField = tester.widget<TextField>(find.byType(TextField));
+      expect(textField.controller!.text, isEmpty);
+    },
+  );
+
+  testWidgets(
+    'whoever wrote last still gets the same text-above, box-below view',
+    (tester) async {
+      await initializeDateFormatting('ko_KR');
+      const friendText = '친구가 쓴 글\n';
+      const myText = '내가 이어 쓴 글';
+      final entry = SharedDiaryEntry(
+        dateKey: '2026-09-28',
+        content: friendText + myText,
+        updatedAt: DateTime(2026, 9, 28, 10),
+        updatedBy: 'me',
+        segments: const [
+          DiarySegment(uid: 'friend_a', upTo: friendText.length),
+          DiarySegment(uid: 'me', upTo: friendText.length + myText.length),
+        ],
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authStateProvider.overrideWith((ref) => Stream.value(_Me())),
+            profileDocProvider.overrideWith((ref) => Stream.value(null)),
+            firestoreServiceProvider.overrideWithValue(null),
+            diaryTabProvider.overrideWith((ref) => DiaryTab.shared),
+            followingProvider.overrideWith((ref) => Stream.value(['friend_a'])),
+            friendProfileProvider.overrideWith(
+              (ref, uid) => Stream.value({'nickname': '친구'}),
+            ),
+            unseenSharedDiaryDatesProvider.overrideWith(
+              (ref, uid) => Stream.value(const <String>[]),
+            ),
+            sharedDiaryEntryProvider.overrideWith(
+              (ref, key) => Stream.value(entry),
+            ),
+          ],
+          child: MaterialApp(
+            home: Scaffold(body: DiaryPane(date: DateTime(2026, 9, 28))),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // No tap needed: the box is there right away, holding only my part.
+      final textField = tester.widget<TextField>(find.byType(TextField));
+      expect(textField.controller!.text, myText);
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is RichText && w.text.toPlainText().contains('친구가 쓴 글'),
+        ),
+        findsOneWidget,
+      );
+    },
+  );
 }
