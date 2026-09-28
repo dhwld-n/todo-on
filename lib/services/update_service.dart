@@ -4,15 +4,16 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 /// Keep this in sync with pubspec.yaml's `version:` (the part before `+`).
-const String kAppVersion = '1.6.48';
+const String kAppVersion = '1.6.49';
 
 const String _kReleasesApiUrl =
     'https://api.github.com/repos/dhwld-n/todo-on/releases/latest';
 const String kReleasesPageUrl =
     'https://github.com/dhwld-n/todo-on/releases/latest';
 
-/// Always the newest release's apk - each release attaches it under this
-/// fixed, version-less name so the link never goes stale.
+/// Always the newest release's apk (each release also attaches it under this
+/// fixed name). Only a fallback: see [apkUrlFrom] for why the versioned
+/// file is preferred.
 const String kLatestApkUrl =
     'https://github.com/dhwld-n/todo-on/releases/latest/download/TODOon.apk';
 
@@ -20,12 +21,29 @@ class UpdateInfo {
   final String latestVersion;
   final String? notes;
   final String? installerUrl;
+  final String? apkUrl;
 
   const UpdateInfo({
     required this.latestVersion,
     this.notes,
     this.installerUrl,
+    this.apkUrl,
   });
+}
+
+/// The release's apk under its versioned name (TODOon-1.6.49.apk). The
+/// fixed TODOon.apk collides with the previous update still sitting in the
+/// phone's Downloads, and the browser then opens that old file instead.
+String? apkUrlFrom(List<dynamic> assets, String version) {
+  String? fallback;
+  for (final asset in assets) {
+    final name = (asset['name'] as String?)?.toLowerCase() ?? '';
+    if (!name.endsWith('.apk')) continue;
+    final url = asset['browser_download_url'] as String?;
+    if (name.contains(version)) return url;
+    fallback ??= url;
+  }
+  return fallback;
 }
 
 /// Returns update info if GitHub's latest release is newer than
@@ -59,6 +77,7 @@ Future<UpdateInfo?> checkForUpdate() async {
         latestVersion: latest,
         notes: data['body'] as String?,
         installerUrl: installerUrl,
+        apkUrl: apkUrlFrom(assets, latest),
       );
     }
     return null;

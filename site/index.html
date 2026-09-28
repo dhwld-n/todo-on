@@ -297,11 +297,11 @@
       <a class="cta" href="https://github.com/dhwld-n/todo-on/releases/latest/download/TODOon-Setup.exe">
         ⬇ Windows용 다운로드
       </a>
-      <a class="cta cta-secondary" href="https://github.com/dhwld-n/todo-on/releases/latest/download/TODOon.apk">
+      <a id="android-apk" class="cta cta-secondary" href="https://github.com/dhwld-n/todo-on/releases/latest/download/TODOon.apk">
         ⬇ Android용 다운로드
       </a>
     </div>
-    <p class="meta">v1.6.48 · Windows 약 19MB · <a href="https://github.com/dhwld-n/todo-on/releases/latest/download/TODOon-windows.zip">압축파일(zip)로 받기</a> · <a href="https://github.com/dhwld-n/todo-on" target="_blank" rel="noopener">GitHub에서 보기</a></p>
+    <p class="meta">v1.6.49 · Windows 약 19MB · <a href="https://github.com/dhwld-n/todo-on/releases/latest/download/TODOon-windows.zip">압축파일(zip)로 받기</a> · <a href="https://github.com/dhwld-n/todo-on" target="_blank" rel="noopener">GitHub에서 보기</a></p>
   </div>
 
   <div class="features">
@@ -350,7 +350,7 @@
   <div class="steps">
     <h2>안드로이드 설치 방법</h2>
     <ol>
-      <li>폰에서 이 페이지 열고 <b>Android용 다운로드</b> 버튼으로 <code>TODOon.apk</code>를 받아요.</li>
+      <li>폰에서 이 페이지 열고 <b>Android용 다운로드</b> 버튼으로 apk 파일(<code>TODOon-버전.apk</code>)을 받아요.</li>
       <li>다운로드한 파일을 눌러서 설치해요. "출처를 알 수 없는 앱" 경고가 뜨면 <b>설정 → 허용</b> 후 다시 설치를 눌러주세요.</li>
       <li>설치 끝나면 앱을 열고 닉네임/이메일로 회원가입하면 끝!</li>
     </ol>
@@ -362,5 +362,21 @@
   </footer>
 </div>
 
+<script>
+// Point the Android button at this release's own versioned apk: the fixed
+// TODOon.apk name collides with an earlier download on the phone, and the
+// browser then opens that old file. If this fails the fixed link stays.
+fetch('https://api.github.com/repos/dhwld-n/todo-on/releases/latest')
+  .then(function (r) { return r.ok ? r.json() : null; })
+  .then(function (rel) {
+    if (!rel) return;
+    var v = String(rel.tag_name || '').replace(/^v/, '');
+    var apk = (rel.assets || []).filter(function (a) {
+      return /\.apk$/i.test(a.name) && a.name.indexOf(v) !== -1;
+    })[0];
+    if (apk) document.getElementById('android-apk').href = apk.browser_download_url;
+  })
+  .catch(function () {});
+</script>
 </body>
 </html>

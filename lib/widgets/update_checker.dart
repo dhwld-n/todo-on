@@ -10,11 +10,12 @@ import '../services/update_service.dart';
 
 bool get _isAndroid => !kIsWeb && Platform.isAndroid;
 
-/// On Android this starts the latest apk download straight away; elsewhere
-/// it opens the GitHub releases page.
-Future<void> openDownloadPage() {
+/// On Android this starts the apk download straight away - the release's
+/// own versioned file when known ([UpdateInfo.apkUrl]); elsewhere it opens
+/// the GitHub releases page.
+Future<void> openDownloadPage({String? apkUrl}) {
   return launchUrl(
-    Uri.parse(_isAndroid ? kLatestApkUrl : kReleasesPageUrl),
+    Uri.parse(_isAndroid ? (apkUrl ?? kLatestApkUrl) : kReleasesPageUrl),
     mode: LaunchMode.externalApplication,
   );
 }
@@ -118,7 +119,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
             FilledButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                openDownloadPage();
+                openDownloadPage(apkUrl: widget.info.apkUrl);
               },
               child: const Text('다운로드 페이지 열기'),
             ),
@@ -140,7 +141,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
               TextButton(
                 onPressed: () {
                   Navigator.of(context).pop();
-                  openDownloadPage();
+                  openDownloadPage(apkUrl: widget.info.apkUrl);
                 },
                 child: const Text('다운로드 페이지에서 받기'),
               ),
@@ -149,7 +150,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
                   ? _startUpdate
                   : () {
                       Navigator.of(context).pop();
-                      openDownloadPage();
+                      openDownloadPage(apkUrl: widget.info.apkUrl);
                     },
               child: Text(
                 _canAutoUpdate
