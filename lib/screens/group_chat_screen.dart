@@ -161,9 +161,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
   @override
   Widget build(BuildContext context) {
     final myUid = ref.watch(authStateProvider).value?.uid ?? '';
-    final otherMembers = widget.group.members
-        .where((m) => m != myUid)
-        .toList();
+    final otherMembers = widget.group.members.where((m) => m != myUid).toList();
     final name = widget.group.name?.trim();
     final title = (name != null && name.isNotEmpty)
         ? name
@@ -230,12 +228,17 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                       }).length;
                       readLabel = unread == 0 ? '읽음' : '안읽음 $unread';
                     }
+                    // KakaoTalk-style: a run of messages from one person
+                    // only names them on the first bubble.
+                    final continuesRun =
+                        index > 0 &&
+                        messages[index - 1].senderUid == message.senderUid;
                     return _GroupMessageBubble(
                       key: _bubbleKeys.putIfAbsent(message.id, GlobalKey.new),
                       message: message,
                       isMe: isMe,
                       groupId: _groupId,
-                      senderName: isMe
+                      senderName: isMe || continuesRun
                           ? null
                           : _memberDisplayName(ref, message.senderUid),
                       readLabel: readLabel,

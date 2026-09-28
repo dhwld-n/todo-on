@@ -38,19 +38,18 @@ final _messages = [
 
 Future<void> _openGroup(
   WidgetTester tester,
-  Map<String, DateTime> lastRead,
-) async {
+  Map<String, DateTime> lastRead, {
+  List<ChatMessage>? messages,
+}) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         authStateProvider.overrideWith((ref) => Stream.value(null)),
         firestoreServiceProvider.overrideWithValue(null),
         groupMessagesProvider.overrideWith(
-          (ref, id) => Stream.value(_messages),
+          (ref, id) => Stream.value(messages ?? _messages),
         ),
-        groupLastReadProvider.overrideWith(
-          (ref, id) => Stream.value(lastRead),
-        ),
+        groupLastReadProvider.overrideWith((ref, id) => Stream.value(lastRead)),
         // Real Firebase uids are never empty, so the fallback-nickname path
         // (uid.substring(0, 8)) never sees ''; give it a nickname here too
         // so the test's own placeholder "me" uid doesn't hit that fallback.
@@ -91,9 +90,7 @@ Future<void> _pumpChatList(WidgetTester tester) async {
         groupMessagesProvider.overrideWith(
           (ref, id) => Stream.value([_messages.last]),
         ),
-        groupLastReadProvider.overrideWith(
-          (ref, id) => Stream.value(const {}),
-        ),
+        groupLastReadProvider.overrideWith((ref, id) => Stream.value(const {})),
       ],
       child: const MaterialApp(home: Scaffold(body: ChatListPane())),
     ),
@@ -113,6 +110,33 @@ void main() {
     expect(find.text('friend_b'), findsOneWidget);
   });
 
+  testWidgets('a run of messages from one person names them only once', (
+    tester,
+  ) async {
+    var minute = 0;
+    ChatMessage msg(String sender, String text) => ChatMessage(
+      id: 'm$minute',
+      senderUid: sender,
+      text: text,
+      createdAt: DateTime(2026, 1, 1, 0, minute++),
+    );
+    await _openGroup(
+      tester,
+      {},
+      messages: [
+        msg('friend_a', 'a1'),
+        msg('friend_a', 'a2'),
+        msg('friend_a', 'a3'),
+        msg('friend_b', 'b1'),
+        msg('friend_b', 'b2'),
+        msg('friend_a', 'a4'),
+      ],
+    );
+    // friend_a's first run and their later run; friend_b's single run.
+    expect(find.text('friend_a'), findsNWidgets(2));
+    expect(find.text('friend_b'), findsOneWidget);
+  });
+
   testWidgets('my last message shows how many members have not read it', (
     tester,
   ) async {
@@ -121,9 +145,7 @@ void main() {
     expect(find.text('안읽음 1'), findsOneWidget);
   });
 
-  testWidgets('shows 읽음 once every other member has read it', (
-    tester,
-  ) async {
+  testWidgets('shows 읽음 once every other member has read it', (tester) async {
     await _openGroup(tester, {
       'friend_a': DateTime(2026, 1, 1, 1, 0),
       'friend_b': DateTime(2026, 1, 1, 1, 0),
