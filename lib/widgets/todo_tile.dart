@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../models/category.dart';
 import '../models/todo_item.dart';
 
+String todoCheckboxAsset(bool isDone) =>
+    isDone ? 'assets/icons/cat_checked1.png' : 'assets/icons/cat_unchecked.png';
+
 class TodoTile extends StatelessWidget {
   final TodoItem todo;
   final TodoCategory? category;
@@ -37,9 +40,7 @@ class TodoTile extends StatelessWidget {
                       ? null
                       : () => onToggle!(!todo.isDone),
                   child: Image.asset(
-                    todo.isDone
-                        ? 'assets/icons/cat_checked1.png'
-                        : 'assets/icons/cat_unchecked.png',
+                    todoCheckboxAsset(todo.isDone),
                     width: 96,
                     height: 96,
                   ),

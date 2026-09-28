@@ -84,6 +84,10 @@ final contentModeProvider = StateProvider<ContentMode>(
 /// screens. Defaults to shown, so the calendar isn't hidden behind a tap.
 final mobileCalendarExpandedProvider = StateProvider<bool>((ref) => true);
 
+/// The todo currently being dragged to a new spot, so its original row can
+/// fade out while it's in flight.
+final draggingTodoIdProvider = StateProvider<String?>((ref) => null);
+
 String dateKeyFor(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
 
 final diaryEntryProvider = StreamProvider.autoDispose
@@ -224,7 +228,8 @@ final hasUnreadChatProvider = Provider<bool>((ref) {
   }
   final groups = ref.watch(myGroupChatsProvider).value ?? const [];
   for (final group in groups) {
-    final messages = ref.watch(groupMessagesProvider(group.id)).value ?? const [];
+    final messages =
+        ref.watch(groupMessagesProvider(group.id)).value ?? const [];
     final lastRead = ref.watch(groupLastReadProvider(group.id)).value?[myUid];
     final hasUnread = messages.any(
       (m) =>
@@ -240,7 +245,8 @@ final hasUnreadChatProvider = Provider<bool>((ref) {
 /// true while there's an unread chat message or an unseen shared-diary edit.
 final hasAnyBadgeProvider = Provider<bool>(
   (ref) =>
-      ref.watch(hasUnreadChatProvider) || ref.watch(hasUnseenSharedDiaryProvider),
+      ref.watch(hasUnreadChatProvider) ||
+      ref.watch(hasUnseenSharedDiaryProvider),
 );
 
 final habitsProvider = StreamProvider<List<Habit>>((ref) {

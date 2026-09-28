@@ -767,6 +767,108 @@ void _moveTodo(
       );
 }
 
+/// Where a dragged todo will land - a clear box instead of a thin line.
+class _DropSlot extends StatelessWidget {
+  const _DropSlot();
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return Container(
+      height: 52,
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: primary.withValues(alpha: 0.12),
+        border: Border.all(color: primary, width: 2),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Text(
+        '여기에 놓여요',
+        style: TextStyle(
+          color: primary,
+          fontWeight: FontWeight.w700,
+          fontFamily: 'GriunFromsol',
+        ),
+      ),
+    );
+  }
+}
+
+/// The card that follows the pointer while a todo is dragged.
+class _DragCard extends StatelessWidget {
+  static const width = 300.0;
+  static const height = 68.0;
+
+  final TodoItem todo;
+
+  const _DragCard({required this.todo});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        width: width,
+        height: height,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          // Tinted so it doesn't blend into the list it's floating over.
+          color: Color.alphaBlend(
+            scheme.primary.withValues(alpha: 0.16),
+            scheme.surface,
+          ),
+          border: Border.all(color: scheme.primary, width: 2),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.3),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // The drawing only fills the middle of its canvas: render it at
+            // the list's 96px and crop, so the cat is as big as in the row.
+            SizedBox(
+              width: 64,
+              height: 60,
+              child: ClipRect(
+                child: OverflowBox(
+                  maxWidth: 96,
+                  maxHeight: 96,
+                  child: Image.asset(
+                    todoCheckboxAsset(todo.isDone),
+                    width: 96,
+                    height: 96,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                todo.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: 'GriunFromsol',
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurface,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _CategorySection extends ConsumerWidget {
   final TodoCategory? category;
   final List<TodoItem> todos;
@@ -781,6 +883,7 @@ class _CategorySection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final color = category != null ? Color(category!.colorValue) : null;
+    final draggingId = ref.watch(draggingTodoIdProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -855,20 +958,9 @@ class _CategorySection extends ConsumerWidget {
             onAcceptWithDetails: (details) =>
                 _moveTodo(ref, details.data, category, todos),
             builder: (context, candidateData, rejectedData) {
-              final isHovering = candidateData.isNotEmpty;
-              return Container(
-                width: double.infinity,
-                margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                decoration: isHovering
-                    ? BoxDecoration(
-                        border: Border.all(
-                          color: Theme.of(context).colorScheme.primary,
-                          width: 2,
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                      )
-                    : null,
+              if (candidateData.isNotEmpty) return const _DropSlot();
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(24, 8, 16, 16),
                 child: Text(
                   '할 일이 없어요.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -890,58 +982,50 @@ class _CategorySection extends ConsumerWidget {
                 beforeId: todo.id,
               ),
               builder: (context, candidateData, rejectedData) {
-                final isHovering = candidateData.isNotEmpty;
-                return Container(
-                  decoration: isHovering
-                      ? BoxDecoration(
-                          border: Border(
-                            top: BorderSide(
-                              color: Theme.of(context).colorScheme.primary,
-                              width: 2,
-                            ),
+                // The slot sits inside this target, so the pointer stays over
+                // it after the tile shifts down - no flicker while hovering.
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (candidateData.isNotEmpty) const _DropSlot(),
+                    Opacity(
+                      opacity: todo.id == draggingId ? 0.35 : 1,
+                      child: TodoTile(
+                        key: ValueKey(todo.id),
+                        todo: todo,
+                        category: category,
+                        onToggle: (v) => ref
+                            .read(firestoreServiceProvider)
+                            ?.setDone(todo.id, v ?? false),
+                        onTap: () =>
+                            showAddEditTodoSheet(context, ref, existing: todo),
+                        onDelete: () => ref
+                            .read(firestoreServiceProvider)
+                            ?.deleteTodo(todo.id),
+                        dragHandle: Draggable<TodoItem>(
+                          data: todo,
+                          // Center the card on the pointer instead of hanging
+                          // it off the handle at the row's right edge.
+                          dragAnchorStrategy: (_, _, _) => const Offset(
+                            _DragCard.width / 2,
+                            _DragCard.height / 2,
                           ),
-                        )
-                      : null,
-                  child: TodoTile(
-                    key: ValueKey(todo.id),
-                    todo: todo,
-                    category: category,
-                    onToggle: (v) => ref
-                        .read(firestoreServiceProvider)
-                        ?.setDone(todo.id, v ?? false),
-                    onTap: () =>
-                        showAddEditTodoSheet(context, ref, existing: todo),
-                    onDelete: () =>
-                        ref.read(firestoreServiceProvider)?.deleteTodo(todo.id),
-                    dragHandle: Draggable<TodoItem>(
-                      data: todo,
-                      feedback: Material(
-                        elevation: 6,
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          constraints: const BoxConstraints(maxWidth: 220),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
+                          onDragStarted: () =>
+                              ref.read(draggingTodoIdProvider.notifier).state =
+                                  todo.id,
+                          onDragEnd: (_) =>
+                              ref.read(draggingTodoIdProvider.notifier).state =
+                                  null,
+                          feedback: _DragCard(todo: todo),
+                          childWhenDragging: Icon(
+                            Icons.drag_indicator,
+                            color: Theme.of(context).disabledColor,
                           ),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.surface,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            todo.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                          child: const Icon(Icons.drag_indicator),
                         ),
                       ),
-                      childWhenDragging: Icon(
-                        Icons.drag_indicator,
-                        color: Theme.of(context).disabledColor,
-                      ),
-                      child: const Icon(Icons.drag_indicator),
                     ),
-                  ),
+                  ],
                 );
               },
             ),
@@ -950,21 +1034,8 @@ class _CategorySection extends ConsumerWidget {
             onAcceptWithDetails: (details) =>
                 _moveTodo(ref, details.data, category, todos),
             builder: (context, candidateData, rejectedData) {
-              final isHovering = candidateData.isNotEmpty;
-              return Container(
-                height: 12,
-                margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                decoration: isHovering
-                    ? BoxDecoration(
-                        border: Border(
-                          top: BorderSide(
-                            color: Theme.of(context).colorScheme.primary,
-                            width: 2,
-                          ),
-                        ),
-                      )
-                    : null,
-              );
+              if (candidateData.isNotEmpty) return const _DropSlot();
+              return const SizedBox(height: 12);
             },
           ),
       ],
