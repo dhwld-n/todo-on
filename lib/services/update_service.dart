@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
 /// Keep this in sync with pubspec.yaml's `version:` (the part before `+`).
-const String kAppVersion = '1.6.51';
+const String kAppVersion = '1.6.52';
 
 const String _kReleasesApiUrl =
     'https://api.github.com/repos/dhwld-n/todo-on/releases/latest';
@@ -86,11 +87,13 @@ Future<UpdateInfo?> checkForUpdate() async {
   }
 }
 
-/// Downloads the Windows installer to a temp file, reporting progress via
-/// [onProgress] (received bytes, total bytes or null if unknown).
+/// Downloads the Windows installer (or, with [destPath], the Android apk)
+/// to a temp file, reporting progress via [onProgress] (received bytes,
+/// total bytes or null if unknown).
 Future<String> downloadInstaller(
   String url, {
   void Function(int received, int? total)? onProgress,
+  String? destPath,
 }) async {
   final client = http.Client();
   try {
@@ -100,7 +103,7 @@ Future<String> downloadInstaller(
       throw Exception('다운로드 실패 (HTTP ${response.statusCode})');
     }
     final total = response.contentLength;
-    final destPath =
+    destPath ??=
         '${Directory.systemTemp.path}${Platform.pathSeparator}TODOon-Setup-latest.exe';
     final file = File(destPath);
     final sink = file.openWrite();
@@ -131,6 +134,24 @@ Future<void> installAndExit(String installerPath) async {
   ], mode: ProcessStartMode.detached);
   exit(0);
 }
+
+const _updateChannel = MethodChannel('todo_on/update');
+
+/// Android: downloads the apk into the app's own cache, where
+/// MainActivity.kt can share it with the system installer.
+Future<String> downloadApk(
+  String url, {
+  void Function(int received, int? total)? onProgress,
+}) async {
+  final path = await _updateChannel.invokeMethod<String>('apkPath');
+  return downloadInstaller(url, onProgress: onProgress, destPath: path);
+}
+
+/// Android: opens the system install screen for an apk from [downloadApk].
+/// Safe to call again (e.g. after the one-time "allow this source" detour
+/// dropped the user back in the app).
+Future<void> openApkInstaller(String path) =>
+    _updateChannel.invokeMethod<void>('installApk', {'path': path});
 
 bool _isNewer(String remote, String local) {
   final r = _parseVersion(remote);

@@ -42,9 +42,18 @@ class _UpdateDialogState extends State<_UpdateDialog> {
   _UpdateStage _stage = _UpdateStage.prompt;
   double? _progress;
   String? _error;
+  String? _apkPath;
 
-  bool get _canAutoUpdate =>
-      !kIsWeb && Platform.isWindows && widget.info.installerUrl != null;
+  bool get _canAutoUpdate => _isAndroid
+      ? widget.info.apkUrl != null
+      : !kIsWeb && Platform.isWindows && widget.info.installerUrl != null;
+
+  void _onProgress(int received, int? total) {
+    if (!mounted) return;
+    setState(() {
+      _progress = total != null && total > 0 ? received / total : null;
+    });
+  }
 
   Future<void> _startUpdate() async {
     setState(() {
@@ -52,14 +61,21 @@ class _UpdateDialogState extends State<_UpdateDialog> {
       _progress = 0;
     });
     try {
+      if (_isAndroid) {
+        final path = await downloadApk(
+          widget.info.apkUrl!,
+          onProgress: _onProgress,
+        );
+        _apkPath = path;
+        await openApkInstaller(path);
+        // Stay open: the first install detours through "allow this source"
+        // settings, and Android then returns here instead of the installer.
+        if (mounted) setState(() => _stage = _UpdateStage.installing);
+        return;
+      }
       final path = await downloadInstaller(
         widget.info.installerUrl!,
-        onProgress: (received, total) {
-          if (!mounted) return;
-          setState(() {
-            _progress = total != null && total > 0 ? received / total : null;
-          });
-        },
+        onProgress: _onProgress,
       );
       if (!mounted) return;
       setState(() => _stage = _UpdateStage.installing);
@@ -93,6 +109,24 @@ class _UpdateDialogState extends State<_UpdateDialog> {
               ),
             ],
           ),
+        );
+      case _UpdateStage.installing when _isAndroid:
+        return AlertDialog(
+          title: const Text('설치 화면에서 업데이트를 눌러주세요'),
+          content: const Text(
+            '설치 화면이 안 보이거나, "출처를 알 수 없는 앱"을 허용하고 '
+            '돌아왔다면 아래 버튼을 눌러주세요.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('닫기'),
+            ),
+            FilledButton(
+              onPressed: () => openApkInstaller(_apkPath!),
+              child: const Text('설치 화면 다시 열기'),
+            ),
+          ],
         );
       case _UpdateStage.installing:
         return const AlertDialog(
@@ -137,7 +171,9 @@ class _UpdateDialogState extends State<_UpdateDialog> {
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('나중에'),
             ),
-            if (_canAutoUpdate)
+            // Android's error dialog still offers the browser route; three
+            // buttons don't fit a phone-width row.
+            if (_canAutoUpdate && !_isAndroid)
               TextButton(
                 onPressed: () {
                   Navigator.of(context).pop();
