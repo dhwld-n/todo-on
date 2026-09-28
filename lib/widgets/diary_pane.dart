@@ -14,6 +14,19 @@ class DiaryPane extends ConsumerWidget {
 
   const DiaryPane({super.key, required this.date});
 
+  Future<void> _pickDate(BuildContext context, WidgetRef ref) async {
+    // Same range as the calendar.
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: date,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2035, 12, 31),
+    );
+    if (picked == null || !context.mounted) return;
+    ref.read(selectedDateProvider.notifier).state = picked;
+    ref.read(focusedMonthProvider.notifier).state = picked;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tab = ref.watch(diaryTabProvider);
@@ -22,38 +35,69 @@ class DiaryPane extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  DateFormat('yyyy년 M월 d일 EEEE', 'ko_KR').format(date),
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontFamily: 'GriunFromsol',
-                    fontWeight: FontWeight.w700,
+          // A Wrap, not a Row: on a phone the chips would leave the date
+          // ~80px and wrap it over 4-5 lines, so it drops them to their own
+          // line instead. Wide screens still fit both side by side (full
+          // width so spaceBetween keeps the chips at the right edge).
+          SizedBox(
+            width: double.infinity,
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                // Tappable: on Android the calendar only lives in the TODO
+                // tab, so this is the diary's own way to change the day.
+                InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () => _pickDate(context, ref),
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: DateFormat(
+                            'yyyy년 M월 d일 EEEE ',
+                            'ko_KR',
+                          ).format(date),
+                        ),
+                        WidgetSpan(
+                          alignment: PlaceholderAlignment.middle,
+                          child: Icon(
+                            Icons.calendar_month_outlined,
+                            size: 18,
+                            color: Theme.of(context).disabledColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontFamily: 'GriunFromsol',
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
-              ),
-              Wrap(
-                spacing: 8,
-                children: [
-                  ChoiceChip(
-                    label: const Text('내 일기'),
-                    selected: tab == DiaryTab.private,
-                    onSelected: (_) =>
-                        ref.read(diaryTabProvider.notifier).state =
-                            DiaryTab.private,
-                  ),
-                  ChoiceChip(
-                    label: const Text('교환일기'),
-                    selected: tab == DiaryTab.shared,
-                    onSelected: (_) =>
-                        ref.read(diaryTabProvider.notifier).state =
-                            DiaryTab.shared,
-                  ),
-                ],
-              ),
-            ],
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('내 일기'),
+                      selected: tab == DiaryTab.private,
+                      onSelected: (_) =>
+                          ref.read(diaryTabProvider.notifier).state =
+                              DiaryTab.private,
+                    ),
+                    ChoiceChip(
+                      label: const Text('교환일기'),
+                      selected: tab == DiaryTab.shared,
+                      onSelected: (_) =>
+                          ref.read(diaryTabProvider.notifier).state =
+                              DiaryTab.shared,
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
           Expanded(
