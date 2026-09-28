@@ -60,6 +60,50 @@ void main() {
     });
   });
 
+  group('computeDiarySave', () {
+    test('typing nothing and blurring is a no-op - no phantom turn', () {
+      final entry = SharedDiaryEntry(
+        dateKey: 'k',
+        content: 'AAAABBBB',
+        updatedAt: DateTime(2026),
+        updatedBy: 'me',
+        segments: const [
+          DiarySegment(uid: 'friend', upTo: 4),
+          DiarySegment(uid: 'me', upTo: 8),
+        ],
+      );
+      // Friend taps into the editor (their editable tail starts empty,
+      // since it isn't their turn) and taps away without typing.
+      final result = computeDiarySave(
+        oldEntry: entry,
+        lockedPrefix: entry.content,
+        typedTail: '',
+        myUid: 'friend',
+      );
+      expect(result, isNull);
+    });
+
+    test('actually typing something still saves normally', () {
+      final entry = SharedDiaryEntry(
+        dateKey: 'k',
+        content: 'AAAA',
+        updatedAt: DateTime(2026),
+        updatedBy: 'friend',
+        segments: const [DiarySegment(uid: 'friend', upTo: 4)],
+      );
+      final result = computeDiarySave(
+        oldEntry: entry,
+        lockedPrefix: entry.content,
+        typedTail: '이어쓰기',
+        myUid: 'me',
+      );
+      expect(result, isNotNull);
+      final (content, segments) = result!;
+      expect(content, 'AAAA이어쓰기');
+      expect(segments.last.uid, 'me');
+    });
+  });
+
   testWidgets('tapping a friend-authored entry locks it instead of loading it into the editor', (
     tester,
   ) async {

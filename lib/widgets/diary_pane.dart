@@ -291,6 +291,23 @@ class _SharedDiaryBody extends ConsumerStatefulWidget {
   return (content, segments);
 }
 
+/// What to save for a shared diary edit, or null if nothing actually
+/// changed. Tapping in and blurring back out without typing anything must
+/// not create a zero-length "turn" for whoever merely looked - that would
+/// silently lock the other person's already-written text out from under
+/// them.
+(String, List<DiarySegment>)? computeDiarySave({
+  required SharedDiaryEntry? oldEntry,
+  required String lockedPrefix,
+  required String typedTail,
+  required String myUid,
+}) {
+  final newContent = lockedPrefix + typedTail;
+  if (newContent == (oldEntry?.content ?? '')) return null;
+  final oldSegments = oldEntry?.segments ?? const <DiarySegment>[];
+  return (newContent, DiarySegment.update(oldSegments, myUid, newContent.length));
+}
+
 class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
@@ -330,23 +347,17 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
     final dateKey = _dateKey;
     final myUid = ref.read(authStateProvider).value?.uid;
     if (dateKey == null || myUid == null) return;
-    final oldSegments =
-        ref
-            .read(
-              sharedDiaryEntryProvider((
-                otherUid: widget.friendUid,
-                dateKey: dateKey,
-              )),
-            )
-            .value
-            ?.segments ??
-        const <DiarySegment>[];
-    final newContent = _lockedPrefix + _controller.text;
-    final newSegments = DiarySegment.update(
-      oldSegments,
-      myUid,
-      newContent.length,
+    final oldEntry = ref.read(
+      sharedDiaryEntryProvider((otherUid: widget.friendUid, dateKey: dateKey)),
+    ).value;
+    final result = computeDiarySave(
+      oldEntry: oldEntry,
+      lockedPrefix: _lockedPrefix,
+      typedTail: _controller.text,
+      myUid: myUid,
     );
+    if (result == null) return;
+    final (newContent, newSegments) = result;
     ref
         .read(firestoreServiceProvider)
         ?.saveSharedDiaryEntry(
