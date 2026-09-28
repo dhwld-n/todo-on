@@ -73,5 +73,25 @@ service cloud.firestore {
       allow update, delete: if request.auth != null &&
         resource.data.senderUid == request.auth.uid;
     }
+
+    match /groupChats/{groupId} {
+      allow read: if request.auth != null &&
+        request.auth.uid in resource.data.members;
+      allow create: if request.auth != null &&
+        request.auth.uid in request.resource.data.members &&
+        request.resource.data.createdBy == request.auth.uid;
+      allow update: if request.auth != null &&
+        request.auth.uid in resource.data.members;
+    }
+
+    match /groupChats/{groupId}/messages/{messageId} {
+      allow read: if request.auth != null &&
+        request.auth.uid in get(/databases/$(database)/documents/groupChats/$(groupId)).data.members;
+      allow create: if request.auth != null &&
+        request.auth.uid in get(/databases/$(database)/documents/groupChats/$(groupId)).data.members &&
+        request.resource.data.senderUid == request.auth.uid;
+      allow update, delete: if request.auth != null &&
+        resource.data.senderUid == request.auth.uid;
+    }
   }
 }

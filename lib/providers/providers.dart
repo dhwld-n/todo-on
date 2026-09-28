@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import '../models/category.dart';
 import '../models/chat_message.dart';
 import '../models/diary_entry.dart';
+import '../models/group_chat.dart';
 import '../models/habit.dart';
 import '../models/habit_log.dart';
 import '../models/shared_diary_entry.dart';
@@ -142,6 +143,26 @@ final chatLastReadProvider = StreamProvider.autoDispose
       return service.watchChatLastRead(friendUid);
     });
 
+final myGroupChatsProvider = StreamProvider<List<GroupChat>>((ref) {
+  final service = ref.watch(firestoreServiceProvider);
+  if (service == null) return const Stream.empty();
+  return service.watchMyGroupChats();
+});
+
+final groupMessagesProvider = StreamProvider.autoDispose
+    .family<List<ChatMessage>, String>((ref, groupId) {
+      final service = ref.watch(firestoreServiceProvider);
+      if (service == null) return const Stream.empty();
+      return service.watchGroupMessages(groupId);
+    });
+
+final groupLastReadProvider = StreamProvider.autoDispose
+    .family<Map<String, DateTime>, String>((ref, groupId) {
+      final service = ref.watch(firestoreServiceProvider);
+      if (service == null) return const Stream.empty();
+      return service.watchGroupLastRead(groupId);
+    });
+
 final chatFriendLastReadProvider = StreamProvider.autoDispose
     .family<DateTime?, String>((ref, friendUid) {
       final service = ref.watch(firestoreServiceProvider);
@@ -158,6 +179,17 @@ final hasUnreadChatProvider = Provider<bool>((ref) {
   for (final uid in uids) {
     final messages = ref.watch(chatMessagesProvider(uid)).value ?? const [];
     final lastRead = ref.watch(chatLastReadProvider(uid)).value;
+    final hasUnread = messages.any(
+      (m) =>
+          m.senderUid != myUid &&
+          (lastRead == null || m.createdAt.isAfter(lastRead)),
+    );
+    if (hasUnread) return true;
+  }
+  final groups = ref.watch(myGroupChatsProvider).value ?? const [];
+  for (final group in groups) {
+    final messages = ref.watch(groupMessagesProvider(group.id)).value ?? const [];
+    final lastRead = ref.watch(groupLastReadProvider(group.id)).value?[myUid];
     final hasUnread = messages.any(
       (m) =>
           m.senderUid != myUid &&

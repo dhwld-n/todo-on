@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/category.dart';
 import '../models/chat_message.dart';
 import '../models/diary_entry.dart';
+import '../models/group_chat.dart';
 import '../models/habit.dart';
 import '../models/habit_log.dart';
 import '../models/shared_diary_entry.dart';
@@ -329,6 +330,95 @@ class FirestoreService {
 
   Future<void> deleteChatMessage(String otherUid, String messageId) {
     return _chatMessages(otherUid).doc(messageId).delete();
+  }
+
+  // ---- Group chats (separate collection: pair chats key security rules
+  // off pairId.split('_'), which a multi-member group id can't satisfy).
+
+  DocumentReference<Map<String, dynamic>> _groupChatDoc(String groupId) =>
+      _db.collection('groupChats').doc(groupId);
+
+  CollectionReference<Map<String, dynamic>> _groupMessages(String groupId) =>
+      _groupChatDoc(groupId).collection('messages');
+
+  Future<String> createGroupChat({
+    required List<String> memberUids,
+    String? name,
+  }) async {
+    final doc = await _db.collection('groupChats').add({
+      'name': name,
+      'members': [uid, ...memberUids],
+      'createdBy': uid,
+      'createdAt': Timestamp.fromDate(DateTime.now()),
+    });
+    return doc.id;
+  }
+
+  Stream<List<GroupChat>> watchMyGroupChats() {
+    return _db
+        .collection('groupChats')
+        .where('members', arrayContains: uid)
+        .snapshots()
+        .map((snap) => snap.docs.map(GroupChat.fromFirestore).toList());
+  }
+
+  Future<void> leaveGroupChat(String groupId) {
+    return _groupChatDoc(groupId).update({
+      'members': FieldValue.arrayRemove([uid]),
+    });
+  }
+
+  Stream<Map<String, DateTime>> watchGroupLastRead(String groupId) {
+    return _groupChatDoc(groupId).snapshots().map((doc) {
+      final lastRead = doc.data()?['lastRead'] as Map<String, dynamic>?;
+      if (lastRead == null) return const {};
+      return lastRead.map(
+        (k, v) => MapEntry(k, (v as Timestamp).toDate()),
+      );
+    });
+  }
+
+  Future<void> markGroupRead(String groupId) {
+    return _groupChatDoc(groupId).set({
+      'lastRead': {uid: Timestamp.fromDate(DateTime.now())},
+    }, SetOptions(merge: true));
+  }
+
+  Stream<List<ChatMessage>> watchGroupMessages(String groupId) {
+    return _groupMessages(groupId)
+        .orderBy('createdAt')
+        .snapshots()
+        .map((snap) => snap.docs.map(ChatMessage.fromFirestore).toList());
+  }
+
+  Future<void> sendGroupMessage(
+    String groupId,
+    String text, {
+    String? imageBase64,
+    String? replyToId,
+  }) {
+    return _groupMessages(groupId).add({
+      'senderUid': uid,
+      'text': text,
+      'imageBase64': ?imageBase64,
+      'replyToId': ?replyToId,
+      'createdAt': Timestamp.fromDate(DateTime.now()),
+    });
+  }
+
+  Future<void> updateGroupMessage(
+    String groupId,
+    String messageId,
+    String text,
+  ) {
+    return _groupMessages(groupId).doc(messageId).update({
+      'text': text,
+      'editedAt': Timestamp.fromDate(DateTime.now()),
+    });
+  }
+
+  Future<void> deleteGroupMessage(String groupId, String messageId) {
+    return _groupMessages(groupId).doc(messageId).delete();
   }
 
   Stream<List<Habit>> watchHabits() {
