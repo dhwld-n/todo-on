@@ -9,6 +9,7 @@ import 'package:image/image.dart' as img;
 import '../models/chat_message.dart';
 import '../models/group_chat.dart';
 import '../providers/providers.dart';
+import '../utils/display_name.dart';
 
 // Decode each photo once - see friend_chat_screen.dart's _photoBytes for why.
 final _photoBytes = <String, Uint8List>{};
@@ -18,12 +19,7 @@ Uint8List _photoOf(ChatMessage message) => _photoBytes.putIfAbsent(
 );
 
 String _memberDisplayName(WidgetRef ref, String uid) {
-  final nickname =
-      (ref.watch(friendProfileProvider(uid)).value?['nickname'] as String?)
-          ?.trim();
-  return (nickname != null && nickname.isNotEmpty)
-      ? nickname
-      : uid.substring(0, 8);
+  return displayNameFor(ref.watch(friendProfileProvider(uid)).value, uid);
 }
 
 class GroupChatScreen extends ConsumerStatefulWidget {
@@ -40,6 +36,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
   final _scrollController = ScrollController();
   final _composerFocus = FocusNode();
   final _bubbleKeys = <String, GlobalKey>{};
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _sending = false;
   ChatMessage? _replyTo;
 
@@ -183,9 +180,15 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     });
 
     return Scaffold(
+      key: _scaffoldKey,
       appBar: AppBar(
         title: Text(title, overflow: TextOverflow.ellipsis),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.people_outline),
+            tooltip: '참여자',
+            onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
+          ),
           PopupMenuButton<String>(
             onSelected: (value) {
               if (value == 'leave') _leaveGroup();
@@ -196,6 +199,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
           ),
         ],
       ),
+      endDrawer: _MembersDrawer(members: widget.group.members, myUid: myUid),
       body: Column(
         children: [
           Expanded(
@@ -329,6 +333,79 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _MembersDrawer extends StatelessWidget {
+  final List<String> members;
+  final String myUid;
+
+  const _MembersDrawer({required this.members, required this.myUid});
+
+  @override
+  Widget build(BuildContext context) {
+    return Drawer(
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                '참여자 ${members.length}명',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: ListView(
+                children: [
+                  for (final uid in members)
+                    _MemberProfileTile(uid: uid, isMe: uid == myUid),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MemberProfileTile extends ConsumerWidget {
+  final String uid;
+  final bool isMe;
+
+  const _MemberProfileTile({required this.uid, required this.isMe});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(friendProfileProvider(uid)).value;
+    final displayText = displayNameFor(profile, uid);
+    final bio = (profile?['bio'] as String?)?.trim();
+    final photoBase64 = profile?['photoBase64'] as String?;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: colorScheme.primary,
+        backgroundImage: photoBase64 != null
+            ? MemoryImage(base64Decode(photoBase64))
+            : null,
+        child: photoBase64 == null
+            ? Text(
+                displayText.isNotEmpty ? displayText[0] : '?',
+                style: const TextStyle(color: Colors.white),
+              )
+            : null,
+      ),
+      title: Text(isMe ? '$displayText (나)' : displayText),
+      subtitle: (bio != null && bio.isNotEmpty)
+          ? Text(bio, maxLines: 1, overflow: TextOverflow.ellipsis)
+          : null,
     );
   }
 }

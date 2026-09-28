@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../models/shared_diary_entry.dart';
 import '../providers/providers.dart';
+import '../utils/display_name.dart';
 
 class DiaryPane extends ConsumerWidget {
   final DateTime date;
@@ -342,11 +343,11 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
       sharedDiaryEntryProvider((otherUid: widget.friendUid, dateKey: dateKey)),
     );
     final myUid = ref.watch(authStateProvider).value?.uid;
-    final myNickname = _displayName(
+    final myNickname = displayNameFor(
       ref.watch(profileDocProvider).value,
       myUid ?? '',
     );
-    final friendNickname = _displayName(
+    final friendNickname = displayNameFor(
       ref.watch(friendProfileProvider(widget.friendUid)).value,
       widget.friendUid,
     );
@@ -444,11 +445,6 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
   }
 }
 
-String _displayName(Map<String, dynamic>? profile, String uid) {
-  final nickname = (profile?['nickname'] as String?)?.trim();
-  if (nickname != null && nickname.isNotEmpty) return nickname;
-  return uid.length >= 8 ? uid.substring(0, 8) : uid;
-}
 
 /// Read-only rendering of the shared diary text with a "- 닉네임" marker
 /// right after each contributor's block, tap-to-edit switches to the

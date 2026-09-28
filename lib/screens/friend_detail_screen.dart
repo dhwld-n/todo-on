@@ -11,6 +11,7 @@ import '../models/category.dart';
 import '../models/todo_item.dart';
 import '../providers/providers.dart';
 import '../theme/app_theme.dart';
+import '../utils/display_name.dart';
 import '../widgets/todo_tile.dart';
 import 'friend_chat_screen.dart';
 
@@ -87,10 +88,7 @@ class _FriendDetailScreenState extends ConsumerState<FriendDetailScreen> {
   Widget build(BuildContext context) {
     final profileAsync = ref.watch(friendProfileProvider(widget.uid));
     final profile = profileAsync.value;
-    final nickname = (profile?['nickname'] as String?)?.trim();
-    final displayText = (nickname != null && nickname.isNotEmpty)
-        ? nickname
-        : widget.uid.substring(0, 8);
+    final displayText = displayNameFor(profile, widget.uid);
     final bio = (profile?['bio'] as String?)?.trim();
     final photoBase64 = profile?['photoBase64'] as String?;
 

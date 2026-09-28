@@ -51,8 +51,11 @@ Future<void> _openGroup(
         groupLastReadProvider.overrideWith(
           (ref, id) => Stream.value(lastRead),
         ),
+        // Real Firebase uids are never empty, so the fallback-nickname path
+        // (uid.substring(0, 8)) never sees ''; give it a nickname here too
+        // so the test's own placeholder "me" uid doesn't hit that fallback.
         friendProfileProvider.overrideWith(
-          (ref, uid) => Stream.value({'nickname': uid}),
+          (ref, uid) => Stream.value({'nickname': uid.isEmpty ? '나' : uid}),
         ),
       ],
       child: MaterialApp(home: GroupChatScreen(group: _group)),
@@ -134,6 +137,21 @@ void main() {
   ) async {
     await _openGroup(tester, {});
     expect(find.text('friend_a, friend_b'), findsOneWidget);
+  });
+
+  testWidgets('the people icon opens a drawer listing every member', (
+    tester,
+  ) async {
+    await _openGroup(tester, {});
+    await tester.tap(find.byIcon(Icons.people_outline));
+    await tester.pumpAndSettle();
+
+    expect(find.text('참여자 3명'), findsOneWidget);
+    expect(find.text('friend_a'), findsWidgets);
+    expect(find.text('friend_b'), findsWidgets);
+    // My own uid ('') falls back to the empty-string prefix; just check the
+    // "(나)" marker shows for exactly one member.
+    expect(find.textContaining('(나)'), findsOneWidget);
   });
 
   testWidgets('group chat with the newest message is listed above the friend', (

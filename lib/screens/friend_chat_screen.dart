@@ -8,6 +8,7 @@ import 'package:image/image.dart' as img;
 
 import '../models/chat_message.dart';
 import '../providers/providers.dart';
+import '../utils/display_name.dart';
 
 // Decode each photo once. Fresh bytes on every rebuild make a new
 // MemoryImage, so the photo reloads at zero height for a moment, the list's
@@ -135,10 +136,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   @override
   Widget build(BuildContext context) {
     final profileAsync = ref.watch(friendProfileProvider(widget.uid));
-    final nickname = (profileAsync.value?['nickname'] as String?)?.trim();
-    final displayText = (nickname != null && nickname.isNotEmpty)
-        ? nickname
-        : widget.uid.substring(0, 8);
+    final displayText = displayNameFor(profileAsync.value, widget.uid);
     final myUid = ref.watch(authStateProvider).value?.uid ?? '';
     final messagesAsync = ref.watch(chatMessagesProvider(widget.uid));
     final friendLastRead = ref.watch(chatFriendLastReadProvider(widget.uid)).value;

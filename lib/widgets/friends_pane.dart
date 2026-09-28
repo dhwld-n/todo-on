@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/providers.dart';
 import '../screens/friend_detail_screen.dart';
+import '../utils/display_name.dart';
 
 class FriendsPane extends ConsumerWidget {
   const FriendsPane({super.key});
@@ -193,10 +194,7 @@ class _FriendTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(friendProfileProvider(uid));
     final profile = profileAsync.value;
-    final nickname = (profile?['nickname'] as String?)?.trim();
-    final displayText = (nickname != null && nickname.isNotEmpty)
-        ? nickname
-        : uid.substring(0, 8);
+    final displayText = displayNameFor(profile, uid);
     final bio = (profile?['bio'] as String?)?.trim();
     final photoBase64 = profile?['photoBase64'] as String?;
 

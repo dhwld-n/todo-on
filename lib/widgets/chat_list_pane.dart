@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/chat_message.dart';
 import '../models/group_chat.dart';
 import '../providers/providers.dart';
+import '../utils/display_name.dart';
 import '../screens/friend_chat_screen.dart';
 import '../screens/group_chat_screen.dart';
 
@@ -269,10 +270,7 @@ class _MemberCheckboxTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(friendProfileProvider(uid)).value;
-    final nickname = (profile?['nickname'] as String?)?.trim();
-    final displayText = (nickname != null && nickname.isNotEmpty)
-        ? nickname
-        : uid.substring(0, 8);
+    final displayText = displayNameFor(profile, uid);
     return CheckboxListTile(
       value: selected,
       onChanged: (v) => onChanged(v ?? false),
@@ -292,10 +290,7 @@ class _ChatFriendTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(friendProfileProvider(uid));
     final profile = profileAsync.value;
-    final nickname = (profile?['nickname'] as String?)?.trim();
-    final displayText = (nickname != null && nickname.isNotEmpty)
-        ? nickname
-        : uid.substring(0, 8);
+    final displayText = displayNameFor(profile, uid);
     final photoBase64 = profile?['photoBase64'] as String?;
 
     final myUid = ref.watch(authStateProvider).value?.uid ?? '';
@@ -401,13 +396,10 @@ class _GroupChatTile extends ConsumerWidget {
     final displayText = (name != null && name.isNotEmpty)
         ? name
         : otherMembers
-              .map((uid) {
-                final profile = ref.watch(friendProfileProvider(uid)).value;
-                final nickname = (profile?['nickname'] as String?)?.trim();
-                return (nickname != null && nickname.isNotEmpty)
-                    ? nickname
-                    : uid.substring(0, 8);
-              })
+              .map(
+                (uid) =>
+                    displayNameFor(ref.watch(friendProfileProvider(uid)).value, uid),
+              )
               .join(', ');
 
     final messages =
