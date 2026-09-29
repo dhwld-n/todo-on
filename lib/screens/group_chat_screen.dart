@@ -11,6 +11,7 @@ import '../models/group_chat.dart';
 import '../providers/providers.dart';
 import '../utils/chat_enter.dart';
 import '../utils/display_name.dart';
+import '../widgets/member_avatar.dart';
 
 // Decode each photo once - see friend_chat_screen.dart's _photoBytes for why.
 final _photoBytes = <String, Uint8List>{};
@@ -18,41 +19,6 @@ Uint8List _photoOf(ChatMessage message) => _photoBytes.putIfAbsent(
   message.id,
   () => base64Decode(message.imageBase64!),
 );
-
-// Profile photos are base64 in the profile doc; decode each one once so
-// every bubble reuses the same bytes (and the image cache hits).
-final _avatarBytes = <String, Uint8List>{};
-
-const _kAvatarSize = 36.0;
-
-/// A member's profile picture, or their initial on a colored circle.
-class _SenderAvatar extends ConsumerWidget {
-  final String uid;
-
-  const _SenderAvatar({required this.uid});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(friendProfileProvider(uid)).value;
-    final photo = profile?['photoBase64'] as String?;
-    final name = displayNameFor(profile, uid);
-    return CircleAvatar(
-      radius: _kAvatarSize / 2,
-      backgroundColor: Theme.of(context).colorScheme.primary,
-      backgroundImage: photo == null
-          ? null
-          : MemoryImage(
-              _avatarBytes.putIfAbsent(photo, () => base64Decode(photo)),
-            ),
-      child: photo == null
-          ? Text(
-              name.isNotEmpty ? name[0] : '?',
-              style: const TextStyle(color: Colors.white),
-            )
-          : null,
-    );
-  }
-}
 
 String _memberDisplayName(WidgetRef ref, String uid) {
   return displayNameFor(ref.watch(friendProfileProvider(uid)).value, uid);
@@ -759,10 +725,10 @@ class _GroupMessageBubble extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(
-                  width: _kAvatarSize,
+                  width: kChatAvatarSize,
                   child: senderName == null
                       ? null
-                      : _SenderAvatar(uid: message.senderUid),
+                      : MemberAvatar(uid: message.senderUid),
                 ),
                 const SizedBox(width: 8),
                 Flexible(child: bubble),
