@@ -17,6 +17,7 @@ import 'screens/login_screen.dart';
 import 'services/firestore_service.dart';
 import 'services/theme_prefs.dart';
 import 'theme/app_theme.dart';
+import 'widgets/ime_caret_guard.dart';
 import 'widgets/update_checker.dart';
 
 void _logCrash(Object error, StackTrace stack) {
@@ -114,6 +115,9 @@ class TodoMateApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
+      builder: !kIsWeb && Platform.isWindows
+          ? (context, child) => ImeCaretGuard(child: child!)
+          : null,
       home: const _AuthGate(),
     );
   }
