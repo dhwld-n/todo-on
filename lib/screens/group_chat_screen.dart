@@ -198,11 +198,21 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
   @override
   Widget build(BuildContext context) {
     final myUid = ref.watch(authStateProvider).value?.uid ?? '';
-    final otherMembers = widget.group.members.where((m) => m != myUid).toList();
-    final name = widget.group.name?.trim();
-    final title = (name != null && name.isNotEmpty)
-        ? name
-        : otherMembers.map((m) => _memberDisplayName(ref, m)).join(', ');
+    // The live room, so a rename (or someone leaving) shows up right away;
+    // the one passed in is only a snapshot from the chat list.
+    final group =
+        ref
+            .watch(myGroupChatsProvider)
+            .value
+            ?.where((g) => g.id == _groupId)
+            .firstOrNull ??
+        widget.group;
+    final otherMembers = group.members.where((m) => m != myUid).toList();
+    final defaultTitle = otherMembers
+        .map((m) => _memberDisplayName(ref, m))
+        .join(', ');
+    final name = group.name?.trim();
+    final title = (name != null && name.isNotEmpty) ? name : defaultTitle;
 
     final messagesAsync = ref.watch(groupMessagesProvider(_groupId));
     final lastReadMap =
@@ -227,9 +237,20 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
         ],
       ),
       endDrawer: _MembersDrawer(
-        members: widget.group.members,
+        members: group.members,
         myUid: myUid,
         onLeave: _leaveGroup,
+        onRename: () async {
+          final newName = await showRenameGroupDialog(
+            context,
+            current: name ?? '',
+            defaultTitle: defaultTitle,
+          );
+          if (newName == null) return;
+          await ref
+              .read(firestoreServiceProvider)
+              ?.renameGroupChat(_groupId, newName);
+        },
       ),
       body: Column(
         children: [
@@ -382,15 +403,53 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
   }
 }
 
+/// Asks for a new room name. Returns it trimmed ('' = back to the default
+/// member-names title), or null if cancelled.
+Future<String?> showRenameGroupDialog(
+  BuildContext context, {
+  required String current,
+  required String defaultTitle,
+}) {
+  final controller = TextEditingController(text: current);
+  return showDialog<String>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('방 이름 바꾸기'),
+      content: TextField(
+        controller: controller,
+        autofocus: true,
+        maxLength: 30,
+        decoration: InputDecoration(
+          hintText: defaultTitle,
+          helperText: '비워두면 참여자 이름으로 보여요',
+        ),
+        onSubmitted: (v) => Navigator.of(context).pop(v.trim()),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('취소'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+          child: const Text('저장'),
+        ),
+      ],
+    ),
+  );
+}
+
 class _MembersDrawer extends StatelessWidget {
   final List<String> members;
   final String myUid;
   final VoidCallback onLeave;
+  final VoidCallback onRename;
 
   const _MembersDrawer({
     required this.members,
     required this.myUid,
     required this.onLeave,
+    required this.onRename,
   });
 
   @override
@@ -419,6 +478,14 @@ class _MembersDrawer extends StatelessWidget {
               ),
             ),
             const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('방 이름 바꾸기'),
+              onTap: () {
+                Navigator.of(context).pop();
+                onRename();
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.logout),
               title: const Text('나가기'),

@@ -464,6 +464,14 @@ class FirestoreService {
         .map((snap) => snap.docs.map(GroupChat.fromFirestore).toList());
   }
 
+  /// Empty or null goes back to the default title (the members' names).
+  Future<void> renameGroupChat(String groupId, String? name) {
+    final trimmed = name?.trim();
+    return _groupChatDoc(
+      groupId,
+    ).update({'name': (trimmed == null || trimmed.isEmpty) ? null : trimmed});
+  }
+
   Future<void> leaveGroupChat(String groupId) {
     return _groupChatDoc(groupId).update({
       'members': FieldValue.arrayRemove([uid]),

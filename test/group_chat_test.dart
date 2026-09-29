@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -275,5 +276,99 @@ void main() {
       isNotNull,
       reason: '2 members selected now',
     );
+  });
+
+  group('renaming the room', () {
+    Future<String?> rename(
+      WidgetTester tester, {
+      String current = '',
+      String? typed,
+      bool cancel = false,
+    }) async {
+      String? result = 'not closed';
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () async => result = await showRenameGroupDialog(
+                context,
+                current: current,
+                defaultTitle: 'friend_a, friend_b',
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      if (typed != null) await tester.enterText(find.byType(TextField), typed);
+      await tester.tap(find.text(cancel ? '취소' : '저장'));
+      await tester.pumpAndSettle();
+      return result;
+    }
+
+    testWidgets('saves the typed name, trimmed', (tester) async {
+      expect(await rename(tester, typed: '  우리방  '), '우리방');
+    });
+    testWidgets('clearing it goes back to the default title', (tester) async {
+      expect(await rename(tester, current: '우리방', typed: ''), '');
+    });
+    testWidgets('cancel changes nothing', (tester) async {
+      expect(
+        await rename(tester, current: '우리방', typed: '딴이름', cancel: true),
+        isNull,
+      );
+    });
+
+    testWidgets('the title follows the live room name, from the side menu', (
+      tester,
+    ) async {
+      final rooms = StreamController<List<GroupChat>>();
+      addTearDown(rooms.close);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authStateProvider.overrideWith((ref) => Stream.value(null)),
+            firestoreServiceProvider.overrideWithValue(null),
+            groupMessagesProvider.overrideWith(
+              (ref, id) => Stream.value(_messages),
+            ),
+            groupLastReadProvider.overrideWith((ref, id) => Stream.value({})),
+            myGroupChatsProvider.overrideWith((ref) => rooms.stream),
+            friendProfileProvider.overrideWith(
+              (ref, uid) => Stream.value({'nickname': uid}),
+            ),
+          ],
+          child: MaterialApp(home: GroupChatScreen(group: _group)),
+        ),
+      );
+      await tester.pumpAndSettle();
+      Finder title() =>
+          find.descendant(of: find.byType(AppBar), matching: find.byType(Text));
+      expect(tester.widget<Text>(title()).data, contains('friend_a'));
+
+      // Someone renames it: the open screen picks it up.
+      rooms.add([
+        GroupChat(
+          id: _group.id,
+          name: '우리방',
+          members: _group.members,
+          createdBy: '',
+        ),
+      ]);
+      await tester.pumpAndSettle();
+      expect(tester.widget<Text>(title()).data, '우리방');
+
+      // The side menu offers it, prefilled with the current name.
+      await tester.tap(find.byTooltip('참여자'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('방 이름 바꾸기'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<TextField>(find.byType(TextField).last).controller!.text,
+        '우리방',
+      );
+    });
   });
 }
