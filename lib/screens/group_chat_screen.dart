@@ -9,6 +9,7 @@ import 'package:image/image.dart' as img;
 import '../models/chat_message.dart';
 import '../models/group_chat.dart';
 import '../providers/providers.dart';
+import '../utils/chat_enter.dart';
 import '../utils/display_name.dart';
 
 // Decode each photo once - see friend_chat_screen.dart's _photoBytes for why.
@@ -35,6 +36,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final _composerFocus = FocusNode();
+  String _composerTextBefore = '';
   final _bubbleKeys = <String, GlobalKey>{};
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _sending = false;
@@ -58,6 +60,21 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     HardwareKeyboard.instance.removeHandler(_focusComposerOnEnter);
     _composerFocus.dispose();
     super.dispose();
+  }
+
+  void _onComposerChanged(String text) {
+    final before = _composerTextBefore;
+    _composerTextBefore = text;
+    if (!chatEnterSendsOnDesktop) return;
+    final toSend = bareEnterSubmission(
+      before,
+      text,
+      _controller.selection.baseOffset,
+      shiftPressed: HardwareKeyboard.instance.isShiftPressed,
+    );
+    if (toSend == null) return;
+    _controller.text = toSend;
+    _send();
   }
 
   /// Enter anywhere on this screen jumps into the message box, so typing
@@ -117,6 +134,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
       _replyTo = null;
     });
     _controller.clear();
+    _composerTextBefore = '';
     _composerFocus.requestFocus();
     try {
       await ref
@@ -328,7 +346,13 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                         child: TextField(
                           controller: _controller,
                           focusNode: _composerFocus,
-                          textInputAction: TextInputAction.send,
+                          minLines: 1,
+                          maxLines: 5,
+                          keyboardType: TextInputType.multiline,
+                          textInputAction: chatEnterSendsOnDesktop
+                              ? TextInputAction.newline
+                              : TextInputAction.send,
+                          onChanged: _onComposerChanged,
                           decoration: const InputDecoration(
                             hintText: '메시지 보내기',
                             isDense: true,
