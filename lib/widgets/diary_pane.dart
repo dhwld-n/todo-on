@@ -576,13 +576,16 @@ class _SharedDiaryBody extends ConsumerStatefulWidget {
 /// Splits a shared diary entry into the locked (already-turned-in) prefix
 /// and the segments behind it. Only a writer's own still-open trailing
 /// segment is editable; anything before that - the other person's text, or
-/// the writer's own earlier turns - is locked.
+/// the writer's own earlier turns - is locked. Once the day is over
+/// ([dayOver]) nothing already written is editable, mine included.
 (String, List<DiarySegment>) splitDiaryEditable(
   SharedDiaryEntry? entry,
-  String? myUid,
-) {
+  String? myUid, {
+  bool dayOver = false,
+}) {
   final content = entry?.content ?? '';
   final segments = entry?.segments ?? const <DiarySegment>[];
+  if (dayOver) return (content, segments);
   if (segments.isEmpty) return ('', segments);
   if (segments.last.uid == myUid) {
     final start = segments.length >= 2
@@ -594,6 +597,16 @@ class _SharedDiaryBody extends ConsumerStatefulWidget {
     );
   }
   return (content, segments);
+}
+
+/// True for any calendar day before today.
+bool isPastDay(DateTime date, {DateTime? now}) {
+  final today = now ?? DateTime.now();
+  return DateTime(
+    date.year,
+    date.month,
+    date.day,
+  ).isBefore(DateTime(today.year, today.month, today.day));
 }
 
 /// Scaffold strips the keyboard inset out of the MediaQuery its body sees,
@@ -728,6 +741,7 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
           final (lockedPrefix, lockedSegments) = splitDiaryEditable(
             entry,
             myUid,
+            dayOver: isPastDay(widget.date),
           );
           _lockedPrefix = lockedPrefix;
           _lockedSegments = lockedSegments;
@@ -941,6 +955,7 @@ class _DiaryGroupBodyState extends ConsumerState<_DiaryGroupBody> {
           final (lockedPrefix, lockedSegments) = splitDiaryEditable(
             entry,
             myUid,
+            dayOver: isPastDay(widget.date),
           );
           _lockedPrefix = lockedPrefix;
           _lockedSegments = lockedSegments;

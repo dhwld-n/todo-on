@@ -13,6 +13,9 @@ class _Me extends Fake implements User {
   String get uid => 'me';
 }
 
+const friendText = '친구가 쓴 글\n';
+const myText = '내가 이어 쓴 글';
+
 void main() {
   group('splitDiaryEditable', () {
     test('no entry yet - nothing locked', () {
@@ -163,56 +166,74 @@ void main() {
     },
   );
 
-  testWidgets(
-    'whoever wrote last still gets the same text-above, box-below view',
-    (tester) async {
-      await initializeDateFormatting('ko_KR');
-      const friendText = '친구가 쓴 글\n';
-      const myText = '내가 이어 쓴 글';
-      final entry = SharedDiaryEntry(
-        dateKey: '2026-09-28',
-        content: friendText + myText,
-        updatedAt: DateTime(2026, 9, 28, 10),
-        updatedBy: 'me',
-        segments: const [
-          DiarySegment(uid: 'friend_a', upTo: friendText.length),
-          DiarySegment(uid: 'me', upTo: friendText.length + myText.length),
-        ],
-      );
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            authStateProvider.overrideWith((ref) => Stream.value(_Me())),
-            profileDocProvider.overrideWith((ref) => Stream.value(null)),
-            firestoreServiceProvider.overrideWithValue(null),
-            diaryTabProvider.overrideWith((ref) => DiaryTab.shared),
-            followingProvider.overrideWith((ref) => Stream.value(['friend_a'])),
-            friendProfileProvider.overrideWith(
-              (ref, uid) => Stream.value({'nickname': '친구'}),
-            ),
-            unseenSharedDiaryDatesProvider.overrideWith(
-              (ref, uid) => Stream.value(const <String>[]),
-            ),
-            sharedDiaryEntryProvider.overrideWith(
-              (ref, key) => Stream.value(entry),
-            ),
-          ],
-          child: MaterialApp(
-            home: Scaffold(body: DiaryPane(date: DateTime(2026, 9, 28))),
+  Future<TextField> pumpMyTurn(WidgetTester tester, DateTime date) async {
+    await initializeDateFormatting('ko_KR');
+    final entry = SharedDiaryEntry(
+      dateKey: '2026-09-28',
+      content: friendText + myText,
+      updatedAt: DateTime(2026, 9, 28, 10),
+      updatedBy: 'me',
+      segments: const [
+        DiarySegment(uid: 'friend_a', upTo: friendText.length),
+        DiarySegment(uid: 'me', upTo: friendText.length + myText.length),
+      ],
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authStateProvider.overrideWith((ref) => Stream.value(_Me())),
+          profileDocProvider.overrideWith((ref) => Stream.value(null)),
+          firestoreServiceProvider.overrideWithValue(null),
+          diaryTabProvider.overrideWith((ref) => DiaryTab.shared),
+          followingProvider.overrideWith((ref) => Stream.value(['friend_a'])),
+          friendProfileProvider.overrideWith(
+            (ref, uid) => Stream.value({'nickname': '친구'}),
           ),
+          unseenSharedDiaryDatesProvider.overrideWith(
+            (ref, uid) => Stream.value(const <String>[]),
+          ),
+          sharedDiaryEntryProvider.overrideWith(
+            (ref, key) => Stream.value(entry),
+          ),
+        ],
+        child: MaterialApp(
+          home: Scaffold(body: DiaryPane(date: date)),
         ),
-      );
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
+    return tester.widget<TextField>(find.byType(TextField));
+  }
 
-      // No tap needed: the box is there right away, holding only my part.
-      final textField = tester.widget<TextField>(find.byType(TextField));
-      expect(textField.controller!.text, myText);
-      expect(
-        find.byWidgetPredicate(
-          (w) => w is RichText && w.text.toPlainText().contains('친구가 쓴 글'),
-        ),
-        findsOneWidget,
-      );
-    },
-  );
+  bool shownAbove(String text) => find
+      .byWidgetPredicate(
+        (w) => w is RichText && w.text.toPlainText().contains(text),
+      )
+      .evaluate()
+      .isNotEmpty;
+
+  testWidgets('on the day itself, my own last part stays editable in the box', (
+    tester,
+  ) async {
+    final textField = await pumpMyTurn(tester, DateTime.now());
+    expect(textField.controller!.text, myText);
+    expect(shownAbove('친구가 쓴 글'), isTrue);
+  });
+
+  testWidgets("once the day is over, my part is locked like the friend's", (
+    tester,
+  ) async {
+    final yesterday = DateTime.now().subtract(const Duration(days: 1));
+    final textField = await pumpMyTurn(tester, yesterday);
+    expect(textField.controller!.text, isEmpty);
+    expect(shownAbove('친구가 쓴 글'), isTrue);
+    expect(shownAbove(myText), isTrue);
+  });
+
+  test('isPastDay goes by calendar day, not the hour', () {
+    final now = DateTime(2026, 9, 29, 0, 5);
+    expect(isPastDay(DateTime(2026, 9, 28, 23, 59), now: now), isTrue);
+    expect(isPastDay(DateTime(2026, 9, 29), now: now), isFalse);
+    expect(isPastDay(DateTime(2026, 9, 30), now: now), isFalse);
+  });
 }
