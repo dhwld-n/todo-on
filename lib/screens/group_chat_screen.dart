@@ -1,8 +1,8 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
 
@@ -45,6 +45,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
   @override
   void initState() {
     super.initState();
+    HardwareKeyboard.instance.addHandler(_focusComposerOnEnter);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(firestoreServiceProvider)?.markGroupRead(_groupId);
     });
@@ -54,8 +55,24 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();
+    HardwareKeyboard.instance.removeHandler(_focusComposerOnEnter);
     _composerFocus.dispose();
     super.dispose();
+  }
+
+  /// Enter anywhere on this screen jumps into the message box, so typing
+  /// the next message never needs a click first.
+  bool _focusComposerOnEnter(KeyEvent event) {
+    if (event is! KeyDownEvent ||
+        (event.logicalKey != LogicalKeyboardKey.enter &&
+            event.logicalKey != LogicalKeyboardKey.numpadEnter) ||
+        _composerFocus.hasFocus ||
+        !mounted ||
+        !(ModalRoute.of(context)?.isCurrent ?? false)) {
+      return false;
+    }
+    _composerFocus.requestFocus();
+    return true;
   }
 
   void _scrollToLatest() {
@@ -100,6 +117,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
       _replyTo = null;
     });
     _controller.clear();
+    _composerFocus.requestFocus();
     try {
       await ref
           .read(firestoreServiceProvider)
@@ -316,6 +334,9 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                             isDense: true,
                             border: OutlineInputBorder(),
                           ),
+                          // Don't drop focus on Enter: the next message
+                          // goes straight into the same box.
+                          onEditingComplete: () {},
                           onSubmitted: (_) => _send(),
                         ),
                       ),

@@ -1,8 +1,8 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
 
@@ -39,6 +39,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   @override
   void initState() {
     super.initState();
+    HardwareKeyboard.instance.addHandler(_focusComposerOnEnter);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(firestoreServiceProvider)?.markChatRead(widget.uid);
     });
@@ -48,8 +49,24 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();
+    HardwareKeyboard.instance.removeHandler(_focusComposerOnEnter);
     _composerFocus.dispose();
     super.dispose();
+  }
+
+  /// Enter anywhere on this screen jumps into the message box, so typing
+  /// the next message never needs a click first.
+  bool _focusComposerOnEnter(KeyEvent event) {
+    if (event is! KeyDownEvent ||
+        (event.logicalKey != LogicalKeyboardKey.enter &&
+            event.logicalKey != LogicalKeyboardKey.numpadEnter) ||
+        _composerFocus.hasFocus ||
+        !mounted ||
+        !(ModalRoute.of(context)?.isCurrent ?? false)) {
+      return false;
+    }
+    _composerFocus.requestFocus();
+    return true;
   }
 
   // The list is reversed, so offset 0 is the newest message.
@@ -98,6 +115,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
       _replyTo = null;
     });
     _controller.clear();
+    _composerFocus.requestFocus();
     try {
       await ref
           .read(firestoreServiceProvider)
@@ -139,7 +157,9 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
     final displayText = displayNameFor(profileAsync.value, widget.uid);
     final myUid = ref.watch(authStateProvider).value?.uid ?? '';
     final messagesAsync = ref.watch(chatMessagesProvider(widget.uid));
-    final friendLastRead = ref.watch(chatFriendLastReadProvider(widget.uid)).value;
+    final friendLastRead = ref
+        .watch(chatFriendLastReadProvider(widget.uid))
+        .value;
     // initState only marks read on open; keep marking while the chat stays
     // open so the friend's messages don't show up as unread for them.
     ref.listen(chatMessagesProvider(widget.uid), (_, next) {
@@ -220,7 +240,9 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(10),
                         border: Border(
                           left: BorderSide(
@@ -265,6 +287,9 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
                             isDense: true,
                             border: OutlineInputBorder(),
                           ),
+                          // Don't drop focus on Enter: the next message
+                          // goes straight into the same box.
+                          onEditingComplete: () {},
                           onSubmitted: (_) => _send(),
                         ),
                       ),
@@ -391,9 +416,7 @@ class _MessageBubble extends ConsumerWidget {
       context: context,
       builder: (_) => Dialog(
         insetPadding: const EdgeInsets.all(12),
-        child: InteractiveViewer(
-          child: Image.memory(_photoOf(message)),
-        ),
+        child: InteractiveViewer(child: Image.memory(_photoOf(message))),
       ),
     );
   }
