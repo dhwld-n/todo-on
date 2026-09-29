@@ -329,14 +329,15 @@ class CalendarSidebar extends ConsumerWidget {
               calendarBuilders: CalendarBuilders(
                 // Title + diary legend right under it, where it's seen.
                 // A custom title drops table_calendar's own tap handler, so
-                // the year/month picker is wired back up here.
-                headerTitleBuilder: (context, day) => GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => _showYearMonthPicker(context, ref, day),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
+                // the year/month picker is wired back up here - on the title
+                // only, the legend is just a label.
+                headerTitleBuilder: (context, day) => Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _showYearMonthPicker(context, ref, day),
+                      child: Text(
                         DateFormat.yMMMM('ko_KR').format(day),
                         textAlign: TextAlign.center,
                         style: const TextStyle(
@@ -344,21 +345,21 @@ class CalendarSidebar extends ConsumerWidget {
                           fontSize: 20,
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      const Wrap(
-                        spacing: 14,
-                        runSpacing: 4,
-                        alignment: WrapAlignment.center,
-                        children: [
-                          _DiaryLegendItem(color: kMyDiaryColor, label: '내 일기'),
-                          _DiaryLegendItem(
-                            color: kExchangeDiaryColor,
-                            label: '교환일기',
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Wrap(
+                      spacing: 14,
+                      runSpacing: 4,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        _DiaryLegendItem(color: kMyDiaryColor, label: '내 일기'),
+                        _DiaryLegendItem(
+                          color: kExchangeDiaryColor,
+                          label: '교환일기',
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
                 defaultBuilder: (context, day, focusedDay) =>
                     cellBuilder(context, day),

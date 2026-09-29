@@ -101,6 +101,11 @@ void main() {
       expect(legend.top, greaterThan(title.bottom));
       expect(legend.bottom, lessThan(weekday.top));
 
+      // The legend is just a label - tapping it mustn't open the picker.
+      await tester.tap(find.text('내 일기'));
+      await tester.pumpAndSettle();
+      expect(find.text('완료'), findsNothing);
+
       await tester.tap(find.text('2026년 9월'));
       await tester.pumpAndSettle();
       expect(find.text('완료'), findsOneWidget);
