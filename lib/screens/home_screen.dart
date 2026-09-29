@@ -745,18 +745,48 @@ class _CategorySectionData {
   const _CategorySectionData({required this.category, required this.todos});
 }
 
+/// [ids] with [draggedId] moved next to [targetId]: after it when
+/// [after], else before it; to the end when there's no target.
+@visibleForTesting
+List<String> reorderedTodoIds(
+  List<String> ids,
+  String draggedId, {
+  String? targetId,
+  bool after = false,
+}) {
+  final list = [...ids]..remove(draggedId);
+  final index = targetId == null ? -1 : list.indexOf(targetId);
+  list.insert(index < 0 ? list.length : index + (after ? 1 : 0), draggedId);
+  return list;
+}
+
+/// Hovering a row of the dragged todo's own category *below* it means "put
+/// it after this one" - otherwise the spot right under the next row could
+/// never be reached (it's where the todo already is). Anything else lands
+/// above the hovered row.
+bool _dropsAfter(TodoItem dragged, TodoItem hovered, List<TodoItem> todos) {
+  final from = todos.indexWhere((t) => t.id == dragged.id);
+  return from >= 0 && from < todos.indexWhere((t) => t.id == hovered.id);
+}
+
 void _moveTodo(
   WidgetRef ref,
   TodoItem dragged,
   TodoCategory? destinationCategory,
   List<TodoItem> destinationTodos, {
-  String? beforeId,
+  String? targetId,
+  bool after = false,
 }) {
-  final list = [...destinationTodos]..removeWhere((t) => t.id == dragged.id);
-  final index = beforeId == null
-      ? list.length
-      : list.indexWhere((t) => t.id == beforeId);
-  list.insert(index < 0 ? list.length : index, dragged);
+  final byId = {for (final t in destinationTodos) t.id: t, dragged.id: dragged};
+  final list = [
+    for (final id in reorderedTodoIds(
+      [for (final t in destinationTodos) t.id],
+      dragged.id,
+      targetId: targetId,
+      after: after,
+    ))
+      byId[id]!,
+  ];
   ref
       .read(firestoreServiceProvider)
       ?.moveTodo(
@@ -979,15 +1009,19 @@ class _CategorySection extends ConsumerWidget {
                 details.data,
                 category,
                 todos,
-                beforeId: todo.id,
+                targetId: todo.id,
+                after: _dropsAfter(details.data, todo, todos),
               ),
               builder: (context, candidateData, rejectedData) {
+                final dragged = candidateData.firstOrNull;
+                final after =
+                    dragged != null && _dropsAfter(dragged, todo, todos);
                 // The slot sits inside this target, so the pointer stays over
-                // it after the tile shifts down - no flicker while hovering.
+                // it after the tile shifts - no flicker while hovering.
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (candidateData.isNotEmpty) const _DropSlot(),
+                    if (dragged != null && !after) const _DropSlot(),
                     Opacity(
                       opacity: todo.id == draggingId ? 0.35 : 1,
                       child: TodoTile(
@@ -1025,6 +1059,7 @@ class _CategorySection extends ConsumerWidget {
                         ),
                       ),
                     ),
+                    if (after) const _DropSlot(),
                   ],
                 );
               },

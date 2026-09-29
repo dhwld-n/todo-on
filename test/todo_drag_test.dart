@@ -106,4 +106,113 @@ void main() {
     expect(find.text('여기에 놓여요'), findsNothing);
     expect(rowOpacity('a').opacity, 1);
   });
+
+  group('reorderedTodoIds reaches every gap', () {
+    const ids = ['a', 'b', 'c', 'd'];
+    test('just below the next row (the spot that was unreachable)', () {
+      expect(reorderedTodoIds(ids, 'a', targetId: 'b', after: true), [
+        'b',
+        'a',
+        'c',
+        'd',
+      ]);
+    });
+    test('into the middle, dragging down', () {
+      expect(reorderedTodoIds(ids, 'a', targetId: 'c', after: true), [
+        'b',
+        'c',
+        'a',
+        'd',
+      ]);
+    });
+    test('into the middle, dragging up', () {
+      expect(reorderedTodoIds(ids, 'd', targetId: 'b'), ['a', 'd', 'b', 'c']);
+    });
+    test('to the very top and the very bottom', () {
+      expect(reorderedTodoIds(ids, 'c', targetId: 'a'), ['c', 'a', 'b', 'd']);
+      expect(reorderedTodoIds(ids, 'b'), ['a', 'c', 'd', 'b']);
+    });
+    test('from another category, into the middle', () {
+      expect(reorderedTodoIds(ids, 'x', targetId: 'c'), [
+        'a',
+        'b',
+        'x',
+        'c',
+        'd',
+      ]);
+    });
+  });
+
+  testWidgets(
+    'the drop box shows below a row when dragging down, above when up',
+    (tester) async {
+      await initializeDateFormatting('ko_KR');
+      tester.view.physicalSize = const Size(1400, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authStateProvider.overrideWith((ref) => Stream.value(null)),
+            userProfileProvider.overrideWith((ref) => Stream.value(null)),
+            firestoreServiceProvider.overrideWithValue(null),
+            updateInfoProvider.overrideWith((ref) => Future.value(null)),
+            isAndroidPlatformProvider.overrideWithValue(false),
+            selectedDateProvider.overrideWith((ref) => _day),
+            categoriesProvider.overrideWith(
+              (ref) => Stream.value(const [
+                TodoCategory(
+                  id: 'study',
+                  name: 'STUDY',
+                  colorValue: 0xFF42A5F5,
+                  order: 0,
+                ),
+              ]),
+            ),
+            todosProvider.overrideWith(
+              (ref) => Stream.value([
+                _todo('a', '영어 단어', 0),
+                _todo('b', '수학 문제', 1),
+                _todo('c', '독서', 2),
+              ]),
+            ),
+          ],
+          child: const MaterialApp(home: HomeScreen()),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      Finder row(String id) =>
+          find.byWidgetPredicate((w) => w is TodoTile && w.todo.id == id);
+      Finder handleOf(String id) => find.descendant(
+        of: row(id),
+        matching: find.byIcon(Icons.drag_indicator),
+      );
+
+      // a dragged down onto b: the box goes under b, i.e. between b and c.
+      var gesture = await tester.startGesture(tester.getCenter(handleOf('a')));
+      await tester.pump();
+      await gesture.moveTo(tester.getCenter(row('b')));
+      await tester.pump();
+      await tester.pump();
+      var slot = tester.getRect(find.text('여기에 놓여요'));
+      expect(slot.top, greaterThan(tester.getRect(row('b')).bottom - 1));
+      expect(slot.bottom, lessThan(tester.getRect(row('c')).top + 1));
+      await gesture.up();
+      await tester.pump();
+
+      // c dragged up onto b: the box goes above b, i.e. between a and b.
+      gesture = await tester.startGesture(tester.getCenter(handleOf('c')));
+      await tester.pump();
+      await gesture.moveTo(tester.getCenter(row('b')));
+      await tester.pump();
+      await tester.pump();
+      slot = tester.getRect(find.text('여기에 놓여요'));
+      expect(slot.top, greaterThan(tester.getRect(row('a')).bottom - 1));
+      expect(slot.bottom, lessThan(tester.getRect(row('b')).top + 1));
+      await gesture.up();
+      await tester.pump();
+    },
+  );
 }
