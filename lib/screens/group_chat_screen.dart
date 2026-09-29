@@ -19,6 +19,41 @@ Uint8List _photoOf(ChatMessage message) => _photoBytes.putIfAbsent(
   () => base64Decode(message.imageBase64!),
 );
 
+// Profile photos are base64 in the profile doc; decode each one once so
+// every bubble reuses the same bytes (and the image cache hits).
+final _avatarBytes = <String, Uint8List>{};
+
+const _kAvatarSize = 36.0;
+
+/// A member's profile picture, or their initial on a colored circle.
+class _SenderAvatar extends ConsumerWidget {
+  final String uid;
+
+  const _SenderAvatar({required this.uid});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(friendProfileProvider(uid)).value;
+    final photo = profile?['photoBase64'] as String?;
+    final name = displayNameFor(profile, uid);
+    return CircleAvatar(
+      radius: _kAvatarSize / 2,
+      backgroundColor: Theme.of(context).colorScheme.primary,
+      backgroundImage: photo == null
+          ? null
+          : MemoryImage(
+              _avatarBytes.putIfAbsent(photo, () => base64Decode(photo)),
+            ),
+      child: photo == null
+          ? Text(
+              name.isNotEmpty ? name[0] : '?',
+              style: const TextStyle(color: Colors.white),
+            )
+          : null,
+    );
+  }
+}
+
 String _memberDisplayName(WidgetRef ref, String uid) {
   return displayNameFor(ref.watch(friendProfileProvider(uid)).value, uid);
 }
@@ -585,136 +620,154 @@ class _GroupMessageBubble extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     final hasImage = message.imageBase64 != null;
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Column(
-        crossAxisAlignment: isMe
-            ? CrossAxisAlignment.end
-            : CrossAxisAlignment.start,
-        children: [
-          if (senderName != null)
-            Padding(
-              padding: const EdgeInsets.only(left: 4, bottom: 2),
-              child: Text(
-                senderName!,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).disabledColor,
-                ),
+    final bubble = Column(
+      crossAxisAlignment: isMe
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
+      children: [
+        if (senderName != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 2),
+            child: Text(
+              senderName!,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).disabledColor,
               ),
             ),
-          GestureDetector(
-            onLongPress: () => _showActions(context, ref),
-            onSecondaryTap: () => _showActions(context, ref),
-            onTap: hasImage ? () => _openFullImage(context) : null,
-            child: Container(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.72,
+          ),
+        GestureDetector(
+          onLongPress: () => _showActions(context, ref),
+          onSecondaryTap: () => _showActions(context, ref),
+          onTap: hasImage ? () => _openFullImage(context) : null,
+          child: Container(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.72,
+            ),
+            margin: const EdgeInsets.symmetric(vertical: 4),
+            padding: hasImage
+                ? const EdgeInsets.all(4)
+                : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: isMe
+                  ? colorScheme.primary
+                  : colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(16),
+                topRight: const Radius.circular(16),
+                bottomLeft: Radius.circular(isMe ? 16 : 4),
+                bottomRight: Radius.circular(isMe ? 4 : 16),
               ),
-              margin: const EdgeInsets.symmetric(vertical: 4),
-              padding: hasImage
-                  ? const EdgeInsets.all(4)
-                  : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: isMe
-                    ? colorScheme.primary
-                    : colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(16),
-                  topRight: const Radius.circular(16),
-                  bottomLeft: Radius.circular(isMe ? 16 : 4),
-                  bottomRight: Radius.circular(isMe ? 4 : 16),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (repliedMessage != null)
-                    Container(
-                      margin: EdgeInsets.only(bottom: hasImage ? 4 : 6),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color:
-                            (isMe
-                                    ? colorScheme.onPrimary
-                                    : colorScheme.onSurfaceVariant)
-                                .withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        repliedMessage!.imageBase64 != null
-                            ? '사진'
-                            : repliedMessage!.text,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isMe
-                              ? colorScheme.onPrimary
-                              : colorScheme.onSurfaceVariant,
-                        ),
-                      ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (repliedMessage != null)
+                  Container(
+                    margin: EdgeInsets.only(bottom: hasImage ? 4 : 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
                     ),
-                  if (hasImage)
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.memory(
-                        _photoOf(message),
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
-                    )
-                  else ...[
-                    Text(
-                      message.text,
+                    decoration: BoxDecoration(
+                      color:
+                          (isMe
+                                  ? colorScheme.onPrimary
+                                  : colorScheme.onSurfaceVariant)
+                              .withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      repliedMessage!.imageBase64 != null
+                          ? '사진'
+                          : repliedMessage!.text,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
+                        fontSize: 12,
                         color: isMe
                             ? colorScheme.onPrimary
                             : colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    if (message.edited) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        '수정됨',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color:
-                              (isMe
-                                      ? colorScheme.onPrimary
-                                      : colorScheme.onSurfaceVariant)
-                                  .withValues(alpha: 0.7),
-                        ),
+                  ),
+                if (hasImage)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.memory(
+                      _photoOf(message),
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                else ...[
+                  Text(
+                    message.text,
+                    style: TextStyle(
+                      color: isMe
+                          ? colorScheme.onPrimary
+                          : colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  if (message.edited) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      '수정됨',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color:
+                            (isMe
+                                    ? colorScheme.onPrimary
+                                    : colorScheme.onSurfaceVariant)
+                                .withValues(alpha: 0.7),
                       ),
-                    ],
+                    ),
                   ],
                 ],
+              ],
+            ),
+          ),
+        ),
+        if (readLabel != null)
+          Padding(
+            padding: const EdgeInsets.only(right: 4, bottom: 4),
+            child: Text(
+              readLabel!,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: readLabel!.startsWith('안읽음')
+                    ? FontWeight.w700
+                    : null,
+                color: readLabel!.startsWith('안읽음')
+                    ? colorScheme.primary
+                    : Theme.of(context).disabledColor,
               ),
             ),
           ),
-          if (readLabel != null)
-            Padding(
-              padding: const EdgeInsets.only(right: 4, bottom: 4),
-              child: Text(
-                readLabel!,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: readLabel!.startsWith('안읽음')
-                      ? FontWeight.w700
-                      : null,
-                  color: readLabel!.startsWith('안읽음')
-                      ? colorScheme.primary
-                      : Theme.of(context).disabledColor,
+      ],
+    );
+    return Align(
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      // KakaoTalk-style: others' bubbles hang off an avatar column that
+      // only shows the picture on a run's first message (with the name).
+      child: isMe
+          ? bubble
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: _kAvatarSize,
+                  child: senderName == null
+                      ? null
+                      : _SenderAvatar(uid: message.senderUid),
                 ),
-              ),
+                const SizedBox(width: 8),
+                Flexible(child: bubble),
+              ],
             ),
-        ],
-      ),
     );
   }
 }

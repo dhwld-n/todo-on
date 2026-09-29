@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:todo_on/models/chat_message.dart';
 import 'package:todo_on/models/group_chat.dart';
 import 'package:todo_on/providers/providers.dart';
@@ -135,6 +138,59 @@ void main() {
     // friend_a's first run and their later run; friend_b's single run.
     expect(find.text('friend_a'), findsNWidgets(2));
     expect(find.text('friend_b'), findsOneWidget);
+
+    // A profile picture (here the initial, no photo set) beside each name,
+    // sitting to the left of that first bubble.
+    expect(find.byType(CircleAvatar), findsNWidgets(3));
+    final avatar = tester.getRect(find.byType(CircleAvatar).first);
+    final firstBubble = tester.getRect(find.text('a1'));
+    expect(avatar.right, lessThan(firstBubble.left));
+    // Later bubbles in a run stay lined up with the first one.
+    expect(
+      tester.getRect(find.text('a2')).left,
+      moreOrLessEquals(firstBubble.left),
+    );
+  });
+
+  testWidgets('a member with a profile photo shows it in the chat', (
+    tester,
+  ) async {
+    final png = img.encodePng(img.Image(width: 4, height: 4));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authStateProvider.overrideWith((ref) => Stream.value(null)),
+          firestoreServiceProvider.overrideWithValue(null),
+          groupMessagesProvider.overrideWith(
+            (ref, id) => Stream.value(_messages),
+          ),
+          groupLastReadProvider.overrideWith((ref, id) => Stream.value({})),
+          friendProfileProvider.overrideWith(
+            (ref, uid) => Stream.value({
+              'nickname': uid,
+              if (uid == 'friend_a') 'photoBase64': base64Encode(png),
+            }),
+          ),
+        ],
+        child: MaterialApp(home: GroupChatScreen(group: _group)),
+      ),
+    );
+    await tester.pumpAndSettle();
+    // friend_a and friend_b get one each, not me.
+    expect(find.byType(CircleAvatar), findsNWidgets(2));
+    // Pick each avatar by the message it sits beside.
+    CircleAvatar avatarBeside(String text) {
+      final y = tester.getRect(find.text(text)).center.dy;
+      return tester
+          .widgetList<CircleAvatar>(find.byType(CircleAvatar))
+          .firstWhere(
+            (a) => (tester.getRect(find.byWidget(a)).center.dy - y).abs() < 40,
+          );
+    }
+
+    expect(avatarBeside('hi from a').backgroundImage, isA<MemoryImage>());
+    // friend_b has no photo: the initial instead.
+    expect(avatarBeside('hi from b').backgroundImage, isNull);
   });
 
   testWidgets('my last message shows how many members have not read it', (
