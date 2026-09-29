@@ -18,6 +18,7 @@ import '../widgets/friends_pane.dart';
 import '../widgets/habits_pane.dart';
 import '../widgets/manage_categories_sheet.dart';
 import '../widgets/profile_header.dart';
+import '../widgets/settings_dialog.dart';
 import '../widgets/todo_tile.dart';
 import '../widgets/update_checker.dart';
 
@@ -43,13 +44,21 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       bottomNavigationBar: isAndroid ? const _ModeBottomNav() : null,
       appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('TODO on', style: TextStyle(fontFamily: 'GriunGyuwon')),
-            const SizedBox(width: 5),
-            const BlinkingDot(size: 7),
-          ],
+        // Shrinks rather than overflows when a phone's action icons and a
+        // big 설정 font size leave it little room.
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'TODO on',
+                style: TextStyle(fontFamily: 'GriunGyuwon'),
+              ),
+              const SizedBox(width: 5),
+              const BlinkingDot(size: 7),
+            ],
+          ),
         ),
         actions: [
           IconButton(
@@ -80,6 +89,11 @@ class HomeScreen extends ConsumerWidget {
             icon: const Icon(Icons.sell_outlined),
             tooltip: '카테고리 관리',
             onPressed: () => showManageCategoriesSheet(context),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: '설정',
+            onPressed: () => showSettingsDialog(context),
           ),
           IconButton(
             icon: const Icon(Icons.logout),

@@ -47,11 +47,14 @@ Future<void> main() async {
       );
       await initializeDateFormatting('ko_KR', null);
       final cachedThemeMode = await loadCachedThemeMode();
+      final cachedTextScale = await loadCachedTextScale();
       runApp(
         ProviderScope(
           overrides: [
             if (cachedThemeMode != null)
               themeModeProvider.overrideWith((ref) => cachedThemeMode),
+            if (cachedTextScale != null)
+              textScaleProvider.overrideWith((ref) => cachedTextScale),
           ],
           child: const TodoMateApp(),
         ),
@@ -69,6 +72,7 @@ class TodoMateApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
+    final textScale = ref.watch(textScaleProvider);
     ref.listen(authStateProvider, (previous, next) {
       final uid = next.value?.uid;
       if (uid != null && previous?.value?.uid != uid) {
@@ -115,9 +119,19 @@ class TodoMateApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      builder: !kIsWeb && Platform.isWindows
-          ? (context, child) => ImeCaretGuard(child: child!)
-          : null,
+      builder: (context, child) {
+        // 설정's font size, applied on top of the system's own setting.
+        final systemScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+        final scaled = MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(systemScale * textScale)),
+          child: child!,
+        );
+        return !kIsWeb && Platform.isWindows
+            ? ImeCaretGuard(child: scaled)
+            : scaled;
+      },
       home: const _AuthGate(),
     );
   }

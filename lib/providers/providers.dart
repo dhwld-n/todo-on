@@ -67,6 +67,9 @@ final focusedMonthProvider = StateProvider<DateTime>((ref) => DateTime.now());
 
 final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.light);
 
+/// Font size multiplier from 설정, on top of the system's own (1.0 = normal).
+final textScaleProvider = StateProvider<double>((ref) => 1.0);
+
 /// True when running as the Android app, so the UI can switch to a
 /// phone-shaped layout (bottom nav) instead of the desktop side rail.
 final isAndroidPlatformProvider = Provider<bool>(
