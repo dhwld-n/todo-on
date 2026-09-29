@@ -8,6 +8,7 @@ import 'package:image/image.dart' as img;
 
 import '../providers/providers.dart';
 import 'manage_categories_sheet.dart' show kCategoryColors;
+import 'photo_crop_dialog.dart';
 
 Color _colorFor(String seed) {
   final hash = seed.codeUnits.fold<int>(0, (acc, c) => acc + c);
@@ -155,12 +156,10 @@ class _EditProfileDialogState extends ConsumerState<_EditProfileDialog> {
     if (file == null) return;
     final bytes = await file.readAsBytes();
     final decoded = img.decodeImage(bytes);
-    if (decoded == null) return;
-    final resized = img.copyResize(
-      decoded,
-      width: decoded.width >= decoded.height ? 256 : null,
-      height: decoded.height > decoded.width ? 256 : null,
-    );
+    if (decoded == null || !mounted) return;
+    final cropped = await showPhotoCropDialog(context, decoded);
+    if (cropped == null) return;
+    final resized = img.copyResize(cropped, width: 256, height: 256);
     final jpeg = img.encodeJpg(resized, quality: 82);
     setState(() => _photoBase64 = base64Encode(Uint8List.fromList(jpeg)));
   }
