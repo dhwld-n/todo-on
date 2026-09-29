@@ -291,6 +291,9 @@ class CalendarSidebar extends ConsumerWidget {
               rowHeight: 104,
               daysOfWeekHeight: 24,
               sixWeekMonthsEnforced: true,
+              // The default also claims vertical swipes (to switch month/week
+              // format, unused here), which ate touch scrolling on phones.
+              availableGestures: AvailableGestures.horizontalSwipe,
               daysOfWeekStyle: const DaysOfWeekStyle(
                 weekdayStyle: TextStyle(fontWeight: FontWeight.bold),
                 weekendStyle: TextStyle(fontWeight: FontWeight.bold),
