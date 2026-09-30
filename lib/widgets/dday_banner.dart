@@ -1,6 +1,8 @@
-import 'package:cloud_firestore/cloud_firestore.dart' show Timestamp;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
+
+import '../models/dday.dart';
 
 import '../providers/providers.dart';
 
@@ -20,87 +22,134 @@ class DdayBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(profileDocProvider).value;
-    final label = profile?['ddayLabel'] as String?;
-    final date = (profile?['ddayDate'] as Timestamp?)?.toDate();
-    final colorScheme = Theme.of(context).colorScheme;
-
-    if (label == null || date == null) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-        child: OutlinedButton.icon(
-          onPressed: () => _showEditDialog(context, ref),
-          icon: const Icon(Icons.add, size: 16),
-          label: const Text('디데이 추가'),
-          style: OutlinedButton.styleFrom(
-            visualDensity: VisualDensity.compact,
-          ),
-        ),
-      );
-    }
-
+    final ddays = Dday.listFrom(ref.watch(profileDocProvider).value);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => _showEditDialog(context, ref, label: label, date: date),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            color: colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final dday in ddays)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: _DdayTile(
+                dday: dday,
+                onTap: () => _showEditDialog(context, ref, ddays, dday),
+              ),
+            ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: () => _showEditDialog(context, ref, ddays, null),
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('디데이 추가'),
+              style: OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
           ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.flag_outlined,
-                size: 18,
-                color: colorScheme.onPrimaryContainer,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  label,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: colorScheme.onPrimaryContainer,
-                  ),
-                ),
-              ),
-              Text(
-                _ddayLabel(date),
+        ],
+      ),
+    );
+  }
+}
+
+class _DdayTile extends StatelessWidget {
+  final Dday dday;
+  final VoidCallback onTap;
+
+  const _DdayTile({required this.dday, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: colorScheme.primaryContainer,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.flag_outlined,
+              size: 18,
+              color: colorScheme.onPrimaryContainer,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                dday.label,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                   color: colorScheme.onPrimaryContainer,
                 ),
               ),
-            ],
-          ),
+            ),
+            Text(
+              _ddayLabel(dday.date),
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                color: colorScheme.onPrimaryContainer,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
+/// Adds a D-day ([existing] null) or edits/deletes [existing], then saves
+/// the whole list back.
 void _showEditDialog(
   BuildContext context,
-  WidgetRef ref, {
-  String? label,
-  DateTime? date,
-}) {
+  WidgetRef ref,
+  List<Dday> all,
+  Dday? existing,
+) {
+  void save(List<Dday> next) =>
+      ref.read(firestoreServiceProvider)?.saveDdays(next);
   showDialog<void>(
     context: context,
-    builder: (_) => _EditDdayDialog(initialLabel: label, initialDate: date),
+    builder: (_) => _EditDdayDialog(
+      initialLabel: existing?.label,
+      initialDate: existing?.date,
+      onSave: (label, date) => save(
+        existing == null
+            ? [...all, Dday(id: const Uuid().v4(), label: label, date: date)]
+            : [
+                for (final d in all)
+                  d.id == existing.id
+                      ? Dday(id: d.id, label: label, date: date)
+                      : d,
+              ],
+      ),
+      onDelete: existing == null
+          ? null
+          : () => save([
+              for (final d in all)
+                if (d.id != existing.id) d,
+            ]),
+    ),
   );
 }
 
 class _EditDdayDialog extends ConsumerStatefulWidget {
   final String? initialLabel;
   final DateTime? initialDate;
+  final void Function(String label, DateTime date) onSave;
+  final VoidCallback? onDelete;
 
-  const _EditDdayDialog({this.initialLabel, this.initialDate});
+  const _EditDdayDialog({
+    this.initialLabel,
+    this.initialDate,
+    required this.onSave,
+    this.onDelete,
+  });
 
   @override
   ConsumerState<_EditDdayDialog> createState() => _EditDdayDialogState();
@@ -161,10 +210,10 @@ class _EditDdayDialogState extends ConsumerState<_EditDdayDialog> {
         ],
       ),
       actions: [
-        if (widget.initialDate != null)
+        if (widget.onDelete != null)
           TextButton(
             onPressed: () {
-              ref.read(firestoreServiceProvider)?.clearDday();
+              widget.onDelete!();
               Navigator.of(context).pop();
             },
             child: const Text('삭제'),
@@ -177,9 +226,7 @@ class _EditDdayDialogState extends ConsumerState<_EditDdayDialog> {
           onPressed: !canSave
               ? null
               : () {
-                  ref
-                      .read(firestoreServiceProvider)
-                      ?.saveDday(label: label, date: _date!);
+                  widget.onSave(label, _date!);
                   Navigator.of(context).pop();
                 },
           child: const Text('저장'),

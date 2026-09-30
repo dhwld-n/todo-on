@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/category.dart';
 import '../models/chat_message.dart';
+import '../models/dday.dart';
 import '../models/diary_entry.dart';
 import '../models/diary_group.dart';
 import '../models/group_chat.dart';
@@ -589,15 +590,10 @@ class FirestoreService {
     return _profile.set({'themeMode': themeMode}, SetOptions(merge: true));
   }
 
-  Future<void> saveDday({required String label, required DateTime date}) {
+  /// Writes the whole D-day list, retiring the old single-D-day fields.
+  Future<void> saveDdays(List<Dday> ddays) {
     return _profile.set({
-      'ddayLabel': label,
-      'ddayDate': Timestamp.fromDate(date),
-    }, SetOptions(merge: true));
-  }
-
-  Future<void> clearDday() {
-    return _profile.set({
+      'ddays': [for (final d in ddays) d.toMap()],
       'ddayLabel': FieldValue.delete(),
       'ddayDate': FieldValue.delete(),
     }, SetOptions(merge: true));
