@@ -35,7 +35,21 @@ class _ManageHabitsSheetState extends ConsumerState<ManageHabitsSheet> {
     super.dispose();
   }
 
+  bool _saving = false;
+
+  /// One press, one item: the write takes a moment to reach the server,
+  /// and presses in the meantime must not add copies.
   Future<void> _addHabit() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await _addHabitOnce();
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _addHabitOnce() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) return;
     final service = ref.read(firestoreServiceProvider);
@@ -183,7 +197,10 @@ class _ManageHabitsSheetState extends ConsumerState<ManageHabitsSheet> {
               ],
             ),
             const SizedBox(height: 16),
-            FilledButton(onPressed: _addHabit, child: const Text('습관 추가')),
+            FilledButton(
+              onPressed: _saving ? null : _addHabit,
+              child: const Text('습관 추가'),
+            ),
           ],
         ),
       ),

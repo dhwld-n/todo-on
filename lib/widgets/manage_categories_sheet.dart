@@ -45,7 +45,21 @@ class _ManageCategoriesSheetState extends ConsumerState<ManageCategoriesSheet> {
     super.dispose();
   }
 
+  bool _saving = false;
+
+  /// One press, one item: the write takes a moment to reach the server,
+  /// and presses in the meantime must not add copies.
   Future<void> _addCategory() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await _addCategoryOnce();
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _addCategoryOnce() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) return;
     final service = ref.read(firestoreServiceProvider);
@@ -207,7 +221,10 @@ class _ManageCategoriesSheetState extends ConsumerState<ManageCategoriesSheet> {
             subtitle: const Text('켜면 친구에게 이 카테고리와 할 일이 보이지 않아요'),
           ),
           const SizedBox(height: 8),
-          FilledButton(onPressed: _addCategory, child: const Text('카테고리 추가')),
+          FilledButton(
+            onPressed: _saving ? null : _addCategory,
+            child: const Text('카테고리 추가'),
+          ),
         ],
       ),
     );

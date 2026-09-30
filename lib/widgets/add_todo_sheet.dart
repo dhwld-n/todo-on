@@ -78,25 +78,36 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
     if (picked != null) setState(() => _dueDate = picked);
   }
 
+  bool _saving = false;
+
+  /// One press, one item: the write takes a moment to reach the server,
+  /// and presses in the meantime must not add copies.
   Future<void> _save() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await _saveOnce();
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _saveOnce() async {
     final title = _titleController.text.trim();
     if (title.isEmpty) return;
     final note = _noteController.text.trim();
     final service = ref.read(firestoreServiceProvider);
     if (service == null) return;
 
-    final categories = ref.read(categoriesProvider).value ?? const <TodoCategory>[];
+    final categories =
+        ref.read(categoriesProvider).value ?? const <TodoCategory>[];
     final isPrivate = _categoryId == null
         ? false
         : categories
               .firstWhere(
                 (c) => c.id == _categoryId,
-                orElse: () => TodoCategory(
-                  id: '',
-                  name: '',
-                  colorValue: 0,
-                  order: 0,
-                ),
+                orElse: () =>
+                    TodoCategory(id: '', name: '', colorValue: 0, order: 0),
               )
               .isPrivate;
 
@@ -243,7 +254,7 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
             ],
             const SizedBox(height: 20),
             FilledButton(
-              onPressed: _save,
+              onPressed: _saving ? null : _save,
               child: Text(widget.existing == null ? '추가' : '저장'),
             ),
           ],
