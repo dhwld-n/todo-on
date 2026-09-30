@@ -106,6 +106,11 @@ void main() {
       lessThan(tester.getTopLeft(find.text('여행')).dy),
     );
     expect(find.text('디데이 추가'), findsOneWidget);
+    // Centered under the list, not tucked into the left corner.
+    expect(
+      tester.getCenter(find.byType(OutlinedButton)).dx,
+      moreOrLessEquals(tester.getCenter(find.byType(Scaffold)).dx, epsilon: 1),
+    );
   });
 
   testWidgets('adding one keeps the others', (tester) async {

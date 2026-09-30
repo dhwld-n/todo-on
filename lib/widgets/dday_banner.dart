@@ -37,7 +37,7 @@ class DdayBanner extends ConsumerWidget {
               ),
             ),
           Align(
-            alignment: Alignment.centerLeft,
+            alignment: Alignment.center,
             child: OutlinedButton.icon(
               onPressed: () => _showEditDialog(context, ref, ddays, null),
               icon: const Icon(Icons.add, size: 16),
