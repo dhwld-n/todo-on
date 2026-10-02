@@ -13,6 +13,10 @@ class TodoItem {
   // friend-visible queries can filter on the todo directly instead of
   // needing read access to the (possibly private) category document.
   final bool categoryIsPrivate;
+  // Hidden from friends on its own, whatever its category. Stored folded
+  // into `categoryIsPrivate` too, so the friend query and security rules
+  // (and older app versions) need only that one field.
+  final bool isPrivate;
 
   const TodoItem({
     required this.id,
@@ -24,6 +28,7 @@ class TodoItem {
     required this.order,
     this.note,
     this.categoryIsPrivate = false,
+    this.isPrivate = false,
   });
 
   factory TodoItem.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -40,6 +45,7 @@ class TodoItem {
       order: data['order'] as int? ?? 0,
       note: data['note'] as String?,
       categoryIsPrivate: data['categoryIsPrivate'] as bool? ?? false,
+      isPrivate: data['isPrivate'] as bool? ?? false,
     );
   }
 
@@ -52,7 +58,8 @@ class TodoItem {
       'createdAt': Timestamp.fromDate(createdAt),
       'order': order,
       'note': note,
-      'categoryIsPrivate': categoryIsPrivate,
+      'categoryIsPrivate': categoryIsPrivate || isPrivate,
+      'isPrivate': isPrivate,
     };
   }
 
@@ -67,6 +74,7 @@ class TodoItem {
     String? note,
     bool clearNote = false,
     bool? categoryIsPrivate,
+    bool? isPrivate,
   }) {
     return TodoItem(
       id: id,
@@ -78,6 +86,7 @@ class TodoItem {
       order: order ?? this.order,
       note: clearNote ? null : (note ?? this.note),
       categoryIsPrivate: categoryIsPrivate ?? this.categoryIsPrivate,
+      isPrivate: isPrivate ?? this.isPrivate,
     );
   }
 }

@@ -58,7 +58,8 @@ class FirestoreService {
   }
 
   /// Updates the category's privacy and cascades the denormalized
-  /// `categoryIsPrivate` flag onto every todo currently under it.
+  /// `categoryIsPrivate` flag onto every todo currently under it. Todos made
+  /// private on their own stay hidden when the category goes public.
   Future<void> setCategoryPrivate(String categoryId, bool isPrivate) async {
     final batch = _db.batch();
     batch.update(_categories.doc(categoryId), {'isPrivate': isPrivate});
@@ -66,7 +67,9 @@ class FirestoreService {
         .where('categoryId', isEqualTo: categoryId)
         .get();
     for (final doc in affected.docs) {
-      batch.update(doc.reference, {'categoryIsPrivate': isPrivate});
+      batch.update(doc.reference, {
+        'categoryIsPrivate': isPrivate || doc.data()['isPrivate'] == true,
+      });
     }
     await batch.commit();
   }
@@ -89,7 +92,7 @@ class FirestoreService {
     for (final doc in affected.docs) {
       batch.update(doc.reference, {
         'categoryId': null,
-        'categoryIsPrivate': false,
+        'categoryIsPrivate': doc.data()['isPrivate'] == true,
       });
     }
     await batch.commit();
@@ -109,9 +112,9 @@ class FirestoreService {
     for (final doc in todosSnap.docs) {
       final data = doc.data();
       final categoryId = data['categoryId'] as String?;
-      final expected = categoryId != null
-          ? (privacyById[categoryId] ?? false)
-          : false;
+      final expected =
+          data['isPrivate'] == true ||
+          (categoryId != null && (privacyById[categoryId] ?? false));
       final current = data['categoryIsPrivate'] as bool?;
       if (current != expected) {
         batch.update(doc.reference, {'categoryIsPrivate': expected});

@@ -46,6 +46,7 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
   String? _categoryId;
   late DateTime _dueDate;
   late bool _showNoteField;
+  late bool _isPrivate;
 
   @override
   void initState() {
@@ -59,7 +60,12 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
     // Adding a new todo starts with just the title field; note can be
     // expanded on demand. Editing shows the note if one already exists.
     _showNoteField = widget.existing != null && widget.existing!.note != null;
+    _isPrivate = widget.existing?.isPrivate ?? false;
   }
+
+  bool _categoryIsPrivate(List<TodoCategory> categories) =>
+      _categoryId != null &&
+      categories.any((c) => c.id == _categoryId && c.isPrivate);
 
   @override
   void dispose() {
@@ -99,17 +105,9 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
     final service = ref.read(firestoreServiceProvider);
     if (service == null) return;
 
-    final categories =
-        ref.read(categoriesProvider).value ?? const <TodoCategory>[];
-    final isPrivate = _categoryId == null
-        ? false
-        : categories
-              .firstWhere(
-                (c) => c.id == _categoryId,
-                orElse: () =>
-                    TodoCategory(id: '', name: '', colorValue: 0, order: 0),
-              )
-              .isPrivate;
+    final isPrivate = _categoryIsPrivate(
+      ref.read(categoriesProvider).value ?? const <TodoCategory>[],
+    );
 
     if (widget.existing == null) {
       final todo = TodoItem(
@@ -122,6 +120,7 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
         order: DateTime.now().millisecondsSinceEpoch,
         note: note.isEmpty ? null : note,
         categoryIsPrivate: isPrivate,
+        isPrivate: _isPrivate,
       );
       await service.addTodo(todo);
     } else {
@@ -133,6 +132,7 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
         note: note.isEmpty ? null : note,
         clearNote: note.isEmpty,
         categoryIsPrivate: isPrivate,
+        isPrivate: _isPrivate,
       );
       await service.updateTodo(updated);
     }
@@ -252,7 +252,29 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
                 label: Text(DateFormat('yyyy년 M월 d일').format(_dueDate)),
               ),
             ],
-            const SizedBox(height: 20),
+            const SizedBox(height: 8),
+            Builder(
+              builder: (context) {
+                final inPrivateCategory = _categoryIsPrivate(
+                  ref.watch(categoriesProvider).value ?? const [],
+                );
+                return SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _isPrivate || inPrivateCategory,
+                  onChanged: inPrivateCategory
+                      ? null
+                      : (v) => setState(() => _isPrivate = v),
+                  secondary: const Icon(Icons.lock_outline),
+                  title: const Text('나만 보기'),
+                  subtitle: Text(
+                    inPrivateCategory
+                        ? '비공개 카테고리라 이미 친구에게 안 보여요'
+                        : '켜면 친구에게 이 할 일이 보이지 않아요',
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 12),
             FilledButton(
               onPressed: _saving ? null : _save,
               child: Text(widget.existing == null ? '추가' : '저장'),

@@ -806,7 +806,8 @@ void _moveTodo(
       ?.moveTodo(
         todoId: dragged.id,
         categoryId: destinationCategory?.id,
-        categoryIsPrivate: destinationCategory?.isPrivate ?? false,
+        categoryIsPrivate:
+            (destinationCategory?.isPrivate ?? false) || dragged.isPrivate,
         destinationOrderedIds: [for (final t in list) t.id],
       );
 }

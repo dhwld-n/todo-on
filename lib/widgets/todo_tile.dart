@@ -51,8 +51,25 @@ class TodoTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        todo.title,
+                      Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(text: todo.title),
+                            if (todo.isPrivate)
+                              WidgetSpan(
+                                alignment: PlaceholderAlignment.middle,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(left: 4),
+                                  child: Icon(
+                                    Icons.lock_outline,
+                                    size: 14,
+                                    semanticLabel: '나만 보기',
+                                    color: Theme.of(context).disabledColor,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
                         style: TextStyle(
                           fontFamily: 'GriunFromsol',
                           fontSize: 17,
