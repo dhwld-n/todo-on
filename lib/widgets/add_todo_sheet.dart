@@ -25,6 +25,55 @@ Future<void> showAddEditTodoSheet(
   );
 }
 
+/// Deletes [todo] from its list. A repeating one asks first whether only
+/// this day goes or this day and every one after it. Resolves to whether
+/// anything was deleted.
+Future<bool> deleteTodoAsking(
+  BuildContext context,
+  WidgetRef ref,
+  TodoItem todo,
+) async {
+  final service = ref.read(firestoreServiceProvider);
+  if (service == null) return false;
+  if (!todo.isRepeating) {
+    await service.deleteTodo(todo.id);
+    return true;
+  }
+  final choice = await showDialog<String>(
+    context: context,
+    builder: (context) => SimpleDialog(
+      title: const Text('반복하는 할 일이에요'),
+      children: [
+        SimpleDialogOption(
+          onPressed: () => Navigator.pop(context, 'day'),
+          child: const Text('이 날만 삭제'),
+        ),
+        SimpleDialogOption(
+          onPressed: () => Navigator.pop(context, 'after'),
+          child: const Text('이 날부터 모두 삭제'),
+        ),
+        SimpleDialogOption(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('취소'),
+        ),
+      ],
+    ),
+  );
+  switch (choice) {
+    case 'day':
+      await service.skipRepeatOn(todo.id, todo.dueDate!);
+    case 'after':
+      await service.endRepeatBefore(todo, todo.dueDate!);
+    default:
+      return false;
+  }
+  return true;
+}
+
+enum _Repeat { once, weekly, monthly }
+
+const _weekdayNames = ['월', '화', '수', '목', '금', '토', '일'];
+
 class AddEditTodoSheet extends ConsumerStatefulWidget {
   final TodoItem? existing;
   final DateTime? initialDate;
@@ -47,6 +96,9 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
   late DateTime _dueDate;
   late bool _showNoteField;
   late bool _isPrivate;
+  late _Repeat _repeat;
+  late Set<int> _weekdays;
+  late Set<int> _monthDays;
 
   @override
   void initState() {
@@ -61,6 +113,41 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
     // expanded on demand. Editing shows the note if one already exists.
     _showNoteField = widget.existing != null && widget.existing!.note != null;
     _isPrivate = widget.existing?.isPrivate ?? false;
+    _weekdays = {...?widget.existing?.repeatWeekdays};
+    _monthDays = {...?widget.existing?.repeatMonthDays};
+    _repeat = _weekdays.isNotEmpty
+        ? _Repeat.weekly
+        : _monthDays.isNotEmpty
+        ? _Repeat.monthly
+        : _Repeat.once;
+  }
+
+  /// Switching to a repeat starts with the todo's own day picked, so one
+  /// tap already makes a working repeat.
+  void _setRepeat(_Repeat repeat) => setState(() {
+    _repeat = repeat;
+    if (repeat == _Repeat.weekly && _weekdays.isEmpty) {
+      _weekdays.add(_dueDate.weekday);
+    }
+    if (repeat == _Repeat.monthly && _monthDays.isEmpty) {
+      _monthDays.add(_dueDate.day);
+    }
+  });
+
+  String _repeatSummary() {
+    final start = DateFormat(
+      'M월 d일',
+    ).format(widget.existing?.seriesStart ?? _dueDate);
+    if (_repeat == _Repeat.weekly) {
+      if (_weekdays.isEmpty) return '요일을 골라주세요';
+      final days = (_weekdays.toList()..sort())
+          .map((d) => _weekdayNames[d - 1])
+          .join(', ');
+      return '$start부터 매주 $days요일에 알아서 떠요';
+    }
+    if (_monthDays.isEmpty) return '날짜를 골라주세요';
+    final days = (_monthDays.toList()..sort()).join(', ');
+    return '$start부터 매달 $days일에 알아서 떠요';
   }
 
   bool _categoryIsPrivate(List<TodoCategory> categories) =>
@@ -108,6 +195,12 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
     final isPrivate = _categoryIsPrivate(
       ref.read(categoriesProvider).value ?? const <TodoCategory>[],
     );
+    final weekdays = _repeat == _Repeat.weekly
+        ? (_weekdays.toList()..sort())
+        : <int>[];
+    final monthDays = _repeat == _Repeat.monthly
+        ? (_monthDays.toList()..sort())
+        : <int>[];
 
     if (widget.existing == null) {
       final todo = TodoItem(
@@ -121,6 +214,8 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
         note: note.isEmpty ? null : note,
         categoryIsPrivate: isPrivate,
         isPrivate: _isPrivate,
+        repeatWeekdays: weekdays,
+        repeatMonthDays: monthDays,
       );
       await service.addTodo(todo);
     } else {
@@ -133,6 +228,10 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
         clearNote: note.isEmpty,
         categoryIsPrivate: isPrivate,
         isPrivate: _isPrivate,
+        repeatWeekdays: weekdays,
+        repeatMonthDays: monthDays,
+        // Back to one day: it stays on the day it was opened from.
+        clearSeriesStart: weekdays.isEmpty && monthDays.isEmpty,
       );
       await service.updateTodo(updated);
     }
@@ -169,10 +268,14 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
                     ),
                     tooltip: '삭제',
                     onPressed: () async {
-                      await ref
-                          .read(firestoreServiceProvider)
-                          ?.deleteTodo(widget.existing!.id);
-                      if (context.mounted) Navigator.of(context).pop();
+                      final deleted = await deleteTodoAsking(
+                        context,
+                        ref,
+                        widget.existing!,
+                      );
+                      if (deleted && context.mounted) {
+                        Navigator.of(context).pop();
+                      }
                     },
                   ),
               ],
@@ -216,7 +319,52 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
                 ),
               ),
             ],
-            if (widget.existing != null) ...[
+            const SizedBox(height: 12),
+            SegmentedButton<_Repeat>(
+              segments: const [
+                ButtonSegment(value: _Repeat.once, label: Text('하루만')),
+                ButtonSegment(value: _Repeat.weekly, label: Text('요일마다')),
+                ButtonSegment(value: _Repeat.monthly, label: Text('매달 날짜')),
+              ],
+              selected: {_repeat},
+              showSelectedIcon: false,
+              onSelectionChanged: (s) => _setRepeat(s.single),
+            ),
+            if (_repeat != _Repeat.once) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (
+                    var i = 1;
+                    i <= (_repeat == _Repeat.weekly ? 7 : 31);
+                    i++
+                  )
+                    _DayToggle(
+                      label: _repeat == _Repeat.weekly
+                          ? _weekdayNames[i - 1]
+                          : '$i',
+                      selected:
+                          (_repeat == _Repeat.weekly ? _weekdays : _monthDays)
+                              .contains(i),
+                      onTap: () => setState(() {
+                        final set = _repeat == _Repeat.weekly
+                            ? _weekdays
+                            : _monthDays;
+                        if (!set.remove(i)) set.add(i);
+                      }),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                _repeatSummary(),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+            // A repeat follows its days; only a one-day todo moves by date.
+            if (widget.existing != null && _repeat == _Repeat.once) ...[
               const SizedBox(height: 12),
               Builder(
                 builder: (context) {
@@ -280,6 +428,48 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
               child: Text(widget.existing == null ? '추가' : '저장'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One round weekday or month-day button: seven fit on a phone's row.
+class _DayToggle extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _DayToggle({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: Container(
+          width: 38,
+          height: 38,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: selected ? scheme.primary : null,
+            border: Border.all(
+              color: selected ? scheme.primary : scheme.outlineVariant,
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(color: selected ? scheme.onPrimary : null),
+          ),
         ),
       ),
     );

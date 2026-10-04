@@ -10,6 +10,7 @@ import '../models/habit.dart';
 import '../models/habit_log.dart';
 import '../models/shared_diary_entry.dart';
 import '../models/todo_item.dart';
+import '../providers/providers.dart' show dateKeyFor;
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -46,7 +47,10 @@ class FirestoreService {
     return _todos
         .orderBy('order')
         .snapshots()
-        .map((snap) => snap.docs.map(TodoItem.fromFirestore).toList());
+        .map(
+          (snap) =>
+              expandRepeats(snap.docs.map(TodoItem.fromFirestore).toList()),
+        );
   }
 
   Future<void> addCategory(TodoCategory category) {
@@ -150,8 +154,38 @@ class FirestoreService {
     return _todos.doc(todoId).delete();
   }
 
-  Future<void> setDone(String todoId, bool isDone) {
-    return _todos.doc(todoId).update({'isDone': isDone});
+  /// Checks [todo] off on its day. A repeating todo keeps one done state
+  /// per day, so only that day's key goes in or out.
+  Future<void> setDone(TodoItem todo, bool isDone) {
+    if (!todo.isRepeating) {
+      return _todos.doc(todo.id).update({'isDone': isDone});
+    }
+    final key = dateKeyFor(todo.dueDate!);
+    return _todos.doc(todo.id).update({
+      'doneDates': isDone
+          ? FieldValue.arrayUnion([key])
+          : FieldValue.arrayRemove([key]),
+    });
+  }
+
+  /// Takes a repeating todo off [day] only; the other days stay.
+  Future<void> skipRepeatOn(String todoId, DateTime day) {
+    return _todos.doc(todoId).update({
+      'skipDates': FieldValue.arrayUnion([dateKeyFor(day)]),
+    });
+  }
+
+  /// Ends a repeating todo before [day], keeping the days already past.
+  /// Ending it on or before its first day just deletes it.
+  Future<void> endRepeatBefore(TodoItem todo, DateTime day) {
+    final start = todo.seriesStart ?? todo.dueDate!;
+    final lastDay = DateTime(day.year, day.month, day.day - 1);
+    if (lastDay.isBefore(DateTime(start.year, start.month, start.day))) {
+      return deleteTodo(todo.id);
+    }
+    return _todos.doc(todo.id).update({
+      'repeatEnd': Timestamp.fromDate(lastDay),
+    });
   }
 
   /// Reassigns [todoId] to [categoryId] and rewrites the `order` field of
@@ -692,7 +726,10 @@ class FirestoreService {
         .collection('todos')
         .where('categoryIsPrivate', isEqualTo: false)
         .snapshots()
-        .map((snap) => snap.docs.map(TodoItem.fromFirestore).toList());
+        .map(
+          (snap) =>
+              expandRepeats(snap.docs.map(TodoItem.fromFirestore).toList()),
+        );
   }
 
   Stream<List<TodoCategory>> watchFriendCategories(String friendUid) {

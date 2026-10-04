@@ -11,7 +11,9 @@ class TodoTile extends StatelessWidget {
   final TodoCategory? category;
   final ValueChanged<bool?>? onToggle;
   final VoidCallback? onTap;
-  final VoidCallback? onDelete;
+
+  /// Swipe to delete; resolves to whether the todo actually went away.
+  final Future<bool> Function()? onDelete;
   final Widget? dragHandle;
 
   const TodoTile({
@@ -55,19 +57,23 @@ class TodoTile extends StatelessWidget {
                         TextSpan(
                           children: [
                             TextSpan(text: todo.title),
-                            if (todo.isPrivate)
-                              WidgetSpan(
-                                alignment: PlaceholderAlignment.middle,
-                                child: Padding(
-                                  padding: const EdgeInsets.only(left: 4),
-                                  child: Icon(
-                                    Icons.lock_outline,
-                                    size: 14,
-                                    semanticLabel: '나만 보기',
-                                    color: Theme.of(context).disabledColor,
+                            for (final (show, icon, label) in [
+                              (todo.isRepeating, Icons.repeat, '반복'),
+                              (todo.isPrivate, Icons.lock_outline, '나만 보기'),
+                            ])
+                              if (show)
+                                WidgetSpan(
+                                  alignment: PlaceholderAlignment.middle,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(left: 4),
+                                    child: Icon(
+                                      icon,
+                                      size: 14,
+                                      semanticLabel: label,
+                                      color: Theme.of(context).disabledColor,
+                                    ),
                                   ),
                                 ),
-                              ),
                           ],
                         ),
                         style: TextStyle(
@@ -155,7 +161,7 @@ class TodoTile extends StatelessWidget {
           color: Theme.of(context).colorScheme.onErrorContainer,
         ),
       ),
-      onDismissed: (_) => onDelete!(),
+      confirmDismiss: (_) => onDelete!(),
       child: content,
     );
   }

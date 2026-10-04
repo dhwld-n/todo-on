@@ -1045,12 +1045,10 @@ class _CategorySection extends ConsumerWidget {
                         category: category,
                         onToggle: (v) => ref
                             .read(firestoreServiceProvider)
-                            ?.setDone(todo.id, v ?? false),
+                            ?.setDone(todo, v ?? false),
                         onTap: () =>
                             showAddEditTodoSheet(context, ref, existing: todo),
-                        onDelete: () => ref
-                            .read(firestoreServiceProvider)
-                            ?.deleteTodo(todo.id),
+                        onDelete: () => deleteTodoAsking(context, ref, todo),
                         dragHandle: Draggable<TodoItem>(
                           data: todo,
                           // Center the card on the pointer instead of hanging
