@@ -213,7 +213,12 @@ void _showDayTodosSheet(BuildContext context) {
               ),
             ),
             const SizedBox(height: 8),
-            Expanded(child: _TodoListPane(scrollController: controller)),
+            Expanded(
+              child: _TodoListPane(
+                scrollController: controller,
+                swipeBetweenDays: true,
+              ),
+            ),
           ],
         ),
       ),
@@ -616,7 +621,12 @@ class _DashboardCard extends StatelessWidget {
 class _TodoListPane extends ConsumerWidget {
   final ScrollController? scrollController;
 
-  const _TodoListPane({this.scrollController});
+  /// In the day sheet a sideways swipe goes to the next day (swipe left)
+  /// or the day before (swipe right), so a todo's own swipe-to-delete is
+  /// off there; deleting goes through its edit sheet instead.
+  final bool swipeBetweenDays;
+
+  const _TodoListPane({this.scrollController, this.swipeBetweenDays = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -624,7 +634,7 @@ class _TodoListPane extends ConsumerWidget {
     final categoriesAsync = ref.watch(categoriesProvider);
     final selectedDate = ref.watch(selectedDateProvider);
 
-    return Column(
+    final pane = Column(
       children: [
         const DdayBanner(),
         if (selectedDate != null)
@@ -702,6 +712,7 @@ class _TodoListPane extends ConsumerWidget {
                           category: section.category,
                           todos: section.todos,
                           selectedDate: selectedDate,
+                          swipeToDelete: !swipeBetweenDays,
                         ),
                     ],
                   );
@@ -732,6 +743,7 @@ class _TodoListPane extends ConsumerWidget {
                                 category: section.category,
                                 todos: section.todos,
                                 selectedDate: selectedDate,
+                                swipeToDelete: !swipeBetweenDays,
                               ),
                             ),
                         ],
@@ -748,6 +760,24 @@ class _TodoListPane extends ConsumerWidget {
           ),
         ),
       ],
+    );
+    if (!swipeBetweenDays) return pane;
+
+    void step(int days) {
+      final d = selectedDate ?? DateTime.now();
+      final day = DateTime(d.year, d.month, d.day + days);
+      ref.read(selectedDateProvider.notifier).state = day;
+      ref.read(focusedMonthProvider.notifier).state = day;
+    }
+
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onHorizontalDragEnd: (details) {
+        final v = details.primaryVelocity ?? 0;
+        if (v < -300) step(1);
+        if (v > 300) step(-1);
+      },
+      child: pane,
     );
   }
 }
@@ -918,11 +948,13 @@ class _CategorySection extends ConsumerWidget {
   final TodoCategory? category;
   final List<TodoItem> todos;
   final DateTime? selectedDate;
+  final bool swipeToDelete;
 
   const _CategorySection({
     required this.category,
     required this.todos,
     required this.selectedDate,
+    this.swipeToDelete = true,
   });
 
   @override
@@ -1048,7 +1080,9 @@ class _CategorySection extends ConsumerWidget {
                             ?.setDone(todo, v ?? false),
                         onTap: () =>
                             showAddEditTodoSheet(context, ref, existing: todo),
-                        onDelete: () => deleteTodoAsking(context, ref, todo),
+                        onDelete: swipeToDelete
+                            ? () => deleteTodoAsking(context, ref, todo)
+                            : null,
                         dragHandle: Draggable<TodoItem>(
                           data: todo,
                           // Center the card on the pointer instead of hanging
