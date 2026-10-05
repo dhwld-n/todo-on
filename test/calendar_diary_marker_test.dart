@@ -138,4 +138,19 @@ void main() {
     expect(exMark.overlaps(number), isFalse, reason: '$exMark vs $number');
     expect(myMark.overlaps(exMark), isFalse);
   });
+
+  testWidgets('tapping the selected day again keeps it selected', (
+    tester,
+  ) async {
+    await _pump(tester, 800);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(CalendarSidebar)),
+    );
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.text('16'));
+      await tester.pumpAndSettle();
+      // A cleared day used to list every todo ever written.
+      expect(container.read(selectedDateProvider), DateTime.utc(2026, 9, 16));
+    }
+  });
 }

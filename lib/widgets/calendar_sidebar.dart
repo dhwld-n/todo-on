@@ -113,10 +113,9 @@ void _showYearMonthPicker(
 class CalendarSidebar extends ConsumerWidget {
   final ScrollController? scrollController;
 
-  /// Called whenever a day is tapped, in addition to updating
-  /// [selectedDateProvider] as usual. When set, tapping a day always
-  /// selects it (no tap-again-to-deselect), since a caller that wants this
-  /// callback needs a day every time, not an occasional null.
+  /// Called whenever a day is tapped, after [selectedDateProvider] is set.
+  /// Tapping the selected day again keeps it selected: clearing it showed
+  /// every todo ever written.
   final ValueChanged<DateTime>? onDaySelected;
 
   const CalendarSidebar({super.key, this.scrollController, this.onDaySelected});
@@ -302,17 +301,8 @@ class CalendarSidebar extends ConsumerWidget {
                   selectedDate != null && isSameDay(day, selectedDate),
               onDaySelected: (selectedDay, focusedDay) {
                 ref.read(focusedMonthProvider.notifier).state = focusedDay;
-                if (onDaySelected != null) {
-                  ref.read(selectedDateProvider.notifier).state = selectedDay;
-                  onDaySelected!(selectedDay);
-                  return;
-                }
-                final current = ref.read(selectedDateProvider);
-                if (current != null && isSameDay(current, selectedDay)) {
-                  ref.read(selectedDateProvider.notifier).state = null;
-                } else {
-                  ref.read(selectedDateProvider.notifier).state = selectedDay;
-                }
+                ref.read(selectedDateProvider.notifier).state = selectedDay;
+                onDaySelected?.call(selectedDay);
               },
               onPageChanged: (focusedDay) {
                 ref.read(focusedMonthProvider.notifier).state = focusedDay;
