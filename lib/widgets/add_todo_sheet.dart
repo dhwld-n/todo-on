@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../models/category.dart';
 import '../models/todo_item.dart';
 import '../providers/providers.dart';
+import '../services/reminder_service.dart';
 
 Future<void> showAddEditTodoSheet(
   BuildContext context,
@@ -96,6 +97,7 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
   late DateTime _dueDate;
   late bool _showNoteField;
   late bool _isPrivate;
+  int? _remindMinutes;
   late _Repeat _repeat;
   late Set<int> _weekdays;
   late Set<int> _monthDays;
@@ -113,6 +115,7 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
     // expanded on demand. Editing shows the note if one already exists.
     _showNoteField = widget.existing != null && widget.existing!.note != null;
     _isPrivate = widget.existing?.isPrivate ?? false;
+    _remindMinutes = widget.existing?.remindMinutes;
     _weekdays = {...?widget.existing?.repeatWeekdays};
     _monthDays = {...?widget.existing?.repeatMonthDays};
     _repeat = _weekdays.isNotEmpty
@@ -133,6 +136,20 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
       _monthDays.add(_dueDate.day);
     }
   });
+
+  Future<void> _pickRemindTime() async {
+    final current = _remindMinutes;
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: current == null
+          ? const TimeOfDay(hour: 9, minute: 0)
+          : TimeOfDay(hour: current ~/ 60, minute: current % 60),
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _remindMinutes = picked.hour * 60 + picked.minute);
+    // Ask right away, while it's clear what the permission is for.
+    askReminderPermission(context);
+  }
 
   String _repeatSummary() {
     final start = DateFormat(
@@ -216,6 +233,7 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
         isPrivate: _isPrivate,
         repeatWeekdays: weekdays,
         repeatMonthDays: monthDays,
+        remindMinutes: _remindMinutes,
       );
       await service.addTodo(todo);
     } else {
@@ -230,6 +248,8 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
         isPrivate: _isPrivate,
         repeatWeekdays: weekdays,
         repeatMonthDays: monthDays,
+        remindMinutes: _remindMinutes,
+        clearRemind: _remindMinutes == null,
         // Back to one day: it stays on the day it was opened from.
         clearSeriesStart: weekdays.isEmpty && monthDays.isEmpty,
       );
@@ -401,6 +421,29 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
               ),
             ],
             const SizedBox(height: 8),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.notifications_none),
+              title: const Text('알림'),
+              subtitle: const Text('그 시간에 폰 잠금 화면과 알림창에 소리 없이 떠요'),
+              onTap: _pickRemindTime,
+              trailing: _remindMinutes == null
+                  ? TextButton(
+                      onPressed: _pickRemindTime,
+                      child: const Text('시간 정하기'),
+                    )
+                  : InputChip(
+                      label: Text(
+                        TimeOfDay(
+                          hour: _remindMinutes! ~/ 60,
+                          minute: _remindMinutes! % 60,
+                        ).format(context),
+                      ),
+                      onPressed: _pickRemindTime,
+                      deleteButtonTooltipMessage: '알림 끄기',
+                      onDeleted: () => setState(() => _remindMinutes = null),
+                    ),
+            ),
             Builder(
               builder: (context) {
                 final inPrivateCategory = _categoryIsPrivate(

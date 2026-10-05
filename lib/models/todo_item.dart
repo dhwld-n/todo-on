@@ -35,6 +35,9 @@ class TodoItem {
   // Set only on one day's copy made by [expandRepeats]: the series' own
   // dueDate, which is what gets written back.
   final DateTime? seriesStart;
+  // A quiet notification on the todo's day (each day, for a repeat) at
+  // this many minutes after midnight; null = none.
+  final int? remindMinutes;
 
   const TodoItem({
     required this.id,
@@ -53,6 +56,7 @@ class TodoItem {
     this.skipDates = const [],
     this.repeatEnd,
     this.seriesStart,
+    this.remindMinutes,
   });
 
   bool get isRepeating =>
@@ -86,6 +90,7 @@ class TodoItem {
       doneDates: list<String>('doneDates'),
       skipDates: list<String>('skipDates'),
       repeatEnd: (data['repeatEnd'] as Timestamp?)?.toDate(),
+      remindMinutes: data['remindMinutes'] as int?,
     );
   }
 
@@ -107,6 +112,7 @@ class TodoItem {
       'doneDates': doneDates,
       'skipDates': skipDates,
       'repeatEnd': repeatEnd != null ? Timestamp.fromDate(repeatEnd!) : null,
+      'remindMinutes': remindMinutes,
     };
   }
 
@@ -125,6 +131,8 @@ class TodoItem {
     List<int>? repeatWeekdays,
     List<int>? repeatMonthDays,
     bool clearSeriesStart = false,
+    int? remindMinutes,
+    bool clearRemind = false,
   }) {
     return TodoItem(
       id: id,
@@ -143,6 +151,7 @@ class TodoItem {
       skipDates: skipDates,
       repeatEnd: repeatEnd,
       seriesStart: clearSeriesStart ? null : seriesStart,
+      remindMinutes: clearRemind ? null : (remindMinutes ?? this.remindMinutes),
     );
   }
 }
@@ -192,6 +201,7 @@ List<TodoItem> expandRepeats(List<TodoItem> todos, {DateTime? until}) {
           skipDates: t.skipDates,
           repeatEnd: t.repeatEnd,
           seriesStart: start,
+          remindMinutes: t.remindMinutes,
         ),
       );
     }

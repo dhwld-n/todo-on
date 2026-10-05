@@ -59,6 +59,11 @@ class TodoTile extends StatelessWidget {
                             TextSpan(text: todo.title),
                             for (final (show, icon, label) in [
                               (todo.isRepeating, Icons.repeat, '반복'),
+                              (
+                                todo.remindMinutes != null,
+                                Icons.notifications_none,
+                                '알림',
+                              ),
                               (todo.isPrivate, Icons.lock_outline, '나만 보기'),
                             ])
                               if (show)

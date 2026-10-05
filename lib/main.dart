@@ -15,6 +15,7 @@ import 'providers/providers.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/firestore_service.dart';
+import 'services/reminder_service.dart';
 import 'services/theme_prefs.dart';
 import 'theme/app_theme.dart';
 import 'widgets/ime_caret_guard.dart';
@@ -81,7 +82,15 @@ class TodoMateApp extends ConsumerWidget {
         service.backfillMutualFollows();
         service.backfillNicknameFromAuth(next.value?.displayName);
       }
+      // Signed out: this phone stops reminding of that account's todos.
+      if (uid == null && previous?.value != null) rescheduleReminders(const []);
     });
+    if (!kIsWeb && Platform.isAndroid) {
+      ref.listen(todosProvider, (_, next) {
+        final todos = next.value;
+        if (todos != null) rescheduleReminders(todos);
+      });
+    }
     ref.listen(profileDocProvider, (previous, next) {
       final saved = next.value?['themeMode'] as String?;
       final resolved = saved == 'dark'

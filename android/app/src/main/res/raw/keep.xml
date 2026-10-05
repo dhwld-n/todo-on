@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Referenced only by name from Dart (the reminder notification's icon),
+     so the release build's resource shrinker can't see it's used. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_stat_todo" />
