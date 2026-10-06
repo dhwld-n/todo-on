@@ -133,6 +133,7 @@ class TodoItem {
     bool clearSeriesStart = false,
     int? remindMinutes,
     bool clearRemind = false,
+    List<String>? skipDates,
   }) {
     return TodoItem(
       id: id,
@@ -148,11 +149,31 @@ class TodoItem {
       repeatWeekdays: repeatWeekdays ?? this.repeatWeekdays,
       repeatMonthDays: repeatMonthDays ?? this.repeatMonthDays,
       doneDates: doneDates,
-      skipDates: skipDates,
+      skipDates: skipDates ?? this.skipDates,
       repeatEnd: repeatEnd,
       seriesStart: clearSeriesStart ? null : seriesStart,
       remindMinutes: clearRemind ? null : (remindMinutes ?? this.remindMinutes),
     );
+  }
+}
+
+/// Every day from [start] (through [end], if given) that falls on one of
+/// [weekdays] or [monthDays], days skipped one by one included. Without an
+/// [end] it never runs out, so take what you need.
+Iterable<DateTime> repeatDays({
+  required DateTime start,
+  required List<int> weekdays,
+  required List<int> monthDays,
+  DateTime? end,
+}) sync* {
+  if (weekdays.isEmpty && monthDays.isEmpty) return;
+  // Calendar days, not 24h steps, so DST shifts can't skip or repeat one.
+  for (
+    var d = _day(start);
+    end == null || !d.isAfter(end);
+    d = DateTime(d.year, d.month, d.day + 1)
+  ) {
+    if (weekdays.contains(d.weekday) || monthDays.contains(d.day)) yield d;
   }
 }
 
@@ -174,13 +195,12 @@ List<TodoItem> expandRepeats(List<TodoItem> todos, {DateTime? until}) {
     final end = t.repeatEnd != null && t.repeatEnd!.isBefore(last)
         ? _day(t.repeatEnd!)
         : last;
-    // Calendar days, not 24h steps, so DST shifts can't skip or repeat one.
-    for (
-      var d = _day(start);
-      !d.isAfter(end);
-      d = DateTime(d.year, d.month, d.day + 1)
-    ) {
-      if (!t.repeatsOn(d)) continue;
+    for (final d in repeatDays(
+      start: start,
+      weekdays: t.repeatWeekdays,
+      monthDays: t.repeatMonthDays,
+      end: end,
+    )) {
       final key = _dayKey(d);
       if (t.skipDates.contains(key)) continue;
       out.add(

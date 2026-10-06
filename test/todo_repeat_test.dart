@@ -37,9 +37,12 @@ List<String> _days(List<TodoItem> todos) => [
 class _FakeService extends Fake implements FirestoreService {
   final added = <TodoItem>[];
   final skipped = <String>[];
+  final updated = <TodoItem>[];
 
   @override
   Future<void> addTodo(TodoItem todo) async => added.add(todo);
+  @override
+  Future<void> updateTodo(TodoItem todo) async => updated.add(todo);
   @override
   Future<void> skipRepeatOn(String todoId, DateTime day) async =>
       skipped.add('$todoId ${dateKeyFor(day)}');
@@ -100,7 +103,11 @@ void main() {
     });
   });
 
-  Future<_FakeService> pumpSheet(WidgetTester tester, {TodoItem? existing}) async {
+  Future<_FakeService> pumpSheet(
+    WidgetTester tester, {
+    TodoItem? existing,
+    DateTime? initialDate,
+  }) async {
     await initializeDateFormatting('ko_KR');
     tester.view.physicalSize = const Size(800, 1400);
     tester.view.devicePixelRatio = 1;
@@ -117,7 +124,7 @@ void main() {
             body: AddEditTodoSheet(
               existing: existing,
               // A Monday.
-              initialDate: DateTime(2026, 10, 5),
+              initialDate: initialDate ?? DateTime(2026, 10, 5),
             ),
           ),
         ),
@@ -182,5 +189,70 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(service.skipped, ['gym 2026-10-07']);
+  });
+
+  // Far enough ahead that "today" never passes these days.
+  final tuesday2030 = DateTime(2030, 1, 1);
+
+  testWidgets('several days of a repeat go at once, and come back', (
+    tester,
+  ) async {
+    final day = expandRepeats([
+      TodoItem(
+        id: 'gym',
+        title: '헬스',
+        categoryId: null,
+        isDone: false,
+        dueDate: tuesday2030,
+        createdAt: tuesday2030,
+        order: 0,
+        repeatWeekdays: const [DateTime.tuesday, DateTime.thursday],
+        skipDates: const ['2030-01-08'],
+      ),
+    ], until: DateTime(2030, 1, 3)).last;
+    final service = await pumpSheet(tester, existing: day);
+
+    Text label(String text) => tester.widget<Text>(find.text(text));
+    expect(label('1/1 (화)').style?.decoration, isNull);
+    // Taken off earlier with "이 날만 삭제": shown struck through.
+    expect(label('1/8 (화)').style?.decoration, TextDecoration.lineThrough);
+
+    await tester.tap(find.text('1/10 (목)'));
+    await tester.tap(find.text('1/15 (화)'));
+    await tester.tap(find.text('1/8 (화)'));
+    await tester.pump();
+    expect(label('1/10 (목)').style?.decoration, TextDecoration.lineThrough);
+    expect(label('1/8 (화)').style?.decoration, isNull);
+
+    // Ten at a time; more on request.
+    expect(find.text('2/5 (화)'), findsNothing);
+    await tester.tap(find.text('더 보기'));
+    await tester.pump();
+    expect(find.text('2/5 (화)'), findsOneWidget);
+
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+    expect(service.updated.single.skipDates, ['2030-01-10', '2030-01-15']);
+  });
+
+  testWidgets('days can be taken off while making the repeat', (tester) async {
+    final service = await pumpSheet(tester, initialDate: tuesday2030);
+    await tester.enterText(find.byType(TextField).first, '헬스');
+    await tester.tap(find.text('요일마다'));
+    await tester.pump();
+    await tester.tap(find.text('1/8 (화)'));
+    await tester.pump();
+    await tester.tap(find.text('추가'));
+    await tester.pumpAndSettle();
+
+    final todo = service.added.single;
+    expect(todo.skipDates, ['2030-01-08']);
+    expect(
+      [
+        for (final t in expandRepeats([todo], until: DateTime(2030, 1, 15)))
+          dateKeyFor(t.dueDate!),
+      ],
+      ['2030-01-01', '2030-01-15'],
+    );
   });
 }

@@ -101,6 +101,9 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
   late _Repeat _repeat;
   late Set<int> _weekdays;
   late Set<int> _monthDays;
+  // yyyy-MM-dd keys of the repeat's days taken off one by one.
+  late Set<String> _skipDates;
+  var _shownDays = 10;
 
   @override
   void initState() {
@@ -118,6 +121,7 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
     _remindMinutes = widget.existing?.remindMinutes;
     _weekdays = {...?widget.existing?.repeatWeekdays};
     _monthDays = {...?widget.existing?.repeatMonthDays};
+    _skipDates = {...?widget.existing?.skipDates};
     _repeat = _weekdays.isNotEmpty
         ? _Repeat.weekly
         : _monthDays.isNotEmpty
@@ -149,6 +153,53 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
     setState(() => _remindMinutes = picked.hour * 60 + picked.minute);
     // Ask right away, while it's clear what the permission is for.
     askReminderPermission(context);
+  }
+
+  /// The repeat's next days as toggles: tap one to take that day off (or
+  /// put it back), so several days can go at once and none is lost for good.
+  List<Widget> _upcomingDays(BuildContext context) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final start = widget.existing?.seriesStart ?? _dueDate;
+    final days = repeatDays(
+      start: start.isAfter(today) ? start : today,
+      weekdays: _repeat == _Repeat.weekly ? _weekdays.toList() : const [],
+      monthDays: _repeat == _Repeat.monthly ? _monthDays.toList() : const [],
+      end: widget.existing?.repeatEnd,
+    ).take(_shownDays + 1).toList();
+    if (days.isEmpty) return const [];
+    return [
+      const SizedBox(height: 12),
+      Text('앞으로 뜰 날', style: Theme.of(context).textTheme.titleSmall),
+      Text(
+        '날짜를 누르면 그날만 빠지고, 다시 누르면 돌아와요',
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+      const SizedBox(height: 8),
+      Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: [
+          for (final d in days.take(_shownDays))
+            _DateToggle(
+              label: DateFormat('M/d (E)', 'ko').format(d),
+              on: !_skipDates.contains(dateKeyFor(d)),
+              onTap: () => setState(() {
+                final key = dateKeyFor(d);
+                if (!_skipDates.remove(key)) _skipDates.add(key);
+              }),
+            ),
+        ],
+      ),
+      if (days.length > _shownDays)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            onPressed: () => setState(() => _shownDays += 10),
+            child: const Text('더 보기'),
+          ),
+        ),
+    ];
   }
 
   String _repeatSummary() {
@@ -234,6 +285,7 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
         repeatWeekdays: weekdays,
         repeatMonthDays: monthDays,
         remindMinutes: _remindMinutes,
+        skipDates: _skipDates.toList()..sort(),
       );
       await service.addTodo(todo);
     } else {
@@ -249,6 +301,7 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
         repeatWeekdays: weekdays,
         repeatMonthDays: monthDays,
         remindMinutes: _remindMinutes,
+        skipDates: _skipDates.toList()..sort(),
         clearRemind: _remindMinutes == null,
         // Back to one day: it stays on the day it was opened from.
         clearSeriesStart: weekdays.isEmpty && monthDays.isEmpty,
@@ -382,6 +435,7 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
                 _repeatSummary(),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
+              ..._upcomingDays(context),
             ],
             // A repeat follows its days; only a one-day todo moves by date.
             if (widget.existing != null && _repeat == _Repeat.once) ...[
@@ -512,6 +566,51 @@ class _DayToggle extends StatelessWidget {
           child: Text(
             label,
             style: TextStyle(color: selected ? scheme.onPrimary : null),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One upcoming day of a repeat: outlined while it's on, struck through and
+/// faded once taken off.
+class _DateToggle extends StatelessWidget {
+  final String label;
+  final bool on;
+  final VoidCallback onTap;
+
+  const _DateToggle({
+    required this.label,
+    required this.on,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Semantics(
+      button: true,
+      toggled: on,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: on
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outlineVariant,
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: on ? null : theme.disabledColor,
+              decoration: on ? null : TextDecoration.lineThrough,
+            ),
           ),
         ),
       ),
