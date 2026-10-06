@@ -621,8 +621,8 @@ class _DashboardCard extends StatelessWidget {
 class _TodoListPane extends ConsumerWidget {
   final ScrollController? scrollController;
 
-  /// In the day sheet a sideways swipe goes to the next day (swipe left)
-  /// or the day before (swipe right), so a todo's own swipe-to-delete is
+  /// In the day sheet the day's list moves like a page: swipe left for the
+  /// next day, right for the day before. A todo's own swipe-to-delete is
   /// off there; deleting goes through its edit sheet instead.
   final bool swipeBetweenDays;
 
@@ -630,14 +630,98 @@ class _TodoListPane extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final todosAsync = ref.watch(todosProvider);
-    final categoriesAsync = ref.watch(categoriesProvider);
-    final selectedDate = ref.watch(selectedDateProvider);
-
-    final pane = Column(
+    return Column(
       children: [
         const DdayBanner(),
-        if (selectedDate != null)
+        Expanded(
+          child: swipeBetweenDays
+              ? _DaySwiper(scrollController: scrollController)
+              : _DayTodos(
+                  date: ref.watch(selectedDateProvider),
+                  scrollController: scrollController,
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Days as pages that follow the finger, like turning a planner's pages.
+class _DaySwiper extends ConsumerStatefulWidget {
+  final ScrollController? scrollController;
+
+  const _DaySwiper({this.scrollController});
+
+  @override
+  ConsumerState<_DaySwiper> createState() => _DaySwiperState();
+}
+
+class _DaySwiperState extends ConsumerState<_DaySwiper> {
+  // Page [_origin] is the day the sheet opened on; there's room either way.
+  static const _origin = 100000;
+  late final DateTime _base;
+  final _pages = PageController(initialPage: _origin);
+  var _page = _origin;
+
+  @override
+  void initState() {
+    super.initState();
+    final d = ref.read(selectedDateProvider) ?? DateTime.now();
+    _base = DateTime(d.year, d.month, d.day);
+  }
+
+  @override
+  void dispose() {
+    _pages.dispose();
+    super.dispose();
+  }
+
+  DateTime _dayAt(int page) =>
+      DateTime(_base.year, _base.month, _base.day + page - _origin);
+
+  @override
+  Widget build(BuildContext context) {
+    return PageView.builder(
+      controller: _pages,
+      onPageChanged: (page) {
+        setState(() => _page = page);
+        final day = _dayAt(page);
+        ref.read(selectedDateProvider.notifier).state = day;
+        ref.read(focusedMonthProvider.notifier).state = day;
+      },
+      itemBuilder: (context, page) => _DayTodos(
+        date: _dayAt(page),
+        // The sheet's controller drives one list at a time: the page that's
+        // showing. A page mid-swipe scrolls on its own.
+        scrollController: page == _page ? widget.scrollController : null,
+        swipeToDelete: false,
+      ),
+    );
+  }
+}
+
+/// One day's todos under its date bar, by category; every todo when [date]
+/// is null.
+class _DayTodos extends ConsumerWidget {
+  final DateTime? date;
+  final ScrollController? scrollController;
+  final bool swipeToDelete;
+
+  const _DayTodos({
+    required this.date,
+    this.scrollController,
+    this.swipeToDelete = true,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final todosAsync = ref.watch(todosProvider);
+    final categoriesAsync = ref.watch(categoriesProvider);
+    final date = this.date;
+
+    return Column(
+      children: [
+        if (date != null)
           Container(
             width: double.infinity,
             color: Theme.of(context).colorScheme.primaryContainer,
@@ -651,7 +735,7 @@ class _TodoListPane extends ConsumerWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  DateFormat('yyyy년 M월 d일').format(selectedDate),
+                  DateFormat('yyyy년 M월 d일').format(date),
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onPrimaryContainer,
                   ),
@@ -664,9 +748,8 @@ class _TodoListPane extends ConsumerWidget {
             data: (todos) => categoriesAsync.when(
               data: (categories) {
                 final filtered = todos.where((t) {
-                  if (selectedDate == null) return true;
-                  return t.dueDate != null &&
-                      isSameDay(t.dueDate!, selectedDate);
+                  if (date == null) return true;
+                  return t.dueDate != null && isSameDay(t.dueDate!, date);
                 }).toList();
 
                 final byCategory = <String?, List<TodoItem>>{};
@@ -711,8 +794,8 @@ class _TodoListPane extends ConsumerWidget {
                         _CategorySection(
                           category: section.category,
                           todos: section.todos,
-                          selectedDate: selectedDate,
-                          swipeToDelete: !swipeBetweenDays,
+                          selectedDate: date,
+                          swipeToDelete: swipeToDelete,
                         ),
                     ],
                   );
@@ -742,8 +825,8 @@ class _TodoListPane extends ConsumerWidget {
                               child: _CategorySection(
                                 category: section.category,
                                 todos: section.todos,
-                                selectedDate: selectedDate,
-                                swipeToDelete: !swipeBetweenDays,
+                                selectedDate: date,
+                                swipeToDelete: swipeToDelete,
                               ),
                             ),
                         ],
@@ -760,24 +843,6 @@ class _TodoListPane extends ConsumerWidget {
           ),
         ),
       ],
-    );
-    if (!swipeBetweenDays) return pane;
-
-    void step(int days) {
-      final d = selectedDate ?? DateTime.now();
-      final day = DateTime(d.year, d.month, d.day + days);
-      ref.read(selectedDateProvider.notifier).state = day;
-      ref.read(focusedMonthProvider.notifier).state = day;
-    }
-
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onHorizontalDragEnd: (details) {
-        final v = details.primaryVelocity ?? 0;
-        if (v < -300) step(1);
-        if (v > 300) step(-1);
-      },
-      child: pane,
     );
   }
 }

@@ -70,6 +70,23 @@ void main() {
 
     DateTime selected() => container.read(selectedDateProvider)!;
 
+    // Mid-swipe the day moves with the finger and the next one slides in
+    // beside it, instead of the date just flipping in place.
+    final restX = tester.getCenter(_inSheet('헬스')).dx;
+    final drag = await tester.startGesture(tester.getCenter(_inSheet('헬스')));
+    for (var i = 0; i < 6; i++) {
+      await drag.moveBy(const Offset(-25, 0));
+      await tester.pump();
+    }
+    expect(tester.getCenter(_inSheet('헬스')).dx, lessThan(restX - 100));
+    expect(_inSheet('알바'), findsOneWidget);
+    expect(_inSheet('2026년 9월 17일'), findsOneWidget);
+    // Let go short of halfway: it springs back to the same day.
+    await drag.up();
+    await _settle(tester);
+    expect(isSameDay(selected(), DateTime(2026, 9, 16)), isTrue);
+    expect(_inSheet('알바'), findsNothing);
+
     // Over the todo itself: no swipe-to-delete in the way.
     await tester.fling(_inSheet('헬스'), const Offset(-250, 0), 1500);
     await _settle(tester);
