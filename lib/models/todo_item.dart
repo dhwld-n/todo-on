@@ -160,6 +160,12 @@ class TodoItem {
   }
 }
 
+/// List order within a category: what's still to do on top, checked-off
+/// ones below, each part in the order it was dragged into.
+int compareTodosForList(TodoItem a, TodoItem b) => a.isDone != b.isDone
+    ? (a.isDone ? 1 : -1)
+    : a.order.compareTo(b.order);
+
 /// Every day from [start] (through [end], if given) that falls on one of
 /// [weekdays] or [monthDays], days skipped one by one included. Without an
 /// [end] it never runs out, so take what you need.

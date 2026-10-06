@@ -757,7 +757,7 @@ class _DayTodos extends ConsumerWidget {
                   (byCategory[t.categoryId] ??= []).add(t);
                 }
                 for (final list in byCategory.values) {
-                  list.sort((a, b) => a.order.compareTo(b.order));
+                  list.sort(compareTodosForList);
                 }
 
                 if (categories.isEmpty && byCategory.isEmpty) {

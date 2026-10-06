@@ -562,7 +562,7 @@ class _FriendTodoList extends StatelessWidget {
                   (byCategory[t.categoryId] ??= []).add(t);
                 }
                 for (final list in byCategory.values) {
-                  list.sort((a, b) => a.order.compareTo(b.order));
+                  list.sort(compareTodosForList);
                 }
 
                 final sections = <_SectionData>[
