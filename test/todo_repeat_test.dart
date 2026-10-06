@@ -143,7 +143,8 @@ void main() {
     expect(find.textContaining('매주 월요일'), findsOneWidget);
     await tester.tap(find.text('목'));
     await tester.pump();
-    expect(find.text('10월 5일부터 매주 월, 목요일에 알아서 떠요'), findsOneWidget);
+    // (With the year in front once 2026 is over.)
+    expect(find.textContaining('10월 5일부터 매주 월, 목요일에 알아서 떠요'), findsOneWidget);
     await tester.tap(find.text('추가'));
     await tester.pumpAndSettle();
 
@@ -181,7 +182,7 @@ void main() {
       _series(weekdays: [DateTime.wednesday]),
     ], until: DateTime(2026, 10, 7)).single;
     final service = await pumpSheet(tester, existing: day);
-    expect(find.text('10월 5일부터 매주 수요일에 알아서 떠요'), findsOneWidget);
+    expect(find.textContaining('10월 5일부터 매주 수요일에 알아서 떠요'), findsOneWidget);
 
     await tester.tap(find.byTooltip('삭제'));
     await tester.pumpAndSettle();
@@ -254,5 +255,76 @@ void main() {
       ],
       ['2030-01-01', '2030-01-15'],
     );
+  });
+
+  testWidgets('a repeat can be given an end date', (tester) async {
+    final service = await pumpSheet(tester, initialDate: tuesday2030);
+    await tester.enterText(find.byType(TextField).first, '헬스');
+    await tester.tap(find.text('요일마다'));
+    await tester.pump();
+    expect(find.text('계속'), findsOneWidget);
+
+    await tester.tap(find.text('계속'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('15'));
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('2030년 1월 1일부터 2030년 1월 15일까지 매주 화요일에 알아서 떠요'),
+      findsOneWidget,
+    );
+    // The list of days stops at the end too.
+    expect(find.text('1/15 (화)'), findsOneWidget);
+    expect(find.text('1/22 (화)'), findsNothing);
+
+    await tester.tap(find.text('추가'));
+    await tester.pumpAndSettle();
+    final todo = service.added.single;
+    expect(todo.repeatEnd, DateTime(2030, 1, 15));
+    expect(
+      [
+        for (final t in expandRepeats([todo], until: DateTime(2030, 12, 31)))
+          dateKeyFor(t.dueDate!),
+      ],
+      ['2030-01-01', '2030-01-08', '2030-01-15'],
+    );
+  });
+
+  testWidgets('the start of a repeat moves, and its end can be taken off', (
+    tester,
+  ) async {
+    final day = expandRepeats([
+      TodoItem(
+        id: 'gym',
+        title: '헬스',
+        categoryId: null,
+        isDone: false,
+        dueDate: tuesday2030,
+        createdAt: tuesday2030,
+        order: 0,
+        repeatWeekdays: const [DateTime.tuesday],
+        repeatEnd: DateTime(2030, 1, 29),
+      ),
+    ], until: DateTime(2030, 1, 15)).last;
+    final service = await pumpSheet(tester, existing: day);
+
+    await tester.tap(find.text('2030년 1월 1일'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('8'));
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('끝나는 날 없애기'));
+    await tester.pump();
+    expect(find.text('계속'), findsOneWidget);
+
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+    final saved = service.updated.single;
+    expect(saved.repeatEnd, isNull);
+    expect(
+      (saved.toFirestore()['dueDate'] as Timestamp).toDate(),
+      DateTime(2030, 1, 8),
+    );
+    expect(saved.toFirestore()['repeatEnd'], isNull);
   });
 }

@@ -95,6 +95,9 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
   late final TextEditingController _noteController;
   String? _categoryId;
   late DateTime _dueDate;
+  // A repeat's first and last day (null = keeps going).
+  late DateTime _repeatStart;
+  DateTime? _repeatEnd;
   late bool _showNoteField;
   late bool _isPrivate;
   int? _remindMinutes;
@@ -114,6 +117,8 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
     _noteController = TextEditingController(text: widget.existing?.note ?? '');
     _categoryId = widget.existing?.categoryId ?? widget.initialCategoryId;
     _dueDate = widget.existing?.dueDate ?? widget.initialDate ?? DateTime.now();
+    _repeatStart = widget.existing?.seriesStart ?? _dueDate;
+    _repeatEnd = widget.existing?.repeatEnd;
     // Adding a new todo starts with just the title field; note can be
     // expanded on demand. Editing shows the note if one already exists.
     _showNoteField = widget.existing != null && widget.existing!.note != null;
@@ -134,10 +139,10 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
   void _setRepeat(_Repeat repeat) => setState(() {
     _repeat = repeat;
     if (repeat == _Repeat.weekly && _weekdays.isEmpty) {
-      _weekdays.add(_dueDate.weekday);
+      _weekdays.add(_repeatStart.weekday);
     }
     if (repeat == _Repeat.monthly && _monthDays.isEmpty) {
-      _monthDays.add(_dueDate.day);
+      _monthDays.add(_repeatStart.day);
     }
   });
 
@@ -160,12 +165,12 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
   List<Widget> _upcomingDays(BuildContext context) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final start = widget.existing?.seriesStart ?? _dueDate;
+    final start = _repeatStart;
     final days = repeatDays(
       start: start.isAfter(today) ? start : today,
       weekdays: _repeat == _Repeat.weekly ? _weekdays.toList() : const [],
       monthDays: _repeat == _Repeat.monthly ? _monthDays.toList() : const [],
-      end: widget.existing?.repeatEnd,
+      end: _repeatEnd,
     ).take(_shownDays + 1).toList();
     if (days.isEmpty) return const [];
     return [
@@ -202,20 +207,51 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
     ];
   }
 
+  /// 'M월 d일', with the year when it isn't this one.
+  static String _dayLabel(DateTime d) => DateFormat(
+    d.year == DateTime.now().year ? 'M월 d일' : 'yyyy년 M월 d일',
+  ).format(d);
+
+  Future<void> _pickRepeatStart() async {
+    final now = DateTime.now();
+    final yearAgo = DateTime(now.year - 1, now.month, now.day);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _repeatStart,
+      firstDate: _repeatStart.isBefore(yearAgo) ? _repeatStart : yearAgo,
+      // Never past the end, so the period can't turn inside out.
+      lastDate: _repeatEnd ?? DateTime(now.year + 3, now.month, now.day),
+    );
+    if (picked != null) setState(() => _repeatStart = picked);
+  }
+
+  Future<void> _pickRepeatEnd() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final from = _repeatStart.isAfter(today) ? _repeatStart : today;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _repeatEnd ?? from,
+      firstDate: _repeatStart,
+      lastDate: DateTime(from.year + 5, from.month, from.day),
+    );
+    if (picked != null) setState(() => _repeatEnd = picked);
+  }
+
   String _repeatSummary() {
-    final start = DateFormat(
-      'M월 d일',
-    ).format(widget.existing?.seriesStart ?? _dueDate);
+    final start = _dayLabel(_repeatStart);
+    final end = _repeatEnd;
+    final period = end == null ? '$start부터' : '$start부터 ${_dayLabel(end)}까지';
     if (_repeat == _Repeat.weekly) {
       if (_weekdays.isEmpty) return '요일을 골라주세요';
       final days = (_weekdays.toList()..sort())
           .map((d) => _weekdayNames[d - 1])
           .join(', ');
-      return '$start부터 매주 $days요일에 알아서 떠요';
+      return '$period 매주 $days요일에 알아서 떠요';
     }
     if (_monthDays.isEmpty) return '날짜를 골라주세요';
     final days = (_monthDays.toList()..sort()).join(', ');
-    return '$start부터 매달 $days일에 알아서 떠요';
+    return '$period 매달 $days일에 알아서 떠요';
   }
 
   bool _categoryIsPrivate(List<TodoCategory> categories) =>
@@ -276,7 +312,9 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
         title: title,
         categoryId: _categoryId,
         isDone: false,
-        dueDate: _dueDate,
+        dueDate: weekdays.isEmpty && monthDays.isEmpty
+            ? _dueDate
+            : _repeatStart,
         createdAt: DateTime.now(),
         order: DateTime.now().millisecondsSinceEpoch,
         note: note.isEmpty ? null : note,
@@ -286,6 +324,7 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
         repeatMonthDays: monthDays,
         remindMinutes: _remindMinutes,
         skipDates: _skipDates.toList()..sort(),
+        repeatEnd: _repeatEnd,
       );
       await service.addTodo(todo);
     } else {
@@ -305,6 +344,10 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
         clearRemind: _remindMinutes == null,
         // Back to one day: it stays on the day it was opened from.
         clearSeriesStart: weekdays.isEmpty && monthDays.isEmpty,
+        seriesStart: _repeatStart,
+        repeatEnd: _repeatEnd,
+        clearRepeatEnd:
+            _repeatEnd == null || (weekdays.isEmpty && monthDays.isEmpty),
       );
       await service.updateTodo(updated);
     }
@@ -434,6 +477,36 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
               Text(
                 _repeatSummary(),
                 style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.date_range, size: 18),
+                  const SizedBox(width: 6),
+                  const Text('기간'),
+                  const SizedBox(width: 8),
+                  _PeriodButton(
+                    label: _dayLabel(_repeatStart),
+                    tooltip: '시작하는 날',
+                    onPressed: _pickRepeatStart,
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 6),
+                    child: Text('~'),
+                  ),
+                  _PeriodButton(
+                    label: _repeatEnd == null ? '계속' : _dayLabel(_repeatEnd!),
+                    tooltip: '끝나는 날',
+                    onPressed: _pickRepeatEnd,
+                  ),
+                  if (_repeatEnd != null)
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 18),
+                      tooltip: '끝나는 날 없애기',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => setState(() => _repeatEnd = null),
+                    ),
+                ],
               ),
               ..._upcomingDays(context),
             ],
@@ -613,6 +686,34 @@ class _DateToggle extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// One end of a repeat's period: a small outlined button with the date.
+class _PeriodButton extends StatelessWidget {
+  final String label;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  const _PeriodButton({
+    required this.label,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+        ),
+        child: Text(label),
       ),
     );
   }

@@ -130,7 +130,10 @@ class TodoItem {
     bool? isPrivate,
     List<int>? repeatWeekdays,
     List<int>? repeatMonthDays,
+    DateTime? seriesStart,
     bool clearSeriesStart = false,
+    DateTime? repeatEnd,
+    bool clearRepeatEnd = false,
     int? remindMinutes,
     bool clearRemind = false,
     List<String>? skipDates,
@@ -150,8 +153,8 @@ class TodoItem {
       repeatMonthDays: repeatMonthDays ?? this.repeatMonthDays,
       doneDates: doneDates,
       skipDates: skipDates ?? this.skipDates,
-      repeatEnd: repeatEnd,
-      seriesStart: clearSeriesStart ? null : seriesStart,
+      repeatEnd: clearRepeatEnd ? null : (repeatEnd ?? this.repeatEnd),
+      seriesStart: clearSeriesStart ? null : (seriesStart ?? this.seriesStart),
       remindMinutes: clearRemind ? null : (remindMinutes ?? this.remindMinutes),
     );
   }
