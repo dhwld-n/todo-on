@@ -77,13 +77,15 @@ void main() {
     await tester.tap(find.text('friend_a, friend_b'));
     await tester.pumpAndSettle();
 
-    final bodyFinder = find.byWidgetPredicate(
-      (w) =>
-          w is RichText &&
-          w.text.toPlainText().contains('- friend_a') &&
-          w.text.toPlainText().contains('- friend_b'),
+    // Each member's part, signed under it.
+    expect(find.text('A'), findsOneWidget);
+    expect(find.text('- friend_a'), findsOneWidget);
+    expect(find.text('B'), findsOneWidget);
+    expect(find.text('- friend_b'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('- friend_a')).dy,
+      lessThan(tester.getTopLeft(find.text('B')).dy),
     );
-    expect(bodyFinder, findsOneWidget);
   });
 
   testWidgets('create-diary-group sheet only allows creating with 2+ members', (

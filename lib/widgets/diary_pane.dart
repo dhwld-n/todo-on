@@ -592,6 +592,50 @@ bool _keyboardOpen(BuildContext context) =>
   );
 }
 
+/// [entry] with its part at [index] rewritten to [text], or taken out when
+/// [text] is blank. The parts after it keep their own text; only where they
+/// start moves.
+(String, List<DiarySegment>) replaceDiaryPart(
+  SharedDiaryEntry entry,
+  int index,
+  String text,
+) {
+  final segments = entry.segments;
+  final start = index == 0
+      ? 0
+      : segments[index - 1].upTo.clamp(0, entry.content.length);
+  final end = segments[index].upTo.clamp(start, entry.content.length);
+  final replacement = text.trim();
+  final shift = replacement.length - (end - start);
+  final content =
+      entry.content.substring(0, start) +
+      replacement +
+      entry.content.substring(end);
+  return (
+    content,
+    [
+      for (var i = 0; i < segments.length; i++)
+        if (i < index)
+          segments[i]
+        else if (i > index)
+          DiarySegment(uid: segments[i].uid, upTo: segments[i].upTo + shift)
+        else if (replacement.isNotEmpty)
+          DiarySegment(uid: segments[i].uid, upTo: end + shift),
+    ],
+  );
+}
+
+/// True for any calendar day before today: my own parts can be fixed only
+/// on the day itself, though adding to an earlier day is still fine.
+bool isPastDay(DateTime date, {DateTime? now}) {
+  final today = now ?? DateTime.now();
+  return DateTime(
+    date.year,
+    date.month,
+    date.day,
+  ).isBefore(DateTime(today.year, today.month, today.day));
+}
+
 class _SharedDiaryBody extends ConsumerWidget {
   final DateTime date;
   final String friendUid;
@@ -628,6 +672,7 @@ class _SharedDiaryBody extends ConsumerWidget {
           key: ValueKey('${friendUid}_$dateKey'),
           entry: entry,
           myUid: myUid,
+          dayOver: isPastDay(date),
           nicknameFor: (uid) => uid == myUid ? myNickname : friendNickname,
           onSave: (content, segments) async => ref
               .read(firestoreServiceProvider)
@@ -677,6 +722,7 @@ class _DiaryGroupBody extends ConsumerWidget {
           key: ValueKey('${group.id}_$dateKey'),
           entry: entry,
           myUid: myUid,
+          dayOver: isPastDay(date),
           nicknameFor: nicknameFor,
           onSave: (content, segments) async => ref
               .read(firestoreServiceProvider)
@@ -695,6 +741,7 @@ class _DiaryGroupBody extends ConsumerWidget {
 class _DiaryThread extends StatefulWidget {
   final SharedDiaryEntry? entry;
   final String? myUid;
+  final bool dayOver;
   final String Function(String uid) nicknameFor;
   final Future<void> Function(String content, List<DiarySegment> segments)
   onSave;
@@ -703,6 +750,7 @@ class _DiaryThread extends StatefulWidget {
     super.key,
     required this.entry,
     required this.myUid,
+    this.dayOver = false,
     required this.nicknameFor,
     required this.onSave,
   });
@@ -723,6 +771,71 @@ class _DiaryThreadState extends State<_DiaryThread> {
     super.dispose();
   }
 
+  /// Saves a whole new entry, telling the person if it didn't go through.
+  Future<bool> _write(String content, List<DiarySegment> segments) async {
+    try {
+      await widget.onSave(content, segments);
+      return true;
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('저장하지 못했어요. 다시 눌러주세요')));
+      }
+      return false;
+    }
+  }
+
+  /// Fixes or takes out one of my own parts.
+  Future<void> _editPart(int index) async {
+    final entry = widget.entry;
+    if (entry == null) return;
+    final start = index == 0 ? 0 : entry.segments[index - 1].upTo;
+    final original = entry.content.substring(
+      start.clamp(0, entry.content.length),
+      entry.segments[index].upTo.clamp(start, entry.content.length),
+    );
+    // Not disposed here: the dialog's closing animation still reads it.
+    final controller = TextEditingController(text: original);
+    final edited = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('내가 쓴 글 고치기'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          minLines: 3,
+          maxLines: 8,
+          keyboardType: TextInputType.multiline,
+          style: const TextStyle(fontFamily: 'GriunFromsol', height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, ''),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('지우기'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: const Text('저장'),
+          ),
+        ],
+      ),
+    );
+    final latest = widget.entry;
+    if (edited == null || latest == null || edited.trim() == original.trim()) {
+      return;
+    }
+    final (content, segments) = replaceDiaryPart(latest, index, edited);
+    await _write(content, segments);
+  }
+
   Future<void> _save() async {
     final myUid = widget.myUid;
     if (_saving || myUid == null) return;
@@ -732,28 +845,23 @@ class _DiaryThreadState extends State<_DiaryThread> {
     setState(() => _saving = true);
     // Emptied right away, the way a chat message leaves the box on send.
     _controller.clear();
-    try {
-      await widget.onSave(result.$1, result.$2);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scroll.hasClients) {
-          _scroll.animateTo(
-            _scroll.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOut,
-          );
-        }
-      });
-    } catch (_) {
+    final saved = await _write(result.$1, result.$2);
+    if (!mounted) return;
+    setState(() => _saving = false);
+    if (!saved) {
       // Didn't go through: hand the writing back rather than lose it.
-      if (mounted && _controller.text.isEmpty) _controller.text = typed;
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('저장하지 못했어요. 다시 눌러주세요')));
-      }
-    } finally {
-      if (mounted) setState(() => _saving = false);
+      if (_controller.text.isEmpty) _controller.text = typed;
+      return;
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scroll.hasClients) {
+        _scroll.animateTo(
+          _scroll.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   @override
@@ -778,6 +886,9 @@ class _DiaryThreadState extends State<_DiaryThread> {
                   child: _AttributedDiaryText(
                     entry: entry,
                     nicknameFor: widget.nicknameFor,
+                    // Only my own parts, and only on the day itself.
+                    editableUid: widget.dayOver ? null : widget.myUid,
+                    onEditPart: _editPart,
                   ),
                 ),
         ),
@@ -819,13 +930,20 @@ class _DiaryThreadState extends State<_DiaryThread> {
   }
 }
 
-/// Read-only rendering of the shared diary text with a "- 닉네임" marker
-/// right after each contributor's block.
+/// The shared diary text, one block per part with a "- 닉네임" line under
+/// it. Parts by [editableUid] get a button there to fix them.
 class _AttributedDiaryText extends StatelessWidget {
   final SharedDiaryEntry entry;
   final String Function(String uid) nicknameFor;
+  final String? editableUid;
+  final void Function(int index)? onEditPart;
 
-  const _AttributedDiaryText({required this.entry, required this.nicknameFor});
+  const _AttributedDiaryText({
+    required this.entry,
+    required this.nicknameFor,
+    this.editableUid,
+    this.onEditPart,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -834,28 +952,53 @@ class _AttributedDiaryText extends StatelessWidget {
       color: Theme.of(context).disabledColor,
       fontWeight: FontWeight.w700,
     );
-    final spans = <InlineSpan>[];
+    final blocks = <Widget>[];
     var start = 0;
-    for (final segment in entry.segments) {
+    for (var i = 0; i < entry.segments.length; i++) {
+      final segment = entry.segments[i];
       final end = segment.upTo.clamp(0, entry.content.length);
       if (end <= start) continue;
       final chunk = entry.content.substring(start, end);
       start = end;
-      if (chunk.isEmpty) continue;
-      spans.add(TextSpan(text: chunk, style: baseStyle));
-      // Empty uid marks a legacy segment seeded for pre-feature text with
-      // no real author to attribute - leave it unmarked.
-      if (segment.uid.isNotEmpty) {
-        final nickname = nicknameFor(segment.uid);
-        final leadingNewline = chunk.endsWith('\n') ? '' : '\n';
-        spans.add(
-          TextSpan(text: '$leadingNewline- $nickname\n', style: markerStyle),
-        );
-      }
+      blocks.add(Text(chunk.trimRight(), style: baseStyle));
+      // Empty uid marks text from before per-author parts existed, with
+      // no real author to attribute - leave it unsigned.
+      if (segment.uid.isEmpty) continue;
+      final editable = segment.uid == editableUid && onEditPart != null;
+      blocks.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          // Same height with or without the button, so the gaps between
+          // parts stay even.
+          child: SizedBox(
+            height: 28,
+            child: Row(
+              children: [
+                Text('- ${nicknameFor(segment.uid)}', style: markerStyle),
+                if (editable)
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined, size: 16),
+                    tooltip: '고치기',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints.tightFor(
+                      width: 28,
+                      height: 28,
+                    ),
+                    color: Theme.of(context).disabledColor,
+                    onPressed: () => onEditPart!(i),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      );
     }
-    if (spans.isEmpty) {
-      spans.add(TextSpan(text: entry.content, style: baseStyle));
-    }
-    return Text.rich(TextSpan(children: spans));
+    if (blocks.isEmpty) blocks.add(Text(entry.content, style: baseStyle));
+    // Stretched, so the text spans the pane rather than shrink-wrapping
+    // into a narrow column.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: blocks,
+    );
   }
 }

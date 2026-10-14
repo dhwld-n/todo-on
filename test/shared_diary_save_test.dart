@@ -97,19 +97,20 @@ void main() {
         updatedBy: 'friend_a',
       );
       final (_, segments) = appendToDiary(legacy, '새 글', 'me')!;
-      expect([for (final s in segments) (s.uid, s.upTo)], [
-        ('', 4),
-        ('me', 7),
-      ]);
+      expect([for (final s in segments) (s.uid, s.upTo)], [('', 4), ('me', 7)]);
     });
   });
 
-  Future<_FakeDiary> pumpDiary(WidgetTester tester, DateTime date) async {
+  Future<_FakeDiary> pumpDiary(
+    WidgetTester tester,
+    DateTime date, {
+    SharedDiaryEntry? entry,
+  }) async {
     await initializeDateFormatting('ko_KR');
     tester.view.physicalSize = const Size(800, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final service = _FakeDiary(_friendWrote());
+    final service = _FakeDiary(entry ?? _friendWrote());
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -131,7 +132,9 @@ void main() {
             yield* service.changes.stream;
           }),
         ],
-        child: MaterialApp(home: Scaffold(body: DiaryPane(date: date))),
+        child: MaterialApp(
+          home: Scaffold(body: DiaryPane(date: date)),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -187,5 +190,103 @@ void main() {
     await tester.pumpAndSettle();
     expect(service.saves, 1);
     expect(boxText(tester), isEmpty);
+  });
+
+  // Friend's part, then mine: "일기 기능 테스트 좀 하겟습둥" by me.
+  const mine = '일기 기능 테스트 좀 하겟습둥';
+  SharedDiaryEntry bothWrote(DateTime day) => SharedDiaryEntry(
+    dateKey: dateKeyFor(day),
+    content: friendText + mine,
+    updatedAt: day,
+    updatedBy: 'me',
+    segments: [
+      DiarySegment(uid: 'friend_a', upTo: friendText.length),
+      DiarySegment(uid: 'me', upTo: friendText.length + mine.length),
+    ],
+  );
+
+  group('replaceDiaryPart', () {
+    final entry = SharedDiaryEntry(
+      dateKey: 'k',
+      content: 'AAABBBCCC',
+      updatedAt: DateTime(2026),
+      updatedBy: 'me',
+      segments: const [
+        DiarySegment(uid: 'friend_a', upTo: 3),
+        DiarySegment(uid: 'me', upTo: 6),
+        DiarySegment(uid: 'friend_a', upTo: 9),
+      ],
+    );
+
+    test('a middle part changes; the ones after keep their text', () {
+      final (content, segments) = replaceDiaryPart(entry, 1, 'bbbbb');
+      expect(content, 'AAAbbbbbCCC');
+      expect([for (final s in segments) s.upTo], [3, 8, 11]);
+      expect([for (final s in segments) s.uid], ['friend_a', 'me', 'friend_a']);
+    });
+
+    test('blank takes the part out', () {
+      final (content, segments) = replaceDiaryPart(entry, 1, '  ');
+      expect(content, 'AAACCC');
+      expect(
+        [for (final s in segments) (s.uid, s.upTo)],
+        [('friend_a', 3), ('friend_a', 6)],
+      );
+    });
+  });
+
+  test('isPastDay goes by calendar day, not the hour', () {
+    final now = DateTime(2026, 9, 29, 0, 5);
+    expect(isPastDay(DateTime(2026, 9, 28, 23, 59), now: now), isTrue);
+    expect(isPastDay(DateTime(2026, 9, 29), now: now), isFalse);
+  });
+
+  testWidgets('my own part can be fixed; the friend\'s has no button', (
+    tester,
+  ) async {
+    final today = DateTime.now();
+    final service = await pumpDiary(tester, today, entry: bothWrote(today));
+    // One button: mine.
+    expect(find.byTooltip('고치기'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('고치기'));
+    await tester.pumpAndSettle();
+    final dialogField = find.descendant(
+      of: find.byType(AlertDialog),
+      matching: find.byType(TextField),
+    );
+    expect(tester.widget<TextField>(dialogField).controller!.text, mine);
+    await tester.enterText(dialogField, '일기 기능 테스트 좀 하겠습니다');
+    await tester.tap(
+      find.descendant(of: find.byType(AlertDialog), matching: find.text('저장')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(service.saves, 1);
+    expect(service.entry!.content, '$friendText일기 기능 테스트 좀 하겠습니다');
+    expect(shownInDiary('하겠습니다'), isTrue);
+    expect(shownInDiary(friendText), isTrue);
+  });
+
+  testWidgets('my own part can be taken out', (tester) async {
+    final today = DateTime.now();
+    final service = await pumpDiary(tester, today, entry: bothWrote(today));
+    await tester.tap(find.byTooltip('고치기'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('지우기'));
+    await tester.pumpAndSettle();
+
+    expect(service.entry!.content, friendText);
+    expect(service.entry!.segments.single.uid, 'friend_a');
+    expect(shownInDiary(mine), isFalse);
+  });
+
+  testWidgets('once the day is over, my part is fixed in place too', (
+    tester,
+  ) async {
+    final yesterday = DateTime.now().subtract(const Duration(days: 1));
+    await pumpDiary(tester, yesterday, entry: bothWrote(yesterday));
+    expect(shownInDiary(mine), isTrue);
+    expect(find.byTooltip('고치기'), findsNothing);
   });
 }
