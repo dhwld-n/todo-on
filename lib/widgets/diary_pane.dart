@@ -563,162 +563,46 @@ class _UnseenDates extends ConsumerWidget {
   }
 }
 
-class _SharedDiaryBody extends ConsumerStatefulWidget {
+/// Scaffold strips the keyboard inset out of the MediaQuery its body sees,
+/// so read it straight off the view.
+bool _keyboardOpen(BuildContext context) =>
+    View.of(context).viewInsets.bottom > 0;
+
+/// What [entry] becomes when [myUid] adds [typed] at its end, or null when
+/// there's nothing to add. Each save is its own part, signed under it, and
+/// nothing already saved changes - mine included.
+(String, List<DiarySegment>)? appendToDiary(
+  SharedDiaryEntry? entry,
+  String typed,
+  String myUid,
+) {
+  final text = typed.trim();
+  if (text.isEmpty) return null;
+  final before = entry?.content ?? '';
+  final content = before + text;
+  return (
+    content,
+    [
+      ...?entry?.segments,
+      // Text from before per-author parts existed stays unsigned.
+      if (before.isNotEmpty && (entry?.segments.isEmpty ?? true))
+        DiarySegment(uid: '', upTo: before.length),
+      DiarySegment(uid: myUid, upTo: content.length),
+    ],
+  );
+}
+
+class _SharedDiaryBody extends ConsumerWidget {
   final DateTime date;
   final String friendUid;
 
   const _SharedDiaryBody({required this.date, required this.friendUid});
 
   @override
-  ConsumerState<_SharedDiaryBody> createState() => _SharedDiaryBodyState();
-}
-
-/// Splits a shared diary entry into the locked (already-turned-in) prefix
-/// and the segments behind it. Only a writer's own still-open trailing
-/// segment is editable; anything before that - the other person's text, or
-/// the writer's own earlier turns - is locked. Once the day is over
-/// ([dayOver]) nothing already written is editable, mine included.
-(String, List<DiarySegment>) splitDiaryEditable(
-  SharedDiaryEntry? entry,
-  String? myUid, {
-  bool dayOver = false,
-}) {
-  final content = entry?.content ?? '';
-  final segments = entry?.segments ?? const <DiarySegment>[];
-  if (dayOver) return (content, segments);
-  if (segments.isEmpty) return ('', segments);
-  if (segments.last.uid == myUid) {
-    final start = segments.length >= 2
-        ? segments[segments.length - 2].upTo.clamp(0, content.length)
-        : 0;
-    return (
-      content.substring(0, start),
-      segments.sublist(0, segments.length - 1),
-    );
-  }
-  return (content, segments);
-}
-
-/// True for any calendar day before today.
-bool isPastDay(DateTime date, {DateTime? now}) {
-  final today = now ?? DateTime.now();
-  return DateTime(
-    date.year,
-    date.month,
-    date.day,
-  ).isBefore(DateTime(today.year, today.month, today.day));
-}
-
-/// Scaffold strips the keyboard inset out of the MediaQuery its body sees,
-/// so read it straight off the view.
-bool _keyboardOpen(BuildContext context) =>
-    View.of(context).viewInsets.bottom > 0;
-
-/// The read-only text above the editor gets less room while the soft
-/// keyboard is up, so the input itself stays visible on a phone.
-double _lockedBoxMaxHeight(BuildContext context) =>
-    _keyboardOpen(context) ? 64 : 120;
-
-/// What to save for a shared diary edit, or null if nothing actually
-/// changed. Tapping in and blurring back out without typing anything must
-/// not create a zero-length "turn" for whoever merely looked - that would
-/// silently lock the other person's already-written text out from under
-/// them.
-(String, List<DiarySegment>)? computeDiarySave({
-  required SharedDiaryEntry? oldEntry,
-  required String lockedPrefix,
-  required String typedTail,
-  required String myUid,
-}) {
-  final newContent = lockedPrefix + typedTail;
-  if (newContent == (oldEntry?.content ?? '')) return null;
-  final oldSegments = oldEntry?.segments ?? const <DiarySegment>[];
-  return (
-    newContent,
-    DiarySegment.update(oldSegments, myUid, newContent.length),
-  );
-}
-
-class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
-  final TextEditingController _controller = TextEditingController();
-  final FocusNode _focusNode = FocusNode();
-  Timer? _debounce;
-  String? _loadedKey;
-  String? _dateKey;
-  bool _editing = false;
-  String? _syncedContent;
-  // The part of the entry that isn't my own trailing writing - shown
-  // read-only so a friend's text (or my own older turns) can't be edited.
-  String _lockedPrefix = '';
-  List<DiarySegment> _lockedSegments = const [];
-
-  @override
-  void initState() {
-    super.initState();
-    _focusNode.addListener(_handleFocusChange);
-  }
-
-  @override
-  void dispose() {
-    _focusNode.removeListener(_handleFocusChange);
-    _focusNode.dispose();
-    _debounce?.cancel();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _handleFocusChange() {
-    if (_focusNode.hasFocus) {
-      _editing = true;
-    } else if (_editing) {
-      _debounce?.cancel();
-      _save();
-      setState(() => _editing = false);
-    }
-  }
-
-  void _save() {
-    final dateKey = _dateKey;
-    final myUid = ref.read(authStateProvider).value?.uid;
-    if (dateKey == null || myUid == null) return;
-    final oldEntry = ref
-        .read(
-          sharedDiaryEntryProvider((
-            otherUid: widget.friendUid,
-            dateKey: dateKey,
-          )),
-        )
-        .value;
-    final result = computeDiarySave(
-      oldEntry: oldEntry,
-      lockedPrefix: _lockedPrefix,
-      typedTail: _controller.text,
-      myUid: myUid,
-    );
-    if (result == null) return;
-    final (newContent, newSegments) = result;
-    ref
-        .read(firestoreServiceProvider)
-        ?.saveSharedDiaryEntry(
-          widget.friendUid,
-          dateKey,
-          newContent,
-          newSegments,
-        );
-  }
-
-  void _scheduleSave() {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 600), _save);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final dateKey = dateKeyFor(widget.date);
-    _dateKey = dateKey;
-    final entryKey = '${widget.friendUid}_$dateKey';
+  Widget build(BuildContext context, WidgetRef ref) {
+    final dateKey = dateKeyFor(date);
     final entryAsync = ref.watch(
-      sharedDiaryEntryProvider((otherUid: widget.friendUid, dateKey: dateKey)),
+      sharedDiaryEntryProvider((otherUid: friendUid, dateKey: dateKey)),
     );
     final myUid = ref.watch(authStateProvider).value?.uid;
     final myNickname = displayNameFor(
@@ -726,117 +610,28 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
       myUid ?? '',
     );
     final friendNickname = displayNameFor(
-      ref.watch(friendProfileProvider(widget.friendUid)).value,
-      widget.friendUid,
+      ref.watch(friendProfileProvider(friendUid)).value,
+      friendUid,
     );
 
     return entryAsync.when(
       data: (entry) {
-        // Re-split on a date switch, and on anyone's new write while I'm
-        // not mid-typing, so the text above the box stays live.
-        if (_loadedKey != entryKey ||
-            (!_editing && entry?.content != _syncedContent)) {
-          _loadedKey = entryKey;
-          _syncedContent = entry?.content;
-          final (lockedPrefix, lockedSegments) = splitDiaryEditable(
-            entry,
-            myUid,
-            dayOver: isPastDay(widget.date),
-          );
-          _lockedPrefix = lockedPrefix;
-          _lockedSegments = lockedSegments;
-          _controller.text =
-              entry?.content.substring(lockedPrefix.length) ?? '';
-          _controller.selection = TextSelection.collapsed(
-            offset: _controller.text.length,
-          );
-          if (entry != null &&
-              entry.segments.isEmpty &&
-              entry.content.isNotEmpty) {
-            ref
-                .read(firestoreServiceProvider)
-                ?.seedLegacyDiarySegment(
-                  widget.friendUid,
-                  dateKey,
-                  entry.content.length,
-                );
-          }
-        }
         if (entry != null && myUid != null && entry.hasUnseenEditFor(myUid)) {
           // Open on screen = seen; clears the dot on this friend's chip.
           WidgetsBinding.instance.addPostFrameCallback((_) {
             ref
                 .read(firestoreServiceProvider)
-                ?.markSharedDiarySeen(
-                  widget.friendUid,
-                  dateKey,
-                  entry.updatedAt,
-                );
+                ?.markSharedDiarySeen(friendUid, dateKey, entry.updatedAt);
           });
         }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_lockedPrefix.isNotEmpty)
-                    ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxHeight: _lockedBoxMaxHeight(context),
-                      ),
-                      child: SingleChildScrollView(
-                        child: SizedBox(
-                          width: double.infinity,
-                          child: _AttributedDiaryText(
-                            entry: SharedDiaryEntry(
-                              dateKey: dateKey,
-                              content: _lockedPrefix,
-                              updatedAt: entry?.updatedAt ?? DateTime.now(),
-                              updatedBy: entry?.updatedBy ?? '',
-                              segments: _lockedSegments,
-                            ),
-                            nicknameFor: (uid) =>
-                                uid == myUid ? myNickname : friendNickname,
-                          ),
-                        ),
-                      ),
-                    ),
-                  if (_lockedPrefix.isNotEmpty) const SizedBox(height: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      focusNode: _focusNode,
-                      autofocus: _editing,
-                      maxLines: null,
-                      expands: true,
-                      textAlignVertical: TextAlignVertical.top,
-                      style: const TextStyle(
-                        fontFamily: 'GriunFromsol',
-                        height: 1.5,
-                      ),
-                      decoration: const InputDecoration(
-                        hintText: '오늘 있었던 일을 함께 나눠보세요',
-                      ),
-                      onChanged: (_) => _scheduleSave(),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (entry != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  '마지막 수정: ${entry.updatedBy == myUid ? '나' : '친구'} · '
-                  '${DateFormat('a h:mm', 'ko_KR').format(entry.updatedAt)}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).disabledColor,
-                  ),
-                ),
-              ),
-          ],
+        return _DiaryThread(
+          key: ValueKey('${friendUid}_$dateKey'),
+          entry: entry,
+          myUid: myUid,
+          nicknameFor: (uid) => uid == myUid ? myNickname : friendNickname,
+          onSave: (content, segments) async => ref
+              .read(firestoreServiceProvider)
+              ?.saveSharedDiaryEntry(friendUid, dateKey, content, segments),
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -845,95 +640,19 @@ class _SharedDiaryBodyState extends ConsumerState<_SharedDiaryBody> {
   }
 }
 
-/// Same collaborative-editing shape as [_SharedDiaryBody] but for a
-/// multi-member [DiaryGroup] instead of a single friend - the lock/save
-/// logic (splitDiaryEditable / computeDiarySave) doesn't care how many
-/// people are writing, only who wrote last.
-class _DiaryGroupBody extends ConsumerStatefulWidget {
+/// Same as [_SharedDiaryBody] but for a multi-member [DiaryGroup]: the
+/// entry is written the same way, only by more people.
+class _DiaryGroupBody extends ConsumerWidget {
   final DateTime date;
   final DiaryGroup group;
 
   const _DiaryGroupBody({required this.date, required this.group});
 
   @override
-  ConsumerState<_DiaryGroupBody> createState() => _DiaryGroupBodyState();
-}
-
-class _DiaryGroupBodyState extends ConsumerState<_DiaryGroupBody> {
-  final TextEditingController _controller = TextEditingController();
-  final FocusNode _focusNode = FocusNode();
-  Timer? _debounce;
-  String? _loadedKey;
-  String? _dateKey;
-  bool _editing = false;
-  String? _syncedContent;
-  String _lockedPrefix = '';
-  List<DiarySegment> _lockedSegments = const [];
-
-  @override
-  void initState() {
-    super.initState();
-    _focusNode.addListener(_handleFocusChange);
-  }
-
-  @override
-  void dispose() {
-    _focusNode.removeListener(_handleFocusChange);
-    _focusNode.dispose();
-    _debounce?.cancel();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _handleFocusChange() {
-    if (_focusNode.hasFocus) {
-      _editing = true;
-    } else if (_editing) {
-      _debounce?.cancel();
-      _save();
-      setState(() => _editing = false);
-    }
-  }
-
-  void _save() {
-    final dateKey = _dateKey;
-    final myUid = ref.read(authStateProvider).value?.uid;
-    if (dateKey == null || myUid == null) return;
-    final oldEntry = ref
-        .read(
-          diaryGroupEntryProvider((groupId: widget.group.id, dateKey: dateKey)),
-        )
-        .value;
-    final result = computeDiarySave(
-      oldEntry: oldEntry,
-      lockedPrefix: _lockedPrefix,
-      typedTail: _controller.text,
-      myUid: myUid,
-    );
-    if (result == null) return;
-    final (newContent, newSegments) = result;
-    ref
-        .read(firestoreServiceProvider)
-        ?.saveDiaryGroupEntry(
-          widget.group.id,
-          dateKey,
-          newContent,
-          newSegments,
-        );
-  }
-
-  void _scheduleSave() {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 600), _save);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final dateKey = dateKeyFor(widget.date);
-    _dateKey = dateKey;
-    final entryKey = '${widget.group.id}_$dateKey';
+  Widget build(BuildContext context, WidgetRef ref) {
+    final dateKey = dateKeyFor(date);
     final entryAsync = ref.watch(
-      diaryGroupEntryProvider((groupId: widget.group.id, dateKey: dateKey)),
+      diaryGroupEntryProvider((groupId: group.id, dateKey: dateKey)),
     );
     final myUid = ref.watch(authStateProvider).value?.uid;
     final myNickname = displayNameFor(
@@ -946,95 +665,22 @@ class _DiaryGroupBodyState extends ConsumerState<_DiaryGroupBody> {
 
     return entryAsync.when(
       data: (entry) {
-        // Re-split on a date switch, and on anyone's new write while I'm
-        // not mid-typing, so the text above the box stays live.
-        if (_loadedKey != entryKey ||
-            (!_editing && entry?.content != _syncedContent)) {
-          _loadedKey = entryKey;
-          _syncedContent = entry?.content;
-          final (lockedPrefix, lockedSegments) = splitDiaryEditable(
-            entry,
-            myUid,
-            dayOver: isPastDay(widget.date),
-          );
-          _lockedPrefix = lockedPrefix;
-          _lockedSegments = lockedSegments;
-          _controller.text =
-              entry?.content.substring(lockedPrefix.length) ?? '';
-          _controller.selection = TextSelection.collapsed(
-            offset: _controller.text.length,
-          );
-        }
         if (entry != null && myUid != null && entry.hasUnseenEditFor(myUid)) {
           // Open on screen = seen; clears the dot on this group's chip.
           WidgetsBinding.instance.addPostFrameCallback((_) {
             ref
                 .read(firestoreServiceProvider)
-                ?.markDiaryGroupSeen(widget.group.id, dateKey, entry.updatedAt);
+                ?.markDiaryGroupSeen(group.id, dateKey, entry.updatedAt);
           });
         }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_lockedPrefix.isNotEmpty)
-                    ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxHeight: _lockedBoxMaxHeight(context),
-                      ),
-                      child: SingleChildScrollView(
-                        child: SizedBox(
-                          width: double.infinity,
-                          child: _AttributedDiaryText(
-                            entry: SharedDiaryEntry(
-                              dateKey: dateKey,
-                              content: _lockedPrefix,
-                              updatedAt: entry?.updatedAt ?? DateTime.now(),
-                              updatedBy: entry?.updatedBy ?? '',
-                              segments: _lockedSegments,
-                            ),
-                            nicknameFor: nicknameFor,
-                          ),
-                        ),
-                      ),
-                    ),
-                  if (_lockedPrefix.isNotEmpty) const SizedBox(height: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      focusNode: _focusNode,
-                      autofocus: _editing,
-                      maxLines: null,
-                      expands: true,
-                      textAlignVertical: TextAlignVertical.top,
-                      style: const TextStyle(
-                        fontFamily: 'GriunFromsol',
-                        height: 1.5,
-                      ),
-                      decoration: const InputDecoration(
-                        hintText: '오늘 있었던 일을 함께 나눠보세요',
-                      ),
-                      onChanged: (_) => _scheduleSave(),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (entry != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  '마지막 수정: ${entry.updatedBy == myUid ? '나' : nicknameFor(entry.updatedBy)} · '
-                  '${DateFormat('a h:mm', 'ko_KR').format(entry.updatedAt)}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).disabledColor,
-                  ),
-                ),
-              ),
-          ],
+        return _DiaryThread(
+          key: ValueKey('${group.id}_$dateKey'),
+          entry: entry,
+          myUid: myUid,
+          nicknameFor: nicknameFor,
+          onSave: (content, segments) async => ref
+              .read(firestoreServiceProvider)
+              ?.saveDiaryGroupEntry(group.id, dateKey, content, segments),
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -1043,9 +689,138 @@ class _DiaryGroupBodyState extends ConsumerState<_DiaryGroupBody> {
   }
 }
 
+/// A shared day's diary: everything saved so far, read-only and signed by
+/// whoever wrote each part, over an empty box for adding the next part.
+/// Saving moves what's typed up into the diary and empties the box.
+class _DiaryThread extends StatefulWidget {
+  final SharedDiaryEntry? entry;
+  final String? myUid;
+  final String Function(String uid) nicknameFor;
+  final Future<void> Function(String content, List<DiarySegment> segments)
+  onSave;
+
+  const _DiaryThread({
+    super.key,
+    required this.entry,
+    required this.myUid,
+    required this.nicknameFor,
+    required this.onSave,
+  });
+
+  @override
+  State<_DiaryThread> createState() => _DiaryThreadState();
+}
+
+class _DiaryThreadState extends State<_DiaryThread> {
+  final _controller = TextEditingController();
+  final _scroll = ScrollController();
+  var _saving = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final myUid = widget.myUid;
+    if (_saving || myUid == null) return;
+    final typed = _controller.text;
+    final result = appendToDiary(widget.entry, typed, myUid);
+    if (result == null) return;
+    setState(() => _saving = true);
+    // Emptied right away, the way a chat message leaves the box on send.
+    _controller.clear();
+    try {
+      await widget.onSave(result.$1, result.$2);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scroll.hasClients) {
+          _scroll.animateTo(
+            _scroll.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    } catch (_) {
+      // Didn't go through: hand the writing back rather than lose it.
+      if (mounted && _controller.text.isEmpty) _controller.text = typed;
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('저장하지 못했어요. 다시 눌러주세요')));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final entry = widget.entry;
+    final muted = Theme.of(
+      context,
+    ).textTheme.bodySmall?.copyWith(color: Theme.of(context).disabledColor);
+    final lastBy = entry == null
+        ? ''
+        : entry.updatedBy == widget.myUid
+        ? '나'
+        : widget.nicknameFor(entry.updatedBy);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: entry == null || entry.content.isEmpty
+              ? Center(child: Text('아직 아무도 안 썼어요', style: muted))
+              : SingleChildScrollView(
+                  controller: _scroll,
+                  child: _AttributedDiaryText(
+                    entry: entry,
+                    nicknameFor: widget.nicknameFor,
+                  ),
+                ),
+        ),
+        if (entry != null && entry.content.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              '마지막 수정: $lastBy · '
+              '${DateFormat('a h:mm', 'ko_KR').format(entry.updatedAt)}',
+              style: muted,
+            ),
+          ),
+        const SizedBox(height: 8),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _controller,
+                minLines: 1,
+                maxLines: 5,
+                keyboardType: TextInputType.multiline,
+                style: const TextStyle(fontFamily: 'GriunFromsol', height: 1.5),
+                decoration: const InputDecoration(
+                  hintText: '오늘 있었던 일을 함께 나눠보세요',
+                  isDense: true,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: _saving ? null : _save,
+              child: const Text('저장'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 /// Read-only rendering of the shared diary text with a "- 닉네임" marker
-/// right after each contributor's block, tap-to-edit switches to the
-/// plain TextField in the parent.
+/// right after each contributor's block.
 class _AttributedDiaryText extends StatelessWidget {
   final SharedDiaryEntry entry;
   final String Function(String uid) nicknameFor;

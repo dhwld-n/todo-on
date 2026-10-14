@@ -72,8 +72,13 @@ void main() {
     expect(field, findsOneWidget);
     final rect = tester.getRect(field);
     const keyboardTop = 780.0 - 340.0;
-    // Room for a few lines of typing, and fully above the keyboard.
-    expect(rect.height, greaterThan(80), reason: 'field rect: $rect');
+    // The box (a line to start, growing as you type) and its save button
+    // sit fully above the keyboard.
+    expect(rect.height, greaterThan(40), reason: 'field rect: $rect');
     expect(rect.bottom, lessThanOrEqualTo(keyboardTop));
+    expect(
+      tester.getRect(find.text('저장')).bottom,
+      lessThanOrEqualTo(keyboardTop),
+    );
   });
 }
