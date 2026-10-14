@@ -112,19 +112,23 @@ class TodoTile extends StatelessWidget {
                       ],
                       if (todo.note != null && todo.note!.isNotEmpty) ...[
                         const SizedBox(height: 4),
+                        // The whole memo, every line of it; the icon stays
+                        // by the first line.
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(
-                              Icons.notes,
-                              size: 13,
-                              color: Theme.of(context).disabledColor,
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Icon(
+                                Icons.notes,
+                                size: 13,
+                                color: Theme.of(context).disabledColor,
+                              ),
                             ),
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
                                 todo.note!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
                                 style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(
                                       color: Theme.of(context).disabledColor,
