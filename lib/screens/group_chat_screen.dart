@@ -11,6 +11,7 @@ import '../models/group_chat.dart';
 import '../providers/providers.dart';
 import '../utils/chat_enter.dart';
 import '../utils/display_name.dart';
+import '../widgets/chat_photo.dart';
 import '../widgets/member_avatar.dart';
 
 // Decode each photo once - see friend_chat_screen.dart's _photoBytes for why.
@@ -727,14 +728,7 @@ class _GroupMessageBubble extends ConsumerWidget {
                     ),
                   ),
                 if (hasImage)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.memory(
-                      _photoOf(message),
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
-                  )
+                  ChatPhoto(_photoOf(message))
                 else ...[
                   Text(
                     message.text,
