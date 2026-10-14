@@ -7,9 +7,9 @@
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
-  // Allow only a single running instance. A second launch just brings the
-  // existing window to the front and exits, instead of racing the first
-  // instance for the local Firestore cache lock (which crashes both).
+  // A second launch brings the running app's window to the front instead
+  // of opening another. If the other instance has no window - stuck while
+  // closing - start anyway: exiting here left the app impossible to open.
   HANDLE single_instance_mutex =
       ::CreateMutexW(nullptr, TRUE, L"TodoOn_SingleInstanceMutex");
   if (single_instance_mutex != nullptr &&
@@ -18,8 +18,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
     if (existing != nullptr) {
       ::ShowWindow(existing, SW_RESTORE);
       ::SetForegroundWindow(existing);
+      return EXIT_SUCCESS;
     }
-    return EXIT_SUCCESS;
   }
 
   // Attach to console when present (e.g., 'flutter run') or create a

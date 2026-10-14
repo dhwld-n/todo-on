@@ -1,6 +1,7 @@
 #include "flutter_window.h"
 
 #include <optional>
+#include <thread>
 
 #include "flutter/generated_plugin_registrant.h"
 
@@ -40,7 +41,16 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  // Only a real window closing: Create() also runs this before it makes the
+  // window, when there's no controller yet.
   if (flutter_controller_) {
+    // Closing the window must end the process. Plugin background threads
+    // have kept it alive with no window, holding the single-instance lock,
+    // so give shutdown a few seconds and then end it regardless.
+    std::thread([] {
+      ::Sleep(5000);
+      ::TerminateProcess(::GetCurrentProcess(), EXIT_SUCCESS);
+    }).detach();
     flutter_controller_ = nullptr;
   }
 
