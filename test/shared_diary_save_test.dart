@@ -235,12 +235,6 @@ void main() {
     });
   });
 
-  test('isPastDay goes by calendar day, not the hour', () {
-    final now = DateTime(2026, 9, 29, 0, 5);
-    expect(isPastDay(DateTime(2026, 9, 28, 23, 59), now: now), isTrue);
-    expect(isPastDay(DateTime(2026, 9, 29), now: now), isFalse);
-  });
-
   testWidgets('my own part can be fixed; the friend\'s has no button', (
     tester,
   ) async {
@@ -281,12 +275,28 @@ void main() {
     expect(shownInDiary(mine), isFalse);
   });
 
-  testWidgets('once the day is over, my part is fixed in place too', (
-    tester,
-  ) async {
-    final yesterday = DateTime.now().subtract(const Duration(days: 1));
-    await pumpDiary(tester, yesterday, entry: bothWrote(yesterday));
-    expect(shownInDiary(mine), isTrue);
-    expect(find.byTooltip('고치기'), findsNothing);
+  testWidgets('my part of an earlier day can still be fixed', (tester) async {
+    final lastWeek = DateTime.now().subtract(const Duration(days: 7));
+    final service = await pumpDiary(
+      tester,
+      lastWeek,
+      entry: bothWrote(lastWeek),
+    );
+    // Mine only; the friend's stays as written.
+    expect(find.byTooltip('고치기'), findsOneWidget);
+    await tester.tap(find.byTooltip('고치기'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(TextField),
+      ),
+      '지난주 일기 고침',
+    );
+    await tester.tap(
+      find.descendant(of: find.byType(AlertDialog), matching: find.text('저장')),
+    );
+    await tester.pumpAndSettle();
+    expect(service.entry!.content, '$friendText지난주 일기 고침');
   });
 }

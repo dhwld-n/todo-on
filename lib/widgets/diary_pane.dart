@@ -625,17 +625,6 @@ bool _keyboardOpen(BuildContext context) =>
   );
 }
 
-/// True for any calendar day before today: my own parts can be fixed only
-/// on the day itself, though adding to an earlier day is still fine.
-bool isPastDay(DateTime date, {DateTime? now}) {
-  final today = now ?? DateTime.now();
-  return DateTime(
-    date.year,
-    date.month,
-    date.day,
-  ).isBefore(DateTime(today.year, today.month, today.day));
-}
-
 class _SharedDiaryBody extends ConsumerWidget {
   final DateTime date;
   final String friendUid;
@@ -672,7 +661,6 @@ class _SharedDiaryBody extends ConsumerWidget {
           key: ValueKey('${friendUid}_$dateKey'),
           entry: entry,
           myUid: myUid,
-          dayOver: isPastDay(date),
           nicknameFor: (uid) => uid == myUid ? myNickname : friendNickname,
           onSave: (content, segments) async => ref
               .read(firestoreServiceProvider)
@@ -722,7 +710,6 @@ class _DiaryGroupBody extends ConsumerWidget {
           key: ValueKey('${group.id}_$dateKey'),
           entry: entry,
           myUid: myUid,
-          dayOver: isPastDay(date),
           nicknameFor: nicknameFor,
           onSave: (content, segments) async => ref
               .read(firestoreServiceProvider)
@@ -741,7 +728,6 @@ class _DiaryGroupBody extends ConsumerWidget {
 class _DiaryThread extends StatefulWidget {
   final SharedDiaryEntry? entry;
   final String? myUid;
-  final bool dayOver;
   final String Function(String uid) nicknameFor;
   final Future<void> Function(String content, List<DiarySegment> segments)
   onSave;
@@ -750,7 +736,6 @@ class _DiaryThread extends StatefulWidget {
     super.key,
     required this.entry,
     required this.myUid,
-    this.dayOver = false,
     required this.nicknameFor,
     required this.onSave,
   });
@@ -886,8 +871,8 @@ class _DiaryThreadState extends State<_DiaryThread> {
                   child: _AttributedDiaryText(
                     entry: entry,
                     nicknameFor: widget.nicknameFor,
-                    // Only my own parts, and only on the day itself.
-                    editableUid: widget.dayOver ? null : widget.myUid,
+                    // Only my own parts, on any day.
+                    editableUid: widget.myUid,
                     onEditPart: _editPart,
                   ),
                 ),
