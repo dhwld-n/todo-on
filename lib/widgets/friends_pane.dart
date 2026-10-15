@@ -12,110 +12,18 @@ import '../utils/display_name.dart';
 /// How I add a friend: find them by ID/nickname, or swap friend codes.
 enum AddFriendBy { search, code }
 
-class FriendsPane extends ConsumerStatefulWidget {
+/// My friends. Adding one has its own tab, [AddFriendPane].
+class FriendsPane extends ConsumerWidget {
   const FriendsPane({super.key});
 
   @override
-  ConsumerState<FriendsPane> createState() => _FriendsPaneState();
-}
-
-class _FriendsPaneState extends ConsumerState<FriendsPane> {
-  var _by = AddFriendBy.search;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final followingAsync = ref.watch(followingProvider);
-    final myUid = ref.watch(authStateProvider).value?.uid ?? '';
-    final titleStyle = Theme.of(
-      context,
-    ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700);
-
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: double.infinity,
-            child: SegmentedButton<AddFriendBy>(
-              segments: const [
-                ButtonSegment(
-                  value: AddFriendBy.search,
-                  icon: Icon(Icons.search),
-                  label: Text('검색'),
-                ),
-                ButtonSegment(
-                  value: AddFriendBy.code,
-                  icon: Icon(Icons.key_outlined),
-                  label: Text('친구 코드'),
-                ),
-              ],
-              selected: {_by},
-              showSelectedIcon: false,
-              onSelectionChanged: (s) => setState(() => _by = s.first),
-            ),
-          ),
-          const SizedBox(height: 16),
-          if (_by == AddFriendBy.search) ...[
-            Text('내 아이디', style: titleStyle),
-            const SizedBox(height: 8),
-            const _MyHandleRow(),
-            const SizedBox(height: 20),
-            Text('친구 찾기', style: titleStyle),
-            const SizedBox(height: 8),
-            const _SearchPeople(),
-          ] else ...[
-            Text(
-              '내 친구 코드',
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: SelectableText(
-                      myUid,
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.copy_outlined),
-                  tooltip: '코드 복사',
-                  onPressed: () {
-                    Clipboard.setData(ClipboardData(text: myUid));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('친구 코드를 복사했어요')),
-                    );
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Text(
-              '코드로 친구 추가',
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            _AddFriendRow(myUid: myUid),
-          ],
-          const SizedBox(height: 20),
           Text(
             '내 친구',
             style: Theme.of(
@@ -129,7 +37,7 @@ class _FriendsPaneState extends ConsumerState<FriendsPane> {
                 if (uids.isEmpty) {
                   return Center(
                     child: Text(
-                      '아직 추가한 친구가 없어요.',
+                      '아직 친구가 없어요. 친구 추가 탭에서 찾아보세요.',
                       style: TextStyle(color: Theme.of(context).disabledColor),
                     ),
                   );
@@ -146,6 +54,118 @@ class _FriendsPaneState extends ConsumerState<FriendsPane> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Adding a friend: by searching an ID/nickname, or by friend code.
+class AddFriendPane extends ConsumerStatefulWidget {
+  const AddFriendPane({super.key});
+
+  @override
+  ConsumerState<AddFriendPane> createState() => _AddFriendPaneState();
+}
+
+class _AddFriendPaneState extends ConsumerState<AddFriendPane> {
+  var _by = AddFriendBy.search;
+
+  @override
+  Widget build(BuildContext context) {
+    final myUid = ref.watch(authStateProvider).value?.uid ?? '';
+    final titleStyle = Theme.of(
+      context,
+    ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700);
+
+    // Fills the card like the other tabs; scrolls when results run long.
+    return SizedBox.expand(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: double.infinity,
+              child: SegmentedButton<AddFriendBy>(
+                segments: const [
+                  ButtonSegment(
+                    value: AddFriendBy.search,
+                    icon: Icon(Icons.search),
+                    label: Text('검색'),
+                  ),
+                  ButtonSegment(
+                    value: AddFriendBy.code,
+                    icon: Icon(Icons.key_outlined),
+                    label: Text('친구 코드'),
+                  ),
+                ],
+                selected: {_by},
+                showSelectedIcon: false,
+                onSelectionChanged: (s) => setState(() => _by = s.first),
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (_by == AddFriendBy.search) ...[
+              Text('내 아이디', style: titleStyle),
+              const SizedBox(height: 8),
+              const _MyHandleRow(),
+              const SizedBox(height: 20),
+              Text('친구 찾기', style: titleStyle),
+              const SizedBox(height: 8),
+              const _SearchPeople(),
+            ] else ...[
+              Text(
+                '내 친구 코드',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: SelectableText(
+                        myUid,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.copy_outlined),
+                    tooltip: '코드 복사',
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: myUid));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('친구 코드를 복사했어요')),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Text(
+                '코드로 친구 추가',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 8),
+              _AddFriendRow(myUid: myUid),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -386,11 +406,9 @@ class _SearchPeopleState extends ConsumerState<_SearchPeople> {
             ),
           ),
         if (found != null && found.isNotEmpty)
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 200),
-            child: ListView(
-              shrinkWrap: true,
-              padding: const EdgeInsets.only(top: 6),
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Column(
               children: [
                 for (final person in found)
                   ListTile(

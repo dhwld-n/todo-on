@@ -76,7 +76,7 @@ final isAndroidPlatformProvider = Provider<bool>(
   (ref) => !kIsWeb && Platform.isAndroid,
 );
 
-enum ContentMode { todo, diary, friends, habits, chat }
+enum ContentMode { todo, diary, friends, addFriend, habits, chat }
 
 final contentModeProvider = StateProvider<ContentMode>(
   (ref) => ContentMode.todo,

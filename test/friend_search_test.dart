@@ -68,7 +68,7 @@ Future<_FakePeople> _pump(WidgetTester tester, {String? myHandle}) async {
         authStateProvider.overrideWith((ref) => Stream.value(_Me())),
         firestoreServiceProvider.overrideWithValue(service),
         profileDocProvider.overrideWith((ref) async* {
-          yield {'nickname': '지우', if (myHandle != null) 'handle': myHandle};
+          yield {'nickname': '지우', 'handle': ?myHandle};
           yield* service.profile.stream;
         }),
         followingProvider.overrideWith((ref) => Stream.value(['u_sora'])),
@@ -76,7 +76,7 @@ Future<_FakePeople> _pump(WidgetTester tester, {String? myHandle}) async {
           (ref, uid) => Stream.value({'nickname': '소라'}),
         ),
       ],
-      child: const MaterialApp(home: Scaffold(body: FriendsPane())),
+      child: const MaterialApp(home: Scaffold(body: AddFriendPane())),
     ),
   );
   await tester.pumpAndSettle();

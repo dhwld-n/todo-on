@@ -111,6 +111,7 @@ class HomeScreen extends ConsumerWidget {
               child: switch (mode) {
                 ContentMode.diary => DiaryPane(date: activeDate),
                 ContentMode.friends => const FriendsPane(),
+                ContentMode.addFriend => const AddFriendPane(),
                 ContentMode.habits => const HabitsPane(),
                 ContentMode.chat => const ChatListPane(),
                 ContentMode.todo => const _TodoListPane(),
@@ -252,6 +253,14 @@ class _ModeTabRail extends ConsumerWidget {
             selected: mode == ContentMode.friends,
             onTap: () => ref.read(contentModeProvider.notifier).state =
                 ContentMode.friends,
+          ),
+          const SizedBox(height: 12),
+          _ModeTabButton(
+            icon: Icons.person_add_alt_outlined,
+            label: '친구 추가',
+            selected: mode == ContentMode.addFriend,
+            onTap: () => ref.read(contentModeProvider.notifier).state =
+                ContentMode.addFriend,
           ),
           const SizedBox(height: 12),
           _ModeTabButton(
@@ -429,6 +438,15 @@ class _ModeBottomNav extends ConsumerWidget {
                 selected: mode == ContentMode.friends,
                 onTap: () => ref.read(contentModeProvider.notifier).state =
                     ContentMode.friends,
+              ),
+            ),
+            Expanded(
+              child: _ModeNavItem(
+                icon: Icons.person_add_alt_outlined,
+                label: '친구 추가',
+                selected: mode == ContentMode.addFriend,
+                onTap: () => ref.read(contentModeProvider.notifier).state =
+                    ContentMode.addFriend,
               ),
             ),
             Expanded(
