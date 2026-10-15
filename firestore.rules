@@ -54,6 +54,23 @@ service cloud.firestore {
       }
     }
 
+    // Public ID cards for friend search. One doc per ID: once someone holds
+    // it, nobody else can create, change or delete it.
+    match /handles/{handle} {
+      allow get: if request.auth != null;
+      allow list: if request.auth != null && request.query.limit <= 20;
+      allow create: if request.auth != null &&
+        handle.matches('^[a-z0-9._]{3,20}$') &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.handle == handle;
+      allow update: if request.auth != null &&
+        resource.data.uid == request.auth.uid &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.handle == handle;
+      allow delete: if request.auth != null &&
+        resource.data.uid == request.auth.uid;
+    }
+
     match /sharedDiaries/{pairId}/entries/{entryId} {
       allow read, write: if request.auth != null &&
         request.auth.uid in pairId.split('_');

@@ -602,12 +602,73 @@ class FirestoreService {
     String? nickname,
     String? bio,
     String? photoBase64,
-  }) {
+  }) async {
     final data = <String, dynamic>{};
     if (nickname != null) data['nickname'] = nickname;
     if (bio != null) data['bio'] = bio;
     if (photoBase64 != null) data['photoBase64'] = photoBase64;
-    return _profile.set(data, SetOptions(merge: true));
+    await _profile.set(data, SetOptions(merge: true));
+    if (nickname != null) {
+      // Search by nickname reads the public ID card, so keep it in step.
+      final handle = (await _profile.get()).data()?['handle'] as String?;
+      if (handle != null) {
+        await _handles.doc(handle).update({'nickname': nickname});
+      }
+    }
+  }
+
+  /// `handles/{id}` is the public card someone finds me by: one doc per
+  /// ID, so an ID taken by anyone else can't be created again (the rules
+  /// only let the owner change or delete it).
+  CollectionReference<Map<String, dynamic>> get _handles =>
+      _db.collection('handles');
+
+  /// Takes [handle] as my ID, giving up [oldHandle]. False if it's
+  /// someone else's.
+  Future<bool> claimHandle(
+    String handle, {
+    String? oldHandle,
+    required String nickname,
+  }) {
+    final ref = _handles.doc(handle);
+    return _db.runTransaction((tx) async {
+      final existing = await tx.get(ref);
+      if (existing.exists && existing.data()?['uid'] != uid) return false;
+      tx.set(ref, {'uid': uid, 'handle': handle, 'nickname': nickname});
+      if (oldHandle != null && oldHandle != handle) {
+        tx.delete(_handles.doc(oldHandle));
+      }
+      tx.set(_profile, {'handle': handle}, SetOptions(merge: true));
+      return true;
+    });
+  }
+
+  /// IDs starting with [query], plus anyone whose nickname is exactly it.
+  /// Only people who made an ID can be found.
+  Future<List<FoundPerson>> searchPeople(String query) async {
+    final q = query.trim();
+    if (q.isEmpty) return const [];
+    final id = q.toLowerCase().replaceFirst('@', '');
+    final results = await Future.wait([
+      _handles
+          .where('handle', isGreaterThanOrEqualTo: id)
+          .where('handle', isLessThan: '$id')
+          .limit(10)
+          .get(),
+      _handles.where('nickname', isEqualTo: q).limit(10).get(),
+    ]);
+    final byUid = <String, FoundPerson>{};
+    for (final doc in [...results[0].docs, ...results[1].docs]) {
+      final data = doc.data();
+      final personUid = data['uid'] as String?;
+      if (personUid == null || personUid == uid) continue;
+      byUid[personUid] = FoundPerson(
+        uid: personUid,
+        handle: data['handle'] as String? ?? doc.id,
+        nickname: data['nickname'] as String? ?? '',
+      );
+    }
+    return byUid.values.toList();
   }
 
   Future<void> saveThemeMode(String themeMode) {
@@ -729,4 +790,24 @@ class FirestoreService {
         .snapshots()
         .map((snap) => snap.docs.map(TodoCategory.fromFirestore).toList());
   }
+}
+
+/// Someone found by [FirestoreService.searchPeople].
+class FoundPerson {
+  final String uid;
+  final String handle;
+  final String nickname;
+
+  const FoundPerson({
+    required this.uid,
+    required this.handle,
+    required this.nickname,
+  });
+}
+
+/// An ID as stored: lower case, no '@'. Null if it isn't 3-20 of a-z, 0-9,
+/// '.' or '_' (the same check the Firestore rules make).
+String? normalizeHandle(String typed) {
+  final handle = typed.trim().toLowerCase().replaceFirst(RegExp('^@'), '');
+  return RegExp(r'^[a-z0-9._]{3,20}$').hasMatch(handle) ? handle : null;
 }
