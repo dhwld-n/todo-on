@@ -8,10 +8,36 @@ service cloud.firestore {
       );
     }
 
+    function handleDoc(id) {
+      return /databases/$(database)/documents/handles/$(id);
+    }
+
+    function userDoc(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
+    // One ID per person: users/{uid}.handle names the only handles/{id}
+    // they hold. Changing it must hand the old one back in the same write,
+    // and it can only point at an ID that's theirs.
+    function handleChangeOk(userId) {
+      let before = resource == null ? null : resource.data.get('handle', null);
+      let after = request.resource.data.get('handle', null);
+      return before == after || (
+        (after == null ||
+          getAfter(handleDoc(after)).data.uid == userId) &&
+        (before == null || !existsAfter(handleDoc(before)))
+      );
+    }
+
     match /users/{userId} {
       allow read: if request.auth != null &&
         (request.auth.uid == userId || isConnected(userId, request.auth.uid));
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null &&
+        request.auth.uid == userId && handleChangeOk(userId);
+      // Not while holding an ID, or delete-and-recreate would dodge the
+      // one-ID check.
+      allow delete: if request.auth != null && request.auth.uid == userId &&
+        resource.data.get('handle', null) == null;
 
       match /categories/{categoryId} {
         allow read: if request.auth != null &&
@@ -62,7 +88,8 @@ service cloud.firestore {
       allow create: if request.auth != null &&
         handle.matches('^[a-z0-9._]{3,20}$') &&
         request.resource.data.uid == request.auth.uid &&
-        request.resource.data.handle == handle;
+        request.resource.data.handle == handle &&
+        getAfter(userDoc(request.auth.uid)).data.get('handle', null) == handle;
       allow update: if request.auth != null &&
         resource.data.uid == request.auth.uid &&
         request.resource.data.uid == request.auth.uid &&
