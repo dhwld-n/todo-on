@@ -6,15 +6,38 @@ import '../models/dday.dart';
 
 import '../providers/providers.dart';
 
-String _ddayLabel(DateTime target) {
+/// Calendar days from today to [target]: negative once it has passed.
+int _daysLeft(DateTime target) {
   final today = DateTime.now();
-  final diff = DateTime(
+  return DateTime(
     target.year,
     target.month,
     target.day,
   ).difference(DateTime(today.year, today.month, today.day)).inDays;
-  if (diff == 0) return 'D-Day';
-  return diff > 0 ? 'D-$diff' : 'D+${-diff}';
+}
+
+String _ddayLabel(int daysLeft) {
+  if (daysLeft == 0) return 'D-Day';
+  return daysLeft > 0 ? 'D-$daysLeft' : 'D+${-daysLeft}';
+}
+
+/// A week or less to go turns a D-day red, and once it has passed it turns
+/// green. Null while it's still further off: the usual colors.
+({Color background, Color text})? ddayAlertColors(
+  int daysLeft,
+  Brightness brightness,
+) {
+  if (daysLeft > 7) return null;
+  final dark = brightness == Brightness.dark;
+  return daysLeft >= 0
+      ? (
+          background: dark ? const Color(0xFF4A1F24) : const Color(0xFFFFE1E1),
+          text: dark ? const Color(0xFFFF8A80) : const Color(0xFFD32F2F),
+        )
+      : (
+          background: dark ? const Color(0xFF1C3B2A) : const Color(0xFFDDF3E3),
+          text: dark ? const Color(0xFF81C784) : const Color(0xFF2E7D32),
+        );
 }
 
 class DdayBanner extends ConsumerWidget {
@@ -61,23 +84,23 @@ class _DdayTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final daysLeft = _daysLeft(dday.date);
+    final alert = ddayAlertColors(daysLeft, theme.brightness);
+    final background = alert?.background ?? theme.colorScheme.primaryContainer;
+    final foreground = alert?.text ?? theme.colorScheme.onPrimaryContainer;
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: colorScheme.primaryContainer,
+          color: background,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
           children: [
-            Icon(
-              Icons.flag_outlined,
-              size: 18,
-              color: colorScheme.onPrimaryContainer,
-            ),
+            Icon(Icons.flag_outlined, size: 18, color: foreground),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -85,16 +108,13 @@ class _DdayTile extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
-                  color: colorScheme.onPrimaryContainer,
+                  color: foreground,
                 ),
               ),
             ),
             Text(
-              _ddayLabel(dday.date),
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                color: colorScheme.onPrimaryContainer,
-              ),
+              _ddayLabel(daysLeft),
+              style: TextStyle(fontWeight: FontWeight.w800, color: foreground),
             ),
           ],
         ),

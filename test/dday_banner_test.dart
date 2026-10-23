@@ -54,6 +54,52 @@ void main() {
     expect(find.text('D-Day'), findsOneWidget);
   });
 
+  test('red from a week out through the day itself, green after', () {
+    expect(ddayAlertColors(8, Brightness.light), isNull);
+    final soon = ddayAlertColors(7, Brightness.light)!;
+    expect(ddayAlertColors(0, Brightness.light), soon);
+    final passed = ddayAlertColors(-1, Brightness.light)!;
+    expect(soon.text.r, greaterThan(soon.text.g));
+    expect(passed.text.g, greaterThan(passed.text.r));
+    expect(ddayAlertColors(3, Brightness.dark), isNot(soon));
+  });
+
+  Color? textColor(WidgetTester tester, String text) =>
+      tester.widget<Text>(find.text(text)).style?.color;
+
+  testWidgets('the tile shows its color: usual, red, green', (tester) async {
+    final now = DateTime.now();
+    await _pump(tester, {
+      'ddays': [
+        {
+          'id': 'a',
+          'label': '멀다',
+          'date': Timestamp.fromDate(now.add(const Duration(days: 30))),
+        },
+        {
+          'id': 'b',
+          'label': '곧',
+          'date': Timestamp.fromDate(now.add(const Duration(days: 3))),
+        },
+        {
+          'id': 'c',
+          'label': '지남',
+          'date': Timestamp.fromDate(now.subtract(const Duration(days: 2))),
+        },
+      ],
+    });
+    final scheme = Theme.of(tester.element(find.text('멀다'))).colorScheme;
+    expect(textColor(tester, 'D-30'), scheme.onPrimaryContainer);
+    expect(
+      textColor(tester, 'D-3'),
+      ddayAlertColors(3, Brightness.light)!.text,
+    );
+    expect(
+      textColor(tester, 'D+2'),
+      ddayAlertColors(-2, Brightness.light)!.text,
+    );
+  });
+
   testWidgets('past date shows D+N', (tester) async {
     final target = DateTime.now().subtract(const Duration(days: 5));
     await _pump(tester, _profile('지난 일', target));
