@@ -47,7 +47,7 @@ void main() {
     final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
     expect(scaffold.bottomNavigationBar, isNotNull);
     // Every tab is reachable from the bottom bar.
-    for (final label in ['TODO', '친구', '친구 추가', '채팅', '일기', '습관', '업데이트']) {
+    for (final label in ['TODO', '보관함', '친구', '친구 추가', '채팅', '일기', '습관', '업데이트']) {
       expect(find.text(label), findsOneWidget);
     }
   });

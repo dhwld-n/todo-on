@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:todo_on/models/todo_item.dart';
 import 'package:todo_on/providers/providers.dart';
 import 'package:todo_on/services/firestore_service.dart';
-import 'package:todo_on/widgets/archive_dialog.dart';
+import 'package:todo_on/widgets/archive_pane.dart';
 
 class _FakeTodos extends Fake implements FirestoreService {
   final archived = <String>[];
@@ -62,10 +62,9 @@ Future<_FakeTodos> _pump(WidgetTester tester) async {
         firestoreServiceProvider.overrideWithValue(service),
         todosProvider.overrideWith((ref) => Stream.value(_todos)),
         categoriesProvider.overrideWith((ref) => Stream.value(const [])),
+        selectedDateProvider.overrideWith((ref) => day),
       ],
-      child: MaterialApp(
-        home: Scaffold(body: ArchiveDialog(day: day)),
-      ),
+      child: MaterialApp(home: Scaffold(body: ArchivePane())),
     ),
   );
   await tester.pumpAndSettle();

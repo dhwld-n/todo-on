@@ -9,7 +9,7 @@ import '../providers/providers.dart';
 import '../services/theme_prefs.dart';
 import '../theme/app_theme.dart';
 import '../widgets/add_todo_sheet.dart';
-import '../widgets/archive_dialog.dart';
+import '../widgets/archive_pane.dart';
 import '../widgets/blinking_dot.dart';
 import '../widgets/calendar_sidebar.dart';
 import '../widgets/chat_list_pane.dart';
@@ -113,6 +113,7 @@ class HomeScreen extends ConsumerWidget {
                 ContentMode.diary => DiaryPane(date: activeDate),
                 ContentMode.friends => const FriendsPane(),
                 ContentMode.addFriend => const AddFriendPane(),
+                ContentMode.archive => const ArchivePane(),
                 ContentMode.habits => const HabitsPane(),
                 ContentMode.chat => const ChatListPane(),
                 ContentMode.todo => const _TodoListPane(),
@@ -246,6 +247,14 @@ class _ModeTabRail extends ConsumerWidget {
             selected: mode == ContentMode.todo,
             onTap: () =>
                 ref.read(contentModeProvider.notifier).state = ContentMode.todo,
+          ),
+          const SizedBox(height: 12),
+          _ModeTabButton(
+            icon: Icons.inventory_2_outlined,
+            label: '보관함',
+            selected: mode == ContentMode.archive,
+            onTap: () => ref.read(contentModeProvider.notifier).state =
+                ContentMode.archive,
           ),
           const SizedBox(height: 12),
           _ModeTabButton(
@@ -430,6 +439,15 @@ class _ModeBottomNav extends ConsumerWidget {
                 selected: mode == ContentMode.todo,
                 onTap: () => ref.read(contentModeProvider.notifier).state =
                     ContentMode.todo,
+              ),
+            ),
+            Expanded(
+              child: _ModeNavItem(
+                icon: Icons.inventory_2_outlined,
+                label: '보관함',
+                selected: mode == ContentMode.archive,
+                onTap: () => ref.read(contentModeProvider.notifier).state =
+                    ContentMode.archive,
               ),
             ),
             Expanded(
@@ -762,7 +780,6 @@ class _DayTodos extends ConsumerWidget {
                     ),
                   ),
                 ),
-                _ArchiveButton(day: date),
               ],
             ),
           ),
@@ -866,33 +883,6 @@ class _DayTodos extends ConsumerWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// Opens 보관함, showing how many todos wait there.
-class _ArchiveButton extends ConsumerWidget {
-  final DateTime day;
-
-  const _ArchiveButton({required this.day});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final count = archivedTodos(ref.watch(todosProvider).value ?? []).length;
-    final color = Theme.of(context).colorScheme.onPrimaryContainer;
-    return TextButton.icon(
-      onPressed: () => showArchiveDialog(context, day),
-      icon: Icon(Icons.inventory_2_outlined, size: 16, color: color),
-      label: Text(
-        count == 0 ? '보관함' : '보관함 $count',
-        style: TextStyle(color: color),
-      ),
-      style: TextButton.styleFrom(
-        visualDensity: VisualDensity.compact,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        minimumSize: const Size(0, 28),
-      ),
     );
   }
 }
