@@ -9,6 +9,7 @@ import '../providers/providers.dart';
 import '../services/theme_prefs.dart';
 import '../theme/app_theme.dart';
 import '../widgets/add_todo_sheet.dart';
+import '../widgets/archive_dialog.dart';
 import '../widgets/blinking_dot.dart';
 import '../widgets/calendar_sidebar.dart';
 import '../widgets/chat_list_pane.dart';
@@ -752,12 +753,16 @@ class _DayTodos extends ConsumerWidget {
                   color: Theme.of(context).colorScheme.onPrimaryContainer,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  DateFormat('yyyy년 M월 d일').format(date),
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                Expanded(
+                  child: Text(
+                    DateFormat('yyyy년 M월 d일').format(date),
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
                   ),
                 ),
+                _ArchiveButton(day: date),
               ],
             ),
           ),
@@ -861,6 +866,33 @@ class _DayTodos extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Opens 보관함, showing how many todos wait there.
+class _ArchiveButton extends ConsumerWidget {
+  final DateTime day;
+
+  const _ArchiveButton({required this.day});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final count = archivedTodos(ref.watch(todosProvider).value ?? []).length;
+    final color = Theme.of(context).colorScheme.onPrimaryContainer;
+    return TextButton.icon(
+      onPressed: () => showArchiveDialog(context, day),
+      icon: Icon(Icons.inventory_2_outlined, size: 16, color: color),
+      label: Text(
+        count == 0 ? '보관함' : '보관함 $count',
+        style: TextStyle(color: color),
+      ),
+      style: TextButton.styleFrom(
+        visualDensity: VisualDensity.compact,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        minimumSize: const Size(0, 28),
+      ),
     );
   }
 }

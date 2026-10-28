@@ -154,6 +154,34 @@ class FirestoreService {
     return _todos.doc(todoId).delete();
   }
 
+  /// Puts todos in 보관함: with no day they show up nowhere until taken
+  /// out again.
+  Future<void> archiveTodos(Iterable<String> todoIds) {
+    final batch = _db.batch();
+    for (final id in todoIds) {
+      batch.update(_todos.doc(id), {'dueDate': null});
+    }
+    return batch.commit();
+  }
+
+  /// Takes todos out of 보관함 onto [day], to be done again.
+  Future<void> unarchiveTodos(Iterable<String> todoIds, DateTime day) {
+    final due = Timestamp.fromDate(DateTime(day.year, day.month, day.day));
+    final batch = _db.batch();
+    for (final id in todoIds) {
+      batch.update(_todos.doc(id), {'dueDate': due, 'isDone': false});
+    }
+    return batch.commit();
+  }
+
+  Future<void> deleteTodos(Iterable<String> todoIds) {
+    final batch = _db.batch();
+    for (final id in todoIds) {
+      batch.delete(_todos.doc(id));
+    }
+    return batch.commit();
+  }
+
   /// Checks [todo] off on its day. A repeating todo keeps one done state
   /// per day, so only that day's key goes in or out.
   Future<void> setDone(TodoItem todo, bool isDone) {
