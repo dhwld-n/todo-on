@@ -245,35 +245,49 @@ final chatFriendLastReadProvider = StreamProvider.autoDispose
       return service.watchFriendLastRead(friendUid);
     });
 
+/// Whether [messages] has one from someone else after [lastRead] (null:
+/// never read).
+bool hasUnreadMessages(
+  List<ChatMessage> messages,
+  DateTime? lastRead,
+  String? myUid,
+) => messages.any(
+  (m) =>
+      m.senderUid != myUid &&
+      (lastRead == null || m.createdAt.isAfter(lastRead)),
+);
+
 /// True if any friend has sent a message since our last read of that chat -
 /// same unread rule as each row in [ChatListPane], just OR'd across friends
 /// so the 채팅 tab icon can show a badge without opening the list.
+///
+/// A chat whose last-read time hasn't loaded yet counts as read: at startup
+/// the messages often land first, and taking "not loaded" for "never read"
+/// flashed the badge on for a moment. Every chat is watched (no early
+/// return) so a later one's streams don't drop and reload.
 final hasUnreadChatProvider = Provider<bool>((ref) {
   final uids = ref.watch(followingProvider).value ?? const [];
   final myUid = ref.watch(authStateProvider).value?.uid;
+  var unread = false;
   for (final uid in uids) {
     final messages = ref.watch(chatMessagesProvider(uid)).value ?? const [];
-    final lastRead = ref.watch(chatLastReadProvider(uid)).value;
-    final hasUnread = messages.any(
-      (m) =>
-          m.senderUid != myUid &&
-          (lastRead == null || m.createdAt.isAfter(lastRead)),
-    );
-    if (hasUnread) return true;
+    final lastRead = ref.watch(chatLastReadProvider(uid));
+    if (lastRead.hasValue &&
+        hasUnreadMessages(messages, lastRead.value, myUid)) {
+      unread = true;
+    }
   }
   final groups = ref.watch(myGroupChatsProvider).value ?? const [];
   for (final group in groups) {
     final messages =
         ref.watch(groupMessagesProvider(group.id)).value ?? const [];
-    final lastRead = ref.watch(groupLastReadProvider(group.id)).value?[myUid];
-    final hasUnread = messages.any(
-      (m) =>
-          m.senderUid != myUid &&
-          (lastRead == null || m.createdAt.isAfter(lastRead)),
-    );
-    if (hasUnread) return true;
+    final lastRead = ref.watch(groupLastReadProvider(group.id));
+    if (lastRead.hasValue &&
+        hasUnreadMessages(messages, lastRead.value?[myUid], myUid)) {
+      unread = true;
+    }
   }
-  return false;
+  return unread;
 });
 
 /// Drives the OS-level app icon badge (Windows taskbar overlay for now):

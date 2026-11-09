@@ -429,11 +429,16 @@ class FirestoreService {
   /// Per-user last-read timestamp for this chat, keyed by uid so both
   /// sides' read state lives on the same doc without clobbering each other.
   Stream<DateTime?> watchChatLastRead(String otherUid) {
-    return _chatDoc(otherUid).snapshots().map((doc) {
+    return _chatDoc(otherUid).snapshots().where(_knownDoc).map((doc) {
       final lastRead = doc.data()?['lastRead'] as Map<String, dynamic>?;
       return (lastRead?[uid] as Timestamp?)?.toDate();
     });
   }
+
+  /// False for a cache snapshot of a doc the cache never held: it may well
+  /// exist on the server, so "missing" there would read as "never read".
+  static bool _knownDoc(DocumentSnapshot<Map<String, dynamic>> doc) =>
+      doc.exists || !doc.metadata.isFromCache;
 
   Future<void> markChatRead(String otherUid) {
     return _chatDoc(otherUid).set({
@@ -532,7 +537,7 @@ class FirestoreService {
   }
 
   Stream<Map<String, DateTime>> watchGroupLastRead(String groupId) {
-    return _groupChatDoc(groupId).snapshots().map((doc) {
+    return _groupChatDoc(groupId).snapshots().where(_knownDoc).map((doc) {
       final lastRead = doc.data()?['lastRead'] as Map<String, dynamic>?;
       if (lastRead == null) return const {};
       return lastRead.map((k, v) => MapEntry(k, (v as Timestamp).toDate()));

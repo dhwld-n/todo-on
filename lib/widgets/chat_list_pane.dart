@@ -62,8 +62,7 @@ class ChatListPane extends ConsumerWidget {
                     itemBuilder: (context, index) => tiles[index],
                   );
                 },
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
+                loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, _) => Center(child: Text('오류: $e')),
               ),
               loading: () => const Center(child: CircularProgressIndicator()),
@@ -233,8 +232,7 @@ class _CreateGroupSheetState extends ConsumerState<_CreateGroupSheet> {
                     ],
                   );
                 },
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
+                loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, _) => Text('오류: $e'),
               ),
             ),
@@ -294,16 +292,21 @@ class _ChatFriendTile extends ConsumerWidget {
     final photoBase64 = profile?['photoBase64'] as String?;
 
     final myUid = ref.watch(authStateProvider).value?.uid ?? '';
-    final messages = ref.watch(chatMessagesProvider(uid)).value ?? const <ChatMessage>[];
-    final lastRead = ref.watch(chatLastReadProvider(uid)).value;
+    final messages =
+        ref.watch(chatMessagesProvider(uid)).value ?? const <ChatMessage>[];
+    final lastReadAsync = ref.watch(chatLastReadProvider(uid));
+    final lastRead = lastReadAsync.value;
     final lastMessage = messages.isEmpty ? null : messages.last;
-    final unreadCount = messages
-        .where(
-          (m) =>
-              m.senderUid != myUid &&
-              (lastRead == null || m.createdAt.isAfter(lastRead)),
-        )
-        .length;
+    // No count until the last-read time is in, same as the tab badge.
+    final unreadCount = !lastReadAsync.hasValue
+        ? 0
+        : messages
+              .where(
+                (m) =>
+                    m.senderUid != myUid &&
+                    (lastRead == null || m.createdAt.isAfter(lastRead)),
+              )
+              .length;
 
     final colorScheme = Theme.of(context).colorScheme;
 
@@ -375,9 +378,9 @@ class _ChatFriendTile extends ConsumerWidget {
             ],
           ],
         ),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => FriendChatScreen(uid: uid)),
-        ),
+        onTap: () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => FriendChatScreen(uid: uid))),
       ),
     );
   }
@@ -397,8 +400,10 @@ class _GroupChatTile extends ConsumerWidget {
         ? name
         : otherMembers
               .map(
-                (uid) =>
-                    displayNameFor(ref.watch(friendProfileProvider(uid)).value, uid),
+                (uid) => displayNameFor(
+                  ref.watch(friendProfileProvider(uid)).value,
+                  uid,
+                ),
               )
               .join(', ');
 
