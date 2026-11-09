@@ -24,8 +24,8 @@ class Clay extends StatelessWidget {
   final double? height;
   final BoxShape shape;
 
-  /// Drawn over the surface and its shading.
-  final BoxBorder? border;
+  /// Tints the drop shadow (e.g. a todo card in its category's color).
+  final Color? shadowColor;
 
   const Clay({
     super.key,
@@ -38,7 +38,7 @@ class Clay extends StatelessWidget {
     this.width,
     this.height,
     this.shape = BoxShape.rectangle,
-    this.border,
+    this.shadowColor,
   });
 
   @override
@@ -57,7 +57,9 @@ class Clay extends StatelessWidget {
         ? const <BoxShadow>[]
         : [
             BoxShadow(
-              color: dark
+              color: shadowColor != null
+                  ? shadowColor!.withValues(alpha: dark ? 0.45 : 0.38)
+                  : dark
                   ? Colors.black.withValues(alpha: 0.45)
                   : (tinted ? fill : kClayBlue).withValues(
                       alpha: tinted ? 0.36 : 0.16,
@@ -104,13 +106,6 @@ class Clay extends StatelessWidget {
         borderRadius: borderRadius,
         boxShadow: outer,
       ),
-      foregroundDecoration: border == null
-          ? null
-          : BoxDecoration(
-              shape: shape,
-              borderRadius: borderRadius,
-              border: border,
-            ),
       child: CustomPaint(
         painter: _InnerShadowPainter(
           inner,
