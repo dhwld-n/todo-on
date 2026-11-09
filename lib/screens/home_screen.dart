@@ -628,35 +628,13 @@ class _DashboardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return Stack(
-      children: [
-        Clay(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(32),
-            child: padding != null
-                ? Padding(padding: padding!, child: child)
-                : child,
-          ),
-        ),
-        // Clay's drop shadow barely shows on the dark page, so a faint rim
-        // keeps the card's edge there. Painted on top: the ClipRRect child
-        // would otherwise cover the stroke.
-        if (dark)
-          Positioned.fill(
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(32),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.14),
-                    width: 1.5,
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
+    return Clay(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(32),
+        child: padding != null
+            ? Padding(padding: padding!, child: child)
+            : child,
+      ),
     );
   }
 }
@@ -1097,6 +1075,8 @@ class _CategorySection extends ConsumerWidget {
           builder: (context, candidateData, rejectedData) {
             final isHovering = candidateData.isNotEmpty;
             final surface = Theme.of(context).colorScheme.surface;
+            final dark = Theme.of(context).brightness == Brightness.dark;
+            final categoryColor = color ?? Theme.of(context).disabledColor;
             return Container(
               // Tight to its first todo, whose row starts higher too.
               margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -1113,13 +1093,16 @@ class _CategorySection extends ConsumerWidget {
                 small: true,
                 radius: 22,
                 // Tinted with the category's color, opaque so the clay's own
-                // shading reads the same over any page.
-                color: Color.alphaBlend(
-                  (color ?? Theme.of(context).disabledColor).withValues(
-                    alpha: 0.16,
-                  ),
-                  surface,
-                ),
+                // shading reads the same over any page. In the dark a light
+                // tint turns muddy (yellow went olive), so it's a deep shade
+                // of the color there, glowing faintly in it.
+                color: dark
+                    ? Color.lerp(categoryColor, kDarkBg, 0.68)
+                    : Color.alphaBlend(
+                        categoryColor.withValues(alpha: 0.16),
+                        surface,
+                      ),
+                shadowColor: dark ? categoryColor : null,
                 padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
                 child: Row(
                   children: [

@@ -51,37 +51,59 @@ class Clay extends StatelessWidget {
             ? (dark ? kDarkInputFill : const Color(0xFFEEF3FF))
             : Theme.of(context).colorScheme.surface);
     // A colored blob throws a shadow of its own color; a white one a blue
-    // tint, so the page stays airy rather than grey.
+    // tint, so the page stays airy rather than grey. In the dark the
+    // colored parts glow instead (an even halo, no offset) and the rest
+    // drop a plain black shadow.
     final tinted = color != null && !inset;
-    final outer = inset
-        ? const <BoxShadow>[]
-        : [
-            BoxShadow(
-              color: shadowColor != null
-                  ? shadowColor!.withValues(alpha: dark ? 0.45 : 0.38)
-                  : dark
-                  ? Colors.black.withValues(alpha: 0.45)
-                  : (tinted ? fill : kClayBlue).withValues(
-                      alpha: tinted ? 0.36 : 0.16,
-                    ),
-              blurRadius: small ? 16 : 34,
-              offset: small ? const Offset(5, 8) : const Offset(12, 16),
-            ),
-          ];
+    final glow = shadowColor ?? (tinted ? fill : null);
+    final List<BoxShadow> outer;
+    if (inset) {
+      outer = const [];
+    } else if (dark && glow != null) {
+      final strong = shadowColor == null;
+      outer = [
+        BoxShadow(
+          color: glow.withValues(alpha: strong ? 0.6 : 0.42),
+          blurRadius: strong ? 26 : 22,
+        ),
+        BoxShadow(
+          color: glow.withValues(alpha: strong ? 0.5 : 0.55),
+          blurRadius: strong ? 6 : 3,
+        ),
+      ];
+    } else if (dark) {
+      outer = [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.7),
+          blurRadius: small ? 14 : 30,
+          offset: small ? const Offset(0, 6) : const Offset(0, 14),
+        ),
+      ];
+    } else {
+      outer = [
+        BoxShadow(
+          color: (glow ?? kClayBlue).withValues(
+            alpha: shadowColor != null ? 0.38 : (tinted ? 0.36 : 0.16),
+          ),
+          blurRadius: small ? 16 : 34,
+          offset: small ? const Offset(5, 8) : const Offset(12, 16),
+        ),
+      ];
+    }
     final s = small ? 0.6 : 1.0;
     final light = inset
         ? (dark ? Colors.white.withValues(alpha: 0.05) : Colors.white)
         : (tinted
               ? Colors.white.withValues(alpha: 0.38)
-              : (dark ? Colors.white.withValues(alpha: 0.07) : Colors.white));
+              : (dark ? Colors.white.withValues(alpha: 0.06) : Colors.white));
     final shade = inset
         ? (dark
-              ? Colors.black.withValues(alpha: 0.45)
+              ? Colors.black.withValues(alpha: 0.65)
               : kClayBlue.withValues(alpha: 0.16))
         : (tinted
               ? Colors.black.withValues(alpha: 0.22)
               : (dark
-                    ? Colors.black.withValues(alpha: 0.35)
+                    ? Colors.black.withValues(alpha: 0.4)
                     : kClayBlue.withValues(alpha: 0.10)));
     // Raised: light falls on the top-left, shade sits bottom-right. Inset:
     // the rim's shadow falls inside the top-left edge instead.

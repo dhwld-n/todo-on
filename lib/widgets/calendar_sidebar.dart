@@ -157,6 +157,10 @@ class CalendarSidebar extends ConsumerWidget {
       final holidayName = holidayNameFor(day);
       const holidayColor = Color(0xFFE24C4C);
       final dateKey = dateKeyFor(day);
+      // Today is a purple clay column, the selected day a blue one; today
+      // stays purple when it's the one selected.
+      final today = !isOutside && isSameDay(day, DateTime.now());
+      final filled = today || isSelected;
 
       final cellBody = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -191,7 +195,7 @@ class CalendarSidebar extends ConsumerWidget {
                         ? Theme.of(context).disabledColor
                         : holidayName != null
                         ? holidayColor
-                        : isSelected
+                        : filled
                         ? Colors.white
                         : null,
                   ),
@@ -237,13 +241,18 @@ class CalendarSidebar extends ConsumerWidget {
                 margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 decoration: BoxDecoration(
-                  color: isSelected
+                  color: filled
                       ? colorScheme.surface
                       : Color.alphaBlend(
                           Color(
                             categoriesById[todo.categoryId]?.colorValue ??
                                 0xFF9AA5B1,
-                          ).withValues(alpha: 0.2),
+                          ).withValues(
+                            alpha:
+                                Theme.of(context).brightness == Brightness.dark
+                                ? 0.32
+                                : 0.2,
+                          ),
                           colorScheme.surface,
                         ),
                   borderRadius: BorderRadius.circular(6),
@@ -267,7 +276,7 @@ class CalendarSidebar extends ConsumerWidget {
                 '+${events.length - _kMaxChipsPerDay}',
                 style: TextStyle(
                   fontSize: 8.5,
-                  color: isSelected
+                  color: filled
                       ? Colors.white
                       : Theme.of(context).disabledColor,
                 ),
@@ -275,29 +284,20 @@ class CalendarSidebar extends ConsumerWidget {
             ),
         ],
       );
-      // The selected day is a blue clay column; today gets a faint tint.
       return Padding(
         padding: const EdgeInsets.all(2),
-        child: isSelected
+        child: filled
             ? Clay(
                 small: true,
                 radius: 14,
-                color: kClayBlue,
+                color: today ? kClayPurple : kClayBlue,
                 width: double.infinity,
                 height: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: cellBody,
               )
-            : Container(
-                width: double.infinity,
-                height: double.infinity,
+            : Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
-                decoration: BoxDecoration(
-                  color: isToday
-                      ? colorScheme.primary.withValues(alpha: 0.08)
-                      : null,
-                  borderRadius: BorderRadius.circular(14),
-                ),
                 child: cellBody,
               ),
       );

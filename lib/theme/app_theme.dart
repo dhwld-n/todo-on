@@ -7,10 +7,11 @@ const kClayPurple = Color(0xFF705EFF);
 
 const kSeedColor = kClayBlue;
 const kLavenderBg = Color(0xFFE8EFFE);
-const kDarkBg = Color(0xFF0B1526);
-const kDarkSurface = Color(0xFF132238);
-const kDarkChipBg = Color(0xFF1E3654);
-const kDarkInputFill = Color(0xFF1A2F4A);
+// Dark mode: a near-black page so the colored clay parts can glow.
+const kDarkBg = Color(0xFF0A0C14);
+const kDarkSurface = Color(0xFF171B28);
+const kDarkChipBg = Color(0xFF232838);
+const kDarkInputFill = Color(0xFF0F121C);
 const kInkText = Color(0xFF1C2452);
 const kCardBorderLight = Color(0xFFD3E5F8);
 
