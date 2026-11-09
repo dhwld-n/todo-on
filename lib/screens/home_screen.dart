@@ -1012,18 +1012,18 @@ class _DragCard extends StatelessWidget {
         child: Row(
           children: [
             // The drawing only fills the middle of its canvas: render it at
-            // the list's 96px and crop, so the cat is as big as in the row.
+            // the list's size and crop, so the cat is as big as in the row.
             SizedBox(
-              width: 64,
-              height: 60,
+              width: kTodoCheckboxSize * 2 / 3,
+              height: kTodoCheckboxSize * 5 / 8,
               child: ClipRect(
                 child: OverflowBox(
-                  maxWidth: 96,
-                  maxHeight: 96,
+                  maxWidth: kTodoCheckboxSize,
+                  maxHeight: kTodoCheckboxSize,
                   child: Image.asset(
                     todoCheckboxAsset(todo.isDone),
-                    width: 96,
-                    height: 96,
+                    width: kTodoCheckboxSize,
+                    height: kTodoCheckboxSize,
                   ),
                 ),
               ),
@@ -1036,7 +1036,7 @@ class _DragCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontFamily: 'GriunFromsol',
-                  fontSize: 17,
+                  fontSize: kTodoTitleSize,
                   fontWeight: FontWeight.w600,
                   color: scheme.onSurface,
                 ),

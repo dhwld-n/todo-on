@@ -6,6 +6,12 @@ import '../models/todo_item.dart';
 String todoCheckboxAsset(bool isDone) =>
     isDone ? 'assets/icons/cat_checked1.png' : 'assets/icons/cat_unchecked.png';
 
+/// The cat checkbox's canvas; the drawing fills only its middle.
+const kTodoCheckboxSize = 64.0;
+
+/// A todo's title, in the list and while it's dragged.
+const kTodoTitleSize = 15.0;
+
 class TodoTile extends StatelessWidget {
   final TodoItem todo;
   final TodoCategory? category;
@@ -34,7 +40,7 @@ class TodoTile extends StatelessWidget {
         InkWell(
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             child: Row(
               children: [
                 GestureDetector(
@@ -43,8 +49,8 @@ class TodoTile extends StatelessWidget {
                       : () => onToggle!(!todo.isDone),
                   child: Image.asset(
                     todoCheckboxAsset(todo.isDone),
-                    width: 96,
-                    height: 96,
+                    width: kTodoCheckboxSize,
+                    height: kTodoCheckboxSize,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -83,7 +89,7 @@ class TodoTile extends StatelessWidget {
                         ),
                         style: TextStyle(
                           fontFamily: 'GriunFromsol',
-                          fontSize: 17,
+                          fontSize: kTodoTitleSize,
                           fontWeight: FontWeight.w600,
                           color: todo.isDone
                               ? Theme.of(context).disabledColor
@@ -149,8 +155,8 @@ class TodoTile extends StatelessWidget {
         Divider(
           height: 1,
           thickness: 1,
-          indent: 56,
-          endIndent: 56,
+          indent: 40,
+          endIndent: 40,
           color: Theme.of(context).dividerColor.withValues(alpha: 0.12),
         ),
       ],
