@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:todo_on/providers/providers.dart';
 import 'package:todo_on/screens/home_screen.dart';
 
@@ -47,7 +48,16 @@ void main() {
     final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
     expect(scaffold.bottomNavigationBar, isNotNull);
     // Every tab is reachable from the bottom bar.
-    for (final label in ['TODO', '보관함', '친구', '친구 추가', '채팅', '일기', '습관', '업데이트']) {
+    for (final label in [
+      'TODO',
+      '보관함',
+      '친구',
+      '친구 추가',
+      '채팅',
+      '일기',
+      '습관',
+      '업데이트',
+    ]) {
       expect(find.text(label), findsOneWidget);
     }
   });
@@ -61,6 +71,27 @@ void main() {
 
     final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
     expect(scaffold.bottomNavigationBar, isNull);
+  });
+
+  testWidgets('a short desktop window scrolls the side rail, no overflow', (
+    tester,
+  ) async {
+    await initializeDateFormatting('ko_KR');
+    tester.view.physicalSize = const Size(1100, 500);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await _pumpHome(tester, isAndroid: false);
+    expect(tester.takeException(), isNull);
+    // The last tab is still reachable.
+    await tester.scrollUntilVisible(
+      find.text('업데이트'),
+      100,
+      scrollable: find
+          .ancestor(of: find.text('TODO'), matching: find.byType(Scrollable))
+          .first,
+    );
+    expect(find.text('업데이트').hitTestable(), findsOneWidget);
   });
 
   testWidgets('tapping a bottom nav tab switches the content mode', (

@@ -237,7 +237,10 @@ class _ModeTabRail extends ConsumerWidget {
     final mode = ref.watch(contentModeProvider);
     final updateInfo = ref.watch(updateInfoProvider).value;
     final updateSeen = ref.watch(updateSeenProvider);
-    return Padding(
+    // Scrolls in a short window rather than running off the bottom; no
+    // clip, so the buttons' shadows aren't cut at the rail's edges.
+    return SingleChildScrollView(
+      clipBehavior: Clip.none,
       padding: const EdgeInsets.only(right: 12),
       child: Column(
         children: [
@@ -1076,7 +1079,8 @@ class _CategorySection extends ConsumerWidget {
           builder: (context, candidateData, rejectedData) {
             final isHovering = candidateData.isNotEmpty;
             return Container(
-              margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              // Tight to its first todo, whose row starts higher too.
+              margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
                 color:
@@ -1180,6 +1184,7 @@ class _CategorySection extends ConsumerWidget {
                         key: ValueKey(todo.id),
                         todo: todo,
                         category: category,
+                        topPadding: todo == todos.first ? 0 : 6,
                         onToggle: (v) => ref
                             .read(firestoreServiceProvider)
                             ?.setDone(todo, v ?? false),

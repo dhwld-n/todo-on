@@ -22,6 +22,9 @@ class TodoTile extends StatelessWidget {
   final Future<bool> Function()? onDelete;
   final Widget? dragHandle;
 
+  /// Space above the row; the first under a category header uses less.
+  final double topPadding;
+
   const TodoTile({
     super.key,
     required this.todo,
@@ -30,6 +33,7 @@ class TodoTile extends StatelessWidget {
     this.onTap,
     this.onDelete,
     this.dragHandle,
+    this.topPadding = 6,
   });
 
   @override
@@ -40,7 +44,7 @@ class TodoTile extends StatelessWidget {
         InkWell(
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: EdgeInsets.fromLTRB(12, topPadding, 12, 6),
             child: Row(
               children: [
                 GestureDetector(
