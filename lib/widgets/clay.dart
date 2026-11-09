@@ -24,6 +24,9 @@ class Clay extends StatelessWidget {
   final double? height;
   final BoxShape shape;
 
+  /// Drawn over the surface and its shading.
+  final BoxBorder? border;
+
   const Clay({
     super.key,
     this.child,
@@ -35,6 +38,7 @@ class Clay extends StatelessWidget {
     this.width,
     this.height,
     this.shape = BoxShape.rectangle,
+    this.border,
   });
 
   @override
@@ -100,6 +104,13 @@ class Clay extends StatelessWidget {
         borderRadius: borderRadius,
         boxShadow: outer,
       ),
+      foregroundDecoration: border == null
+          ? null
+          : BoxDecoration(
+              shape: shape,
+              borderRadius: borderRadius,
+              border: border,
+            ),
       child: CustomPaint(
         painter: _InnerShadowPainter(
           inner,

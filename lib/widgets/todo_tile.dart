@@ -73,11 +73,17 @@ class TodoTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A thin rim in the category's color sets each card off the white
+    // list card it sits on, and says whose it is at a glance.
+    final rim = category != null
+        ? Color(category!.colorValue).withValues(alpha: 0.55)
+        : Theme.of(context).disabledColor.withValues(alpha: 0.3);
     final content = Padding(
       padding: EdgeInsets.fromLTRB(16, topPadding, 16, 0),
       child: Clay(
         small: true,
         radius: 22,
+        border: Border.all(color: rim, width: 1.5),
         child: Material(
           type: MaterialType.transparency,
           borderRadius: BorderRadius.circular(22),
