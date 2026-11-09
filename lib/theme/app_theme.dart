@@ -1,19 +1,33 @@
 import 'package:flutter/material.dart';
 
-const kSeedColor = Color(0xFF2E90FA);
-const kLavenderBg = Color(0xFFE7F2FE);
+// The clay palette: blue leads, yellow and purple accent.
+const kClayBlue = Color(0xFF2373F4);
+const kClayYellow = Color(0xFFFFD749);
+const kClayPurple = Color(0xFF705EFF);
+
+const kSeedColor = kClayBlue;
+const kLavenderBg = Color(0xFFE8EFFE);
 const kDarkBg = Color(0xFF0B1526);
 const kDarkSurface = Color(0xFF132238);
 const kDarkChipBg = Color(0xFF1E3654);
 const kDarkInputFill = Color(0xFF1A2F4A);
-const kInkText = Color(0xFF17263D);
+const kInkText = Color(0xFF1C2452);
 const kCardBorderLight = Color(0xFFD3E5F8);
 
 ThemeData buildLightTheme() {
-  final colorScheme = ColorScheme.fromSeed(
-    seedColor: kSeedColor,
-    brightness: Brightness.light,
-  ).copyWith(surface: Colors.white);
+  final colorScheme =
+      ColorScheme.fromSeed(
+        seedColor: kSeedColor,
+        brightness: Brightness.light,
+      ).copyWith(
+        surface: Colors.white,
+        primary: kClayBlue,
+        onPrimary: Colors.white,
+        secondary: kClayPurple,
+        onSecondary: Colors.white,
+        tertiary: kClayYellow,
+        onTertiary: kInkText,
+      );
 
   return ThemeData(
     useMaterial3: true,
@@ -96,10 +110,17 @@ ThemeData buildLightTheme() {
 }
 
 ThemeData buildDarkTheme() {
-  final colorScheme = ColorScheme.fromSeed(
-    seedColor: kSeedColor,
-    brightness: Brightness.dark,
-  ).copyWith(surface: kDarkSurface);
+  final colorScheme =
+      ColorScheme.fromSeed(
+        seedColor: kSeedColor,
+        brightness: Brightness.dark,
+      ).copyWith(
+        surface: kDarkSurface,
+        secondary: kClayPurple,
+        onSecondary: Colors.white,
+        tertiary: kClayYellow,
+        onTertiary: kInkText,
+      );
 
   return ThemeData(
     useMaterial3: true,

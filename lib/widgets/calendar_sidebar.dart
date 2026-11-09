@@ -8,12 +8,14 @@ import '../data/korean_holidays.dart';
 import '../models/category.dart';
 import '../models/todo_item.dart';
 import '../providers/providers.dart';
+import '../theme/app_theme.dart';
+import 'clay.dart';
 
 const int _kMaxChipsPerDay = 3;
 
 // Diary-day markers - picked to read on both the light and dark themes.
-const kMyDiaryColor = Color(0xFFF0A04B);
-const kExchangeDiaryColor = Color(0xFF3DBFA8);
+const kMyDiaryColor = kClayYellow;
+const kExchangeDiaryColor = kClayPurple;
 
 /// "내 일기" / "교환일기" book beside a day's number.
 class _DiaryMark extends StatelessWidget {
@@ -156,123 +158,148 @@ class CalendarSidebar extends ConsumerWidget {
       const holidayColor = Color(0xFFE24C4C);
       final dateKey = dateKeyFor(day);
 
-      return Container(
-        width: double.infinity,
-        height: double.infinity,
-        margin: const EdgeInsets.all(2),
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? colorScheme.primary.withValues(alpha: 0.14)
-              : isToday
-              ? colorScheme.primary.withValues(alpha: 0.06)
-              : null,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // [내 일기][day][교환일기]: both slots always reserve their width
-            // so the number stays centered, and a row can't overlap the way
-            // corner-pinned marks did in a ~43px phone cell. scaleDown is
-            // the backstop for anything narrower.
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: _DiaryMark.size,
-                    child: !isOutside && myDiaryDates.contains(dateKey)
-                        ? _DiaryMark(
-                            key: ValueKey('my-diary-$dateKey'),
-                            color: kMyDiaryColor,
-                          )
+      final cellBody = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // [내 일기][day][교환일기]: both slots always reserve their width
+          // so the number stays centered, and a row can't overlap the way
+          // corner-pinned marks did in a ~43px phone cell. scaleDown is
+          // the backstop for anything narrower.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: _DiaryMark.size,
+                  child: !isOutside && myDiaryDates.contains(dateKey)
+                      ? _DiaryMark(
+                          key: ValueKey('my-diary-$dateKey'),
+                          color: kMyDiaryColor,
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 2),
+                Text(
+                  '${day.day}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isToday || isSelected || holidayName != null
+                        ? FontWeight.w800
+                        : FontWeight.w500,
+                    color: isOutside
+                        ? Theme.of(context).disabledColor
+                        : holidayName != null
+                        ? holidayColor
+                        : isSelected
+                        ? Colors.white
                         : null,
                   ),
-                  const SizedBox(width: 2),
-                  Text(
-                    '${day.day}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: isToday || isSelected || holidayName != null
-                          ? FontWeight.w800
-                          : FontWeight.w500,
-                      color: isOutside
-                          ? Theme.of(context).disabledColor
-                          : holidayName != null
-                          ? holidayColor
-                          : isSelected
-                          ? colorScheme.primary
-                          : null,
-                    ),
-                  ),
-                  const SizedBox(width: 2),
-                  SizedBox(
-                    width: _DiaryMark.size,
-                    child: !isOutside && exchangeDiaryDates.contains(dateKey)
-                        ? _DiaryMark(
-                            key: ValueKey('exchange-diary-$dateKey'),
-                            color: kExchangeDiaryColor,
-                          )
-                        : null,
-                  ),
-                ],
+                ),
+                const SizedBox(width: 2),
+                SizedBox(
+                  width: _DiaryMark.size,
+                  child: !isOutside && exchangeDiaryDates.contains(dateKey)
+                      ? _DiaryMark(
+                          key: ValueKey('exchange-diary-$dateKey'),
+                          color: kExchangeDiaryColor,
+                        )
+                      : null,
+                ),
+              ],
+            ),
+          ),
+          if (holidayName != null && !isOutside)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                color: holidayColor.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                holidayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 8.5,
+                  fontWeight: FontWeight.w700,
+                  color: holidayColor,
+                ),
               ),
             ),
-            if (holidayName != null && !isOutside)
-              Container(
+          const SizedBox(height: 2),
+          for (final todo in events.take(_kMaxChipsPerDay))
+            // A tint of its category; a done one fades and is struck out.
+            Opacity(
+              opacity: todo.isDone ? 0.55 : 1,
+              child: Container(
                 margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 decoration: BoxDecoration(
-                  color: holidayColor.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  holidayName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 8.5,
-                    fontWeight: FontWeight.w700,
-                    color: holidayColor,
-                  ),
-                ),
-              ),
-            const SizedBox(height: 2),
-            for (final todo in events.take(_kMaxChipsPerDay))
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: BoxDecoration(
-                  color: todo.isDone
-                      ? Color(
-                          categoriesById[todo.categoryId]?.colorValue ??
-                              0xFF9AA5B1,
-                        )
-                      : const Color(0xFFBDBDBD),
-                  borderRadius: BorderRadius.circular(4),
+                  color: isSelected
+                      ? colorScheme.surface
+                      : Color.alphaBlend(
+                          Color(
+                            categoriesById[todo.categoryId]?.colorValue ??
+                                0xFF9AA5B1,
+                          ).withValues(alpha: 0.2),
+                          colorScheme.surface,
+                        ),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   todo.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 8.5, color: Colors.white),
-                ),
-              ),
-            if (events.length > _kMaxChipsPerDay)
-              Padding(
-                padding: const EdgeInsets.only(left: 4),
-                child: Text(
-                  '+${events.length - _kMaxChipsPerDay}',
                   style: TextStyle(
                     fontSize: 8.5,
-                    color: Theme.of(context).disabledColor,
+                    color: colorScheme.onSurface,
+                    decoration: todo.isDone ? TextDecoration.lineThrough : null,
                   ),
                 ),
               ),
-          ],
-        ),
+            ),
+          if (events.length > _kMaxChipsPerDay)
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: Text(
+                '+${events.length - _kMaxChipsPerDay}',
+                style: TextStyle(
+                  fontSize: 8.5,
+                  color: isSelected
+                      ? Colors.white
+                      : Theme.of(context).disabledColor,
+                ),
+              ),
+            ),
+        ],
+      );
+      // The selected day is a blue clay column; today gets a faint tint.
+      return Padding(
+        padding: const EdgeInsets.all(2),
+        child: isSelected
+            ? Clay(
+                small: true,
+                radius: 14,
+                color: kClayBlue,
+                width: double.infinity,
+                height: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: cellBody,
+              )
+            : Container(
+                width: double.infinity,
+                height: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                decoration: BoxDecoration(
+                  color: isToday
+                      ? colorScheme.primary.withValues(alpha: 0.08)
+                      : null,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: cellBody,
+              ),
       );
     }
 
@@ -315,6 +342,20 @@ class CalendarSidebar extends ConsumerWidget {
                 formatButtonVisible: false,
                 leftChevronPadding: EdgeInsets.fromLTRB(12, 12, 12, 36),
                 rightChevronPadding: EdgeInsets.fromLTRB(12, 12, 12, 36),
+                leftChevronIcon: Clay(
+                  small: true,
+                  shape: BoxShape.circle,
+                  width: 36,
+                  height: 36,
+                  child: Icon(Icons.chevron_left),
+                ),
+                rightChevronIcon: Clay(
+                  small: true,
+                  shape: BoxShape.circle,
+                  width: 36,
+                  height: 36,
+                  child: Icon(Icons.chevron_right),
+                ),
               ),
               calendarBuilders: CalendarBuilders(
                 // Title + diary legend right under it, where it's seen.

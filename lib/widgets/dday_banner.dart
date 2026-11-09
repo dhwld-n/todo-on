@@ -5,6 +5,8 @@ import 'package:uuid/uuid.dart';
 import '../models/dday.dart';
 
 import '../providers/providers.dart';
+import '../theme/app_theme.dart';
+import 'clay.dart';
 
 /// Calendar days from today to [target]: negative once it has passed.
 int _daysLeft(DateTime target) {
@@ -61,12 +63,28 @@ class DdayBanner extends ConsumerWidget {
             ),
           Align(
             alignment: Alignment.center,
-            child: OutlinedButton.icon(
-              onPressed: () => _showEditDialog(context, ref, ddays, null),
-              icon: const Icon(Icons.add, size: 16),
-              label: const Text('디데이 추가'),
-              style: OutlinedButton.styleFrom(
-                visualDensity: VisualDensity.compact,
+            child: Clay(
+              small: true,
+              radius: 999,
+              color: kClayYellow,
+              child: Material(
+                type: MaterialType.transparency,
+                shape: const StadiumBorder(),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () => _showEditDialog(context, ref, ddays, null),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add, size: 16, color: kInkText),
+                        SizedBox(width: 6),
+                        Text('디데이 추가', style: TextStyle(color: kInkText)),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
           ),

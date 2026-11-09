@@ -13,6 +13,7 @@ import '../widgets/archive_pane.dart';
 import '../widgets/blinking_dot.dart';
 import '../widgets/calendar_sidebar.dart';
 import '../widgets/chat_list_pane.dart';
+import '../widgets/clay.dart';
 import '../widgets/dday_banner.dart';
 import '../widgets/diary_pane.dart';
 import '../widgets/friends_pane.dart';
@@ -57,50 +58,57 @@ class HomeScreen extends ConsumerWidget {
                 style: TextStyle(fontFamily: 'GriunGyuwon'),
               ),
               const SizedBox(width: 5),
-              const BlinkingDot(size: 7),
+              const BlinkingDot(size: 7, color: kClayYellow),
             ],
           ),
         ),
         actions: [
-          IconButton(
-            icon: Icon(isDark ? Icons.dark_mode : Icons.light_mode),
-            tooltip: isDark ? '다크 모드' : '라이트 모드',
-            onPressed: () {
-              final next = isDark ? ThemeMode.light : ThemeMode.dark;
-              ref.read(themeModeProvider.notifier).state = next;
-              saveCachedThemeMode(next);
-              ref
-                  .read(firestoreServiceProvider)
-                  ?.saveThemeMode(next == ThemeMode.dark ? 'dark' : 'light');
-            },
-          ),
-          if (!isWide && mode == ContentMode.todo)
-            IconButton(
-              icon: Icon(
+          for (final (icon, tooltip, onPressed) in [
+            (
+              isDark ? Icons.dark_mode : Icons.light_mode,
+              isDark ? '다크 모드' : '라이트 모드',
+              () {
+                final next = isDark ? ThemeMode.light : ThemeMode.dark;
+                ref.read(themeModeProvider.notifier).state = next;
+                saveCachedThemeMode(next);
+                ref
+                    .read(firestoreServiceProvider)
+                    ?.saveThemeMode(next == ThemeMode.dark ? 'dark' : 'light');
+              },
+            ),
+            if (!isWide && mode == ContentMode.todo)
+              (
                 calendarExpanded
                     ? Icons.calendar_month
                     : Icons.calendar_month_outlined,
+                calendarExpanded ? '목록으로 보기' : '캘린더로 보기',
+                () => ref
+                    .read(mobileCalendarExpandedProvider.notifier)
+                    .update((expanded) => !expanded),
               ),
-              tooltip: calendarExpanded ? '목록으로 보기' : '캘린더로 보기',
-              onPressed: () => ref
-                  .read(mobileCalendarExpandedProvider.notifier)
-                  .update((expanded) => !expanded),
+            (
+              Icons.sell_outlined,
+              '카테고리 관리',
+              () => showManageCategoriesSheet(context),
             ),
-          IconButton(
-            icon: const Icon(Icons.sell_outlined),
-            tooltip: '카테고리 관리',
-            onPressed: () => showManageCategoriesSheet(context),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: '설정',
-            onPressed: () => showSettingsDialog(context),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: '로그아웃',
-            onPressed: () => ref.read(authServiceProvider).signOut(),
-          ),
+            (Icons.settings_outlined, '설정', () => showSettingsDialog(context)),
+            (
+              Icons.logout,
+              '로그아웃',
+              () => ref.read(authServiceProvider).signOut(),
+            ),
+          ])
+            Padding(
+              padding: EdgeInsets.only(right: isWide ? 12 : 8),
+              child: ClayIconButton(
+                icon: icon,
+                tooltip: tooltip,
+                onPressed: onPressed,
+                size: isWide ? 42 : 36,
+                iconSize: isWide ? 20 : 17,
+              ),
+            ),
+          const SizedBox(width: 4),
         ],
       ),
       body: Padding(
@@ -151,11 +159,14 @@ class HomeScreen extends ConsumerWidget {
                   const _ModeTabRail(),
                   Expanded(
                     child: SingleChildScrollView(
+                      // Room inside the scroll view's clip for the cards'
+                      // clay shadows, which fall to the right and below.
+                      padding: const EdgeInsets.fromLTRB(0, 0, 14, 24),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           const ProfileHeader(),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 20),
                           _DashboardCard(
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             child: const CalendarSidebar(),
@@ -164,7 +175,7 @@ class HomeScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 6),
                   Expanded(flex: 2, child: contentCard),
                 ],
               );
@@ -241,7 +252,7 @@ class _ModeTabRail extends ConsumerWidget {
     // clip, so the buttons' shadows aren't cut at the rail's edges.
     return SingleChildScrollView(
       clipBehavior: Clip.none,
-      padding: const EdgeInsets.only(right: 12),
+      padding: const EdgeInsets.fromLTRB(0, 0, 20, 16),
       child: Column(
         children: [
           _ModeTabButton(
@@ -251,7 +262,7 @@ class _ModeTabRail extends ConsumerWidget {
             onTap: () =>
                 ref.read(contentModeProvider.notifier).state = ContentMode.todo,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           _ModeTabButton(
             icon: Icons.inventory_2_outlined,
             label: '보관함',
@@ -259,7 +270,7 @@ class _ModeTabRail extends ConsumerWidget {
             onTap: () => ref.read(contentModeProvider.notifier).state =
                 ContentMode.archive,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           _ModeTabButton(
             icon: Icons.people_outline,
             label: '친구',
@@ -267,7 +278,7 @@ class _ModeTabRail extends ConsumerWidget {
             onTap: () => ref.read(contentModeProvider.notifier).state =
                 ContentMode.friends,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           _ModeTabButton(
             icon: Icons.person_add_alt_outlined,
             label: '친구 추가',
@@ -275,7 +286,7 @@ class _ModeTabRail extends ConsumerWidget {
             onTap: () => ref.read(contentModeProvider.notifier).state =
                 ContentMode.addFriend,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           _ModeTabButton(
             icon: Icons.chat_bubble_outline,
             label: '채팅',
@@ -284,7 +295,7 @@ class _ModeTabRail extends ConsumerWidget {
             onTap: () =>
                 ref.read(contentModeProvider.notifier).state = ContentMode.chat,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           _ModeTabButton(
             icon: Icons.menu_book_outlined,
             label: '일기',
@@ -293,7 +304,7 @@ class _ModeTabRail extends ConsumerWidget {
             onTap: () => ref.read(contentModeProvider.notifier).state =
                 ContentMode.diary,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           _ModeTabButton(
             icon: Icons.local_fire_department_outlined,
             label: '습관',
@@ -301,7 +312,7 @@ class _ModeTabRail extends ConsumerWidget {
             onTap: () => ref.read(contentModeProvider.notifier).state =
                 ContentMode.habits,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           _ModeTabButton(
             icon: Icons.system_update_alt,
             label: '업데이트',
@@ -346,65 +357,65 @@ class _ModeTabButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: onTap,
-      child: Container(
-        width: 56,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: selected ? colorScheme.primary : colorScheme.surface,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
+    return Clay(
+      small: true,
+      radius: 22,
+      width: 64,
+      color: selected ? kClayBlue : null,
+      child: Material(
+        type: MaterialType.transparency,
+        borderRadius: BorderRadius.circular(22),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(0, 12, 0, 10),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  icon,
-                  size: 20,
-                  color: selected ? Colors.white : colorScheme.onSurfaceVariant,
-                ),
-                if (showBadge)
-                  Positioned(
-                    right: -3,
-                    top: -3,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: Colors.redAccent,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: selected
-                              ? colorScheme.primary
-                              : colorScheme.surface,
-                          width: 1.5,
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(
+                      icon,
+                      size: 22,
+                      color: selected
+                          ? Colors.white
+                          : colorScheme.onSurfaceVariant,
+                    ),
+                    if (showBadge)
+                      Positioned(
+                        right: -3,
+                        top: -3,
+                        child: Container(
+                          width: 9,
+                          height: 9,
+                          decoration: BoxDecoration(
+                            color: kClayPurple,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: selected ? kClayBlue : colorScheme.surface,
+                              width: 2,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: selected
+                        ? Colors.white
+                        : colorScheme.onSurfaceVariant,
                   ),
+                ),
               ],
             ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: selected ? Colors.white : colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -421,18 +432,9 @@ class _ModeBottomNav extends ConsumerWidget {
     final updateSeen = ref.watch(updateSeenProvider);
     return SafeArea(
       top: false,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 16,
-              offset: const Offset(0, -4),
-            ),
-          ],
-        ),
+      child: Clay(
+        radius: 28,
+        padding: const EdgeInsets.fromLTRB(6, 10, 6, 12),
         child: Row(
           children: [
             Expanded(
@@ -547,43 +549,50 @@ class _ModeNavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final iconWidget = Icon(
+      icon,
+      size: 19,
+      color: selected ? Colors.white : colorScheme.onSurfaceVariant,
+    );
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(
-          color: selected
-              ? colorScheme.primary.withValues(alpha: 0.14)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-        ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Stack(
               clipBehavior: Clip.none,
               children: [
-                Icon(
-                  icon,
-                  size: 22,
-                  color: selected
-                      ? colorScheme.primary
-                      : colorScheme.onSurfaceVariant,
-                ),
+                // The selected tab's icon sits on a blue clay pill.
+                selected
+                    ? Clay(
+                        small: true,
+                        radius: 14,
+                        color: kClayBlue,
+                        width: 38,
+                        height: 32,
+                        child: Center(child: iconWidget),
+                      )
+                    : SizedBox(
+                        width: 38,
+                        height: 32,
+                        child: Center(child: iconWidget),
+                      ),
                 if (showBadge)
                   Positioned(
-                    right: -3,
-                    top: -3,
+                    right: 2,
+                    top: -2,
                     child: Container(
                       width: 8,
                       height: 8,
                       decoration: BoxDecoration(
-                        color: Colors.redAccent,
+                        color: kClayPurple,
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: colorScheme.surface,
-                          width: 1.5,
+                          width: 2,
                         ),
                       ),
                     ),
@@ -593,11 +602,14 @@ class _ModeNavItem extends StatelessWidget {
             const SizedBox(height: 3),
             Text(
               label,
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.visible,
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
                 color: selected
-                    ? colorScheme.primary
+                    ? colorScheme.onSurface
                     : colorScheme.onSurfaceVariant,
               ),
             ),
@@ -616,43 +628,34 @@ class _DashboardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final borderColor = Theme.of(context).brightness == Brightness.dark
-        ? Colors.white.withValues(alpha: 0.14)
-        : kCardBorderLight;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Stack(
       children: [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
+        Clay(
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(32),
             child: padding != null
                 ? Padding(padding: padding!, child: child)
                 : child,
           ),
         ),
-        // The border is painted in a layer on top, not as part of the
-        // DecoratedBox above: the ClipRRect child there paints at the same
-        // bounds and would otherwise cover the stroke entirely.
-        Positioned.fill(
-          child: IgnorePointer(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: borderColor, width: 1.5),
+        // Clay's drop shadow barely shows on the dark page, so a faint rim
+        // keeps the card's edge there. Painted on top: the ClipRRect child
+        // would otherwise cover the stroke.
+        if (dark)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(32),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.14),
+                    width: 1.5,
+                  ),
+                ),
               ),
             ),
           ),
-        ),
       ],
     );
   }
@@ -762,29 +765,12 @@ class _DayTodos extends ConsumerWidget {
     return Column(
       children: [
         if (date != null)
-          Container(
-            width: double.infinity,
-            color: Theme.of(context).colorScheme.primaryContainer,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.event,
-                  size: 16,
-                  color: Theme.of(context).colorScheme.onPrimaryContainer,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    DateFormat('yyyy년 M월 d일').format(date),
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          _DateBar(
+            date: date,
+            dayTodos: [
+              for (final t in todosAsync.value ?? const <TodoItem>[])
+                if (t.dueDate != null && isSameDay(t.dueDate!, date)) t,
+            ],
           ),
         Expanded(
           child: todosAsync.when(
@@ -849,7 +835,7 @@ class _DayTodos extends ConsumerWidget {
                 return LayoutBuilder(
                   builder: (context, constraints) {
                     const minColumnWidth = 300.0;
-                    const gap = 12.0;
+                    const gap = 16.0;
                     final columns = (constraints.maxWidth / minColumnWidth)
                         .floor()
                         .clamp(1, sections.length);
@@ -886,6 +872,54 @@ class _DayTodos extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The selected day, pressed into the card, with how much of it is done.
+class _DateBar extends StatelessWidget {
+  final DateTime date;
+  final List<TodoItem> dayTodos;
+
+  const _DateBar({required this.date, required this.dayTodos});
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+      child: Clay(
+        depth: ClayDepth.inset,
+        radius: 20,
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+        child: Row(
+          children: [
+            Icon(
+              Icons.calendar_today_outlined,
+              size: 18,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                DateFormat('yyyy년 M월 d일').format(date),
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 16),
+              ),
+            ),
+            if (dayTodos.isNotEmpty)
+              Text(
+                '${dayTodos.where((t) => t.isDone).length} / '
+                '${dayTodos.length} 완료',
+                style: TextStyle(
+                  fontFamily: 'OwnglyphParkDaHyun',
+                  fontSize: 13,
+                  color: muted,
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1014,24 +1048,8 @@ class _DragCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // The drawing only fills the middle of its canvas: render it at
-            // the list's size and crop, so the cat is as big as in the row.
-            SizedBox(
-              width: kTodoCheckboxSize * 2 / 3,
-              height: kTodoCheckboxSize * 5 / 8,
-              child: ClipRect(
-                child: OverflowBox(
-                  maxWidth: kTodoCheckboxSize,
-                  maxHeight: kTodoCheckboxSize,
-                  child: Image.asset(
-                    todoCheckboxAsset(todo.isDone),
-                    width: kTodoCheckboxSize,
-                    height: kTodoCheckboxSize,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
+            CatCheckbox(isDone: todo.isDone),
+            const SizedBox(width: kTodoCheckboxGap),
             Expanded(
               child: Text(
                 todo.title,
@@ -1078,63 +1096,74 @@ class _CategorySection extends ConsumerWidget {
               _moveTodo(ref, details.data, category, todos),
           builder: (context, candidateData, rejectedData) {
             final isHovering = candidateData.isNotEmpty;
+            final surface = Theme.of(context).colorScheme.surface;
             return Container(
               // Tight to its first todo, whose row starts higher too.
               margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color:
-                    color?.withValues(alpha: 0.14) ??
-                    Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(20),
-                border: isHovering
-                    ? Border.all(
+              foregroundDecoration: isHovering
+                  ? BoxDecoration(
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(
                         color: Theme.of(context).colorScheme.primary,
                         width: 2,
-                      )
-                    : null,
-              ),
-              child: Row(
-                children: [
-                  if (color != null) ...[
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
+                      ),
+                    )
+                  : null,
+              child: Clay(
+                small: true,
+                radius: 22,
+                // Tinted with the category's color, opaque so the clay's own
+                // shading reads the same over any page.
+                color: Color.alphaBlend(
+                  (color ?? Theme.of(context).disabledColor).withValues(
+                    alpha: 0.16,
+                  ),
+                  surface,
+                ),
+                padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+                child: Row(
+                  children: [
+                    if (color != null) ...[
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    Expanded(
+                      child: Text(
+                        category?.name ?? '카테고리 없음',
+                        style: const TextStyle(
+                          fontFamily: 'OwnglyphParkDaHyun',
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                  ],
-                  Expanded(
-                    child: Text(
-                      category?.name ?? '카테고리 없음',
-                      style: const TextStyle(
-                        fontFamily: 'OwnglyphParkDaHyun',
-                        fontWeight: FontWeight.w700,
+                    if (category?.isPrivate ?? false) ...[
+                      Icon(
+                        Icons.lock_outline,
+                        size: 14,
+                        color: Theme.of(context).disabledColor,
+                      ),
+                      const SizedBox(width: 4),
+                    ],
+                    ClayIconButton(
+                      icon: Icons.add,
+                      size: 32,
+                      iconSize: 18,
+                      onPressed: () => showAddEditTodoSheet(
+                        context,
+                        ref,
+                        initialDate: selectedDate,
+                        initialCategoryId: category?.id,
                       ),
                     ),
-                  ),
-                  if (category?.isPrivate ?? false) ...[
-                    Icon(
-                      Icons.lock_outline,
-                      size: 14,
-                      color: Theme.of(context).disabledColor,
-                    ),
-                    const SizedBox(width: 4),
                   ],
-                  IconButton(
-                    icon: const Icon(Icons.add, size: 18),
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () => showAddEditTodoSheet(
-                      context,
-                      ref,
-                      initialDate: selectedDate,
-                      initialCategoryId: category?.id,
-                    ),
-                  ),
-                ],
+                ),
               ),
             );
           },
@@ -1184,7 +1213,6 @@ class _CategorySection extends ConsumerWidget {
                         key: ValueKey(todo.id),
                         todo: todo,
                         category: category,
-                        topPadding: todo == todos.first ? 0 : 6,
                         onToggle: (v) => ref
                             .read(firestoreServiceProvider)
                             ?.setDone(todo, v ?? false),
@@ -1227,7 +1255,7 @@ class _CategorySection extends ConsumerWidget {
                 _moveTodo(ref, details.data, category, todos),
             builder: (context, candidateData, rejectedData) {
               if (candidateData.isNotEmpty) return const _DropSlot();
-              return const SizedBox(height: 12);
+              return const SizedBox(height: 6);
             },
           ),
       ],

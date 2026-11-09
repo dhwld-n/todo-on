@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:todo_on/models/dday.dart';
 import 'package:todo_on/providers/providers.dart';
 import 'package:todo_on/services/firestore_service.dart';
+import 'package:todo_on/widgets/clay.dart';
 import 'package:todo_on/widgets/dday_banner.dart';
 
 class _FakeService extends Fake implements FirestoreService {
@@ -154,7 +155,11 @@ void main() {
     expect(find.text('디데이 추가'), findsOneWidget);
     // Centered under the list, not tucked into the left corner.
     expect(
-      tester.getCenter(find.byType(OutlinedButton)).dx,
+      tester
+          .getCenter(
+            find.ancestor(of: find.text('디데이 추가'), matching: find.byType(Clay)),
+          )
+          .dx,
       moreOrLessEquals(tester.getCenter(find.byType(Scaffold)).dx, epsilon: 1),
     );
   });

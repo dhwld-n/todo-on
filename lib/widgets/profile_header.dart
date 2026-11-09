@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
 
 import '../providers/providers.dart';
+import '../theme/app_theme.dart';
+import 'clay.dart';
 import 'manage_categories_sheet.dart' show kCategoryColors;
 import 'photo_crop_dialog.dart';
 
@@ -31,83 +33,83 @@ class ProfileHeader extends ConsumerWidget {
     final bio = (profile?['bio'] as String?)?.trim();
     final photoBase64 = profile?['photoBase64'] as String?;
     final initial = displayText.isNotEmpty ? displayText[0] : '?';
-    final avatarColor = _colorFor(user?.uid ?? displayText);
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+    return Clay(
+      radius: 28,
+      child: Material(
+        type: MaterialType.transparency,
+        borderRadius: BorderRadius.circular(28),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => showDialog(
+            context: context,
+            builder: (_) => _EditProfileDialog(
+              initialNickname: displayText,
+              initialBio: bio ?? '',
+              initialPhotoBase64: photoBase64,
+            ),
           ),
-        ],
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: () => showDialog(
-          context: context,
-          builder: (_) => _EditProfileDialog(
-            initialNickname: displayText,
-            initialBio: bio ?? '',
-            initialPhotoBase64: photoBase64,
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: avatarColor,
-                backgroundImage: photoBase64 != null
-                    ? MemoryImage(base64Decode(photoBase64))
-                    : null,
-                child: photoBase64 == null
-                    ? Text(
-                        initial,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 16, 12),
+            child: Row(
+              children: [
+                photoBase64 != null
+                    ? CircleAvatar(
+                        radius: 22,
+                        backgroundImage: MemoryImage(base64Decode(photoBase64)),
                       )
-                    : null,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      displayText,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontFamily: 'GriunFromsol',
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                      ),
-                    ),
-                    if (bio != null && bio.isNotEmpty)
-                      Text(
-                        bio,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).disabledColor,
+                    : Clay(
+                        small: true,
+                        shape: BoxShape.circle,
+                        color: kClayPurple,
+                        width: 44,
+                        height: 44,
+                        child: Center(
+                          child: Text(
+                            initial,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
                       ),
-                  ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        displayText,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: 'GriunFromsol',
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
+                      if (bio != null && bio.isNotEmpty)
+                        Text(
+                          bio,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(context).disabledColor,
+                              ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-              Icon(
-                Icons.edit_outlined,
-                size: 16,
-                color: Theme.of(context).disabledColor,
-              ),
-            ],
+                Icon(
+                  Icons.edit_outlined,
+                  size: 16,
+                  color: Theme.of(context).disabledColor,
+                ),
+              ],
+            ),
           ),
         ),
       ),
