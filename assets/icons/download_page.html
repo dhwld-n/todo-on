@@ -1,351 +1,288 @@
 <title>TODO on</title>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link
-  rel="stylesheet"
-  href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap"
-/>
 <style>
-  :root {
-    --bg: #eaf3fe;
-    --bg-soft: #dcebfd;
-    --surface: #ffffff;
-    --ink: #17263d;
-    --ink-muted: #5c6b82;
-    --primary: #2e90fa;
-    --primary-dark: #1c6fd1;
-    --accent: #ff7043;
-    --accent-dark: #e85f30;
-    --line: #d3e5f8;
-    --chip-red: #ef5350;
-    --chip-orange: #ff7043;
-    --chip-teal: #26c6da;
-    --chip-purple: #7e57c2;
-  }
+  /* The app's own fonts, cut down to this page's glyphs (tool/subset_site_fonts.py). */
+  @font-face { font-family: 'GriunFromsol'; src: url(fonts/griun-fromsol.woff2) format('woff2'); font-display: swap; }
+  @font-face { font-family: 'GriunGyuwon'; src: url(fonts/griun-gyuwon.woff2) format('woff2'); font-display: swap; }
+  @font-face { font-family: 'OwnglyphParkDaHyun'; src: url(fonts/ownglyph-parkdahyun.woff2) format('woff2'); font-display: swap; }
 
+  :root {
+    --blue: #2373F4; --yellow: #FFD749; --purple: #705EFF;
+    --bg: #E8EFFE; --surface: #FFFFFF; --inset: #EEF3FF;
+    --ink: #1C2452; --muted: #5A6488;
+    --raised: 14px 16px 34px rgba(35,115,244,.16), inset -8px -10px 18px rgba(35,115,244,.09), inset 8px 8px 16px rgba(255,255,255,.95);
+    --raised-sm: 6px 8px 16px rgba(35,115,244,.15), inset -4px -5px 10px rgba(35,115,244,.10), inset 4px 4px 8px #fff;
+    --inset-sh: inset 6px 6px 12px rgba(35,115,244,.14), inset -6px -6px 12px rgba(255,255,255,.95);
+    --blue-sh: 6px 9px 18px rgba(35,115,244,.40), inset -5px -6px 12px rgba(8,40,120,.30), inset 5px 5px 10px rgba(255,255,255,.35);
+    --yellow-sh: 6px 9px 18px rgba(214,160,0,.30), inset -5px -6px 12px rgba(170,110,0,.22), inset 5px 5px 10px rgba(255,255,255,.6);
+    --purple-sh: 5px 7px 14px rgba(112,94,255,.38), inset -4px -5px 10px rgba(40,20,140,.30), inset 4px 4px 8px rgba(255,255,255,.35);
+    --glow: 0;
+  }
+  /* Dark: the app's "glowing clay". */
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #0b1526;
-      --bg-soft: #0e1c33;
-      --surface: #132238;
-      --ink: #eaf0f9;
-      --ink-muted: #93a3ba;
-      --primary: #5aa9ff;
-      --primary-dark: #7fbdff;
-      --accent: #ff8a5c;
-      --accent-dark: #ffa07d;
-      --line: #1f3557;
+      --bg: #0A0C14; --surface: #171B28; --inset: #0F121C; --ink: #F1F3FA; --muted: #A3AAC0;
+      --raised: 0 14px 30px rgba(0,0,0,.70), inset -6px -8px 14px rgba(0,0,0,.40), inset 6px 6px 12px rgba(255,255,255,.06);
+      --raised-sm: 0 6px 14px rgba(0,0,0,.65), inset -3px -4px 8px rgba(0,0,0,.35), inset 3px 3px 7px rgba(255,255,255,.06);
+      --inset-sh: inset 5px 5px 12px rgba(0,0,0,.65), inset -4px -4px 10px rgba(255,255,255,.04);
+      --blue-sh: 0 0 26px rgba(35,115,244,.6), 0 0 6px rgba(35,115,244,.5), inset -5px -6px 12px rgba(8,40,120,.35), inset 5px 5px 10px rgba(255,255,255,.30);
+      --yellow-sh: 0 0 26px rgba(255,215,73,.45), 0 0 6px rgba(255,215,73,.4), inset -5px -6px 12px rgba(170,110,0,.25), inset 5px 5px 10px rgba(255,255,255,.55);
+      --purple-sh: 0 0 24px rgba(112,94,255,.6), 0 0 6px rgba(112,94,255,.5), inset -4px -5px 10px rgba(40,20,140,.35), inset 4px 4px 8px rgba(255,255,255,.30);
+      --glow: 1;
     }
   }
-
   :root[data-theme="dark"] {
-    --bg: #0b1526;
-    --bg-soft: #0e1c33;
-    --surface: #132238;
-    --ink: #eaf0f9;
-    --ink-muted: #93a3ba;
-    --primary: #5aa9ff;
-    --primary-dark: #7fbdff;
-    --accent: #ff8a5c;
-    --accent-dark: #ffa07d;
-    --line: #1f3557;
+    --bg: #0A0C14; --surface: #171B28; --inset: #0F121C; --ink: #F1F3FA; --muted: #A3AAC0;
+    --raised: 0 14px 30px rgba(0,0,0,.70), inset -6px -8px 14px rgba(0,0,0,.40), inset 6px 6px 12px rgba(255,255,255,.06);
+    --raised-sm: 0 6px 14px rgba(0,0,0,.65), inset -3px -4px 8px rgba(0,0,0,.35), inset 3px 3px 7px rgba(255,255,255,.06);
+    --inset-sh: inset 5px 5px 12px rgba(0,0,0,.65), inset -4px -4px 10px rgba(255,255,255,.04);
+    --blue-sh: 0 0 26px rgba(35,115,244,.6), 0 0 6px rgba(35,115,244,.5), inset -5px -6px 12px rgba(8,40,120,.35), inset 5px 5px 10px rgba(255,255,255,.30);
+    --yellow-sh: 0 0 26px rgba(255,215,73,.45), 0 0 6px rgba(255,215,73,.4), inset -5px -6px 12px rgba(170,110,0,.25), inset 5px 5px 10px rgba(255,255,255,.55);
+    --purple-sh: 0 0 24px rgba(112,94,255,.6), 0 0 6px rgba(112,94,255,.5), inset -4px -5px 10px rgba(40,20,140,.35), inset 4px 4px 8px rgba(255,255,255,.30);
+    --glow: 1;
   }
 
   * { box-sizing: border-box; }
-
+  html { background: var(--bg); }
   body {
-    background: linear-gradient(180deg, var(--bg-soft), var(--bg) 40%);
-    color: var(--ink);
-    font-family: "Noto Sans KR", "Pretendard", -apple-system, sans-serif;
-    padding-inline: 20px;
-    padding-block: 56px 40px;
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: 'GriunFromsol', sans-serif; line-height: 1.6;
+    padding: 48px 20px 40px;
   }
+  a { color: inherit; }
+  :focus-visible { outline: 3px solid var(--purple); outline-offset: 3px; }
 
-  .wrap {
-    max-width: 880px;
-    margin: 0 auto;
-  }
+  .clay { background: var(--surface); border-radius: 32px; box-shadow: var(--raised); }
+  .clay-sm { background: var(--surface); box-shadow: var(--raised-sm); }
+  .clay-inset { background: var(--inset); box-shadow: var(--inset-sh); }
+  .clay-blue { background: var(--blue); color: #fff; box-shadow: var(--blue-sh); }
+  .clay-yellow { background: var(--yellow); color: #1C2452; box-shadow: var(--yellow-sh); }
+  .clay-purple { background: var(--purple); color: #fff; box-shadow: var(--purple-sh); }
+  .press { transition: transform .16s ease, box-shadow .16s ease; }
+  .press:hover { transform: translateY(-3px); }
+  .press:active { transform: translateY(1px) scale(.97); }
 
-  .hero {
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-  }
+  .wrap { max-width: 1040px; margin: 0 auto; }
 
-  .mascot {
-    width: 132px;
-    height: 132px;
-    margin-bottom: 4px;
-    filter: drop-shadow(0 10px 18px rgba(46, 144, 250, 0.25));
-  }
-
-  .brand {
-    font-family: "Gaegu", "Noto Sans KR", sans-serif;
-    font-weight: 700;
-    font-size: clamp(2.6rem, 8vw, 3.6rem);
-    display: inline-flex;
-    align-items: baseline;
-    gap: 8px;
-    color: var(--ink);
-    text-wrap: balance;
-  }
-
-  .brand .dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: var(--primary);
-    display: inline-block;
-    margin-bottom: 6px;
-    animation: blink 1.6s ease-in-out infinite;
-  }
-
-  @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.2; }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .brand .dot { animation: none; }
-  }
-
-  .tagline {
-    font-size: 1.05rem;
-    color: var(--ink-muted);
-    max-width: 34ch;
-    line-height: 1.6;
-    margin-top: 4px;
-  }
-
-  .cta-row {
-    margin-top: 26px;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 12px;
-  }
-
-  .cta {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    background: var(--accent);
-    color: #fff;
-    font-family: "Gaegu", sans-serif;
-    font-weight: 700;
-    font-size: 1.3rem;
-    padding: 16px 34px;
-    border-radius: 999px;
-    text-decoration: none;
-    box-shadow: 0 10px 24px rgba(255, 112, 67, 0.35);
-    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
-  }
-
-  .cta:hover {
-    background: var(--accent-dark);
-    transform: translateY(-2px);
-    box-shadow: 0 14px 28px rgba(255, 112, 67, 0.4);
-  }
-
-  .cta:active { transform: translateY(0); }
-
-  .cta-secondary {
-    background: var(--primary);
-    box-shadow: 0 10px 24px rgba(46, 144, 250, 0.35);
-  }
-
-  .cta-secondary:hover {
-    background: var(--primary-dark);
-    box-shadow: 0 14px 28px rgba(46, 144, 250, 0.4);
-  }
-
-  .meta {
-    margin-top: 12px;
-    font-size: 0.85rem;
-    color: var(--ink-muted);
-  }
-
-  .meta a {
-    color: var(--primary-dark);
-    text-decoration: none;
-    font-weight: 600;
-  }
+  /* hero */
+  .hero { display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .mascot { width: 128px; height: 128px; filter: drop-shadow(0 12px 18px rgba(35,115,244,.25)); }
+  .brand { margin: 6px 0 0; font-family: 'GriunGyuwon', sans-serif; font-weight: normal; font-size: clamp(3rem, 9vw, 4.4rem); line-height: 1.1; display: inline-flex; align-items: baseline; gap: 10px; }
+  .brand .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--yellow); display: inline-block; margin-bottom: 8px; animation: blink 1.6s ease-in-out infinite; box-shadow: var(--yellow-sh); }
+  @keyframes blink { 50% { opacity: .25; } }
+  .tagline { margin: 14px 0 0; font-size: 1.15rem; color: var(--muted); max-width: 30ch; text-wrap: balance; }
+  .cta-row { margin-top: 30px; display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; }
+  .cta { display: inline-flex; align-items: center; gap: 10px; padding: 16px 30px; border-radius: 999px; text-decoration: none; font-size: 1.2rem; }
+  .cta svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+  .meta { margin-top: 18px; font-family: 'OwnglyphParkDaHyun', sans-serif; font-size: .95rem; color: var(--muted); }
+  .meta a { color: var(--blue); text-decoration: none; }
+  :root[data-theme="dark"] .meta a { color: #7FB0FF; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .meta a { color: #7FB0FF; } }
   .meta a:hover { text-decoration: underline; }
 
-  .features {
-    margin-top: 64px;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 14px;
+  /* app preview: the real TODO screen, drawn in HTML */
+  .preview { margin-top: 56px; padding: 18px; }
+  .pv { display: grid; grid-template-columns: 56px minmax(0, 1fr) minmax(0, 1.6fr); gap: 16px; align-items: start; }
+  .pv-rail { display: flex; flex-direction: column; gap: 10px; }
+  .pv-rail span { width: 56px; height: 52px; border-radius: 18px; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+  .pv-rail span.on { color: #fff; }
+  .pv-rail svg, .ico { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .pv-card { padding: 16px; border-radius: 26px; }
+  .pv-month { text-align: center; font-family: 'GriunGyuwon', sans-serif; font-size: 1.1rem; }
+  .pv-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; margin-top: 8px; text-align: center; font-size: .78rem; }
+  .pv-grid .wd { color: var(--muted); }
+  .pv-day { min-height: 40px; border-radius: 12px; padding-top: 3px; }
+  .pv-day.now, .pv-day.sel { color: #fff; }
+  .pv-day i { display: block; height: 5px; margin: 3px 5px 0; border-radius: 3px; background: color-mix(in srgb, var(--c) 45%, transparent); }
+  .pv-day.now i, .pv-day.sel i { background: rgba(255,255,255,.85); }
+  .pv-date { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 16px; font-size: .95rem; }
+  .pv-date .ico { stroke: var(--blue); }
+  .pv-date small { margin-left: auto; font-family: 'OwnglyphParkDaHyun', sans-serif; color: var(--muted); font-size: .8rem; }
+  .pv-cats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
+  .pv-head { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 14px; border-radius: 18px; font-size: .9rem; background: color-mix(in srgb, var(--c) 16%, var(--surface)); }
+  .pv-head b { flex: 1; font-weight: normal; }
+  .pv-plus { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+  .pv-plus .ico { width: 14px; height: 14px; stroke-width: 2.6; }
+  .pv-todo { display: flex; align-items: center; gap: 10px; margin-top: 8px; padding: 5px 8px 5px 4px; border-radius: 18px; background: var(--surface); box-shadow: 5px 8px 16px color-mix(in srgb, var(--c) 38%, transparent), inset -3px -4px 8px rgba(0,0,0,.06), inset 3px 3px 7px rgba(255,255,255,.6); font-size: .9rem; }
+  .pv-todo .cat { position: relative; overflow: hidden; width: 36px; height: 26px; flex: 0 0 auto; }
+  .pv-todo .cat img { position: absolute; max-width: none; width: 64px; height: 64px; left: calc(18px - 64px * .4375); top: calc(13px - 64px * .506); }
+  .pv-todo .done { color: var(--muted); text-decoration: line-through; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); flex: 0 0 auto; }
+  /* dark: todo cards and category heads glow in their color */
+  :root[data-theme="dark"] .pv-todo { box-shadow: 0 0 18px color-mix(in srgb, var(--c) 42%, transparent), 0 0 3px color-mix(in srgb, var(--c) 55%, transparent), inset -3px -4px 8px rgba(0,0,0,.35), inset 3px 3px 7px rgba(255,255,255,.06); }
+  :root[data-theme="dark"] .pv-head { background: color-mix(in srgb, var(--c) 32%, #0A0C14); color: #fff; box-shadow: 0 0 16px color-mix(in srgb, var(--c) 30%, transparent); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .pv-todo { box-shadow: 0 0 18px color-mix(in srgb, var(--c) 42%, transparent), 0 0 3px color-mix(in srgb, var(--c) 55%, transparent), inset -3px -4px 8px rgba(0,0,0,.35), inset 3px 3px 7px rgba(255,255,255,.06); }
+    :root:not([data-theme="light"]) .pv-head { background: color-mix(in srgb, var(--c) 32%, #0A0C14); color: #fff; box-shadow: 0 0 16px color-mix(in srgb, var(--c) 30%, transparent); }
   }
-
-  @media (max-width: 640px) {
-    .features { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 760px) {
+    .pv { grid-template-columns: minmax(0, 1fr); }
+    .pv-rail, .pv-cal { display: none; }
   }
+  @media (max-width: 480px) { .pv-cats { grid-template-columns: minmax(0, 1fr); } }
 
-  .feature {
-    background: var(--surface);
-    border-radius: 20px;
-    padding: 20px 16px;
-    box-shadow: 0 8px 20px rgba(23, 38, 61, 0.06);
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
+  /* features */
+  .section-title { margin: 64px 0 20px; text-align: center; font-family: 'GriunGyuwon', sans-serif; font-weight: normal; font-size: 2rem; }
+  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+  /* Icon beside the heading, the text under both. */
+  .feature { padding: 22px 20px 24px; border-radius: 28px; display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 12px; align-items: center; align-content: start; }
+  .feature p { grid-column: 1 / -1; }
+  .feature .chip { width: 46px; height: 46px; border-radius: 16px; display: flex; align-items: center; justify-content: center; }
+  .feature .chip .ico { width: 22px; height: 22px; }
+  .feature h3 { margin: 0; font-family: 'GriunGyuwon', sans-serif; font-weight: normal; font-size: 1.35rem; }
+  .feature p { margin: 12px 0 0; font-size: .98rem; color: var(--muted); }
 
-  .feature .chip {
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1rem;
-  }
+  /* install */
+  .installs { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+  .install { padding: 26px clamp(18px, 4vw, 30px); }
+  .install h3 { margin: 0 0 16px; display: flex; align-items: center; gap: 10px; font-family: 'GriunGyuwon', sans-serif; font-weight: normal; font-size: 1.4rem; }
+  .install h3 .chip { width: 38px; height: 38px; border-radius: 14px; display: flex; align-items: center; justify-content: center; }
+  .install ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+  .install li { display: flex; gap: 12px; align-items: flex-start; }
+  .install li .n { flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'OwnglyphParkDaHyun', sans-serif; font-size: .95rem; }
+  .install code { font-family: 'OwnglyphParkDaHyun', sans-serif; padding: 1px 8px; border-radius: 8px; }
+  .note { margin-top: 18px; padding: 16px 18px; border-radius: 20px; font-size: .92rem; color: var(--muted); }
+  .note b { color: var(--ink); font-weight: normal; text-decoration: underline; text-decoration-color: var(--yellow); text-decoration-thickness: 3px; text-underline-offset: 3px; }
+  .note a { color: var(--blue); }
 
-  .feature h3 {
-    margin: 0;
-    font-family: "Gaegu", sans-serif;
-    font-size: 1.15rem;
-    font-weight: 700;
-  }
+  footer { margin-top: 56px; text-align: center; font-size: .92rem; color: var(--muted); }
 
-  .feature p {
-    margin: 0;
-    font-size: 0.85rem;
-    color: var(--ink-muted);
-    line-height: 1.55;
-  }
-
-  .steps {
-    margin-top: 56px;
-    background: var(--surface);
-    border-radius: 24px;
-    padding: 28px clamp(18px, 5vw, 36px);
-    box-shadow: 0 8px 24px rgba(23, 38, 61, 0.06);
-  }
-
-  .steps h2 {
-    font-family: "Gaegu", sans-serif;
-    font-size: 1.4rem;
-    margin: 0 0 18px;
-  }
-
-  .steps ol {
-    margin: 0;
-    padding-left: 1.3em;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    font-size: 0.95rem;
-    line-height: 1.6;
-  }
-
-  .steps code {
-    background: var(--bg-soft);
-    border-radius: 6px;
-    padding: 2px 6px;
-    font-size: 0.88em;
-  }
-
-  .note {
-    margin-top: 14px;
-    font-size: 0.82rem;
-    color: var(--ink-muted);
-    border-top: 1px dashed var(--line);
-    padding-top: 14px;
-    line-height: 1.6;
-  }
-
-  footer {
-    margin-top: 48px;
-    text-align: center;
-    font-size: 0.82rem;
-    color: var(--ink-muted);
-  }
-
-  footer a {
-    color: var(--ink-muted);
-    text-decoration: underline;
+  @media (prefers-reduced-motion: reduce) {
+    .press, .press:hover, .press:active { transform: none; transition: none; }
+    .brand .dot { animation: none; }
   }
 </style>
-
 <div class="wrap">
-  <div class="hero">
+  <header class="hero">
     <img class="mascot" src="cat.png" alt="TODO on 마스코트 고양이" />
-    <div class="brand">TODO on<span class="dot"></span></div>
+    <h1 class="brand">TODO on<span class="dot" aria-hidden="true"></span></h1>
     <p class="tagline">친구들끼리 가볍게 쓰는 할 일 관리 앱. 카테고리, 캘린더, 습관, 일기, 그리고 친구의 오늘까지 한 곳에서.</p>
 
     <div class="cta-row">
-      <a class="cta" href="https://github.com/dhwld-n/todo-on/releases/latest/download/TODOon-Setup.exe">
-        ⬇ Windows용 다운로드
+      <a class="cta clay-blue press" href="https://github.com/dhwld-n/todo-on/releases/latest/download/TODOon-Setup.exe">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>
+        Windows용 다운로드
       </a>
-      <a id="android-apk" class="cta cta-secondary" href="https://github.com/dhwld-n/todo-on/releases/latest/download/TODOon.apk">
-        ⬇ Android용 다운로드
+      <a id="android-apk" class="cta clay-yellow press" href="https://github.com/dhwld-n/todo-on/releases/latest/download/TODOon.apk">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>
+        Android용 다운로드
       </a>
     </div>
     <p class="meta">v1.6.93 · 둘 다 항상 최신 버전 · Windows 약 19MB · Android 약 65MB · <a href="https://github.com/dhwld-n/todo-on/releases/latest/download/TODOon-windows.zip">압축파일(zip)로 받기</a> · <a href="https://github.com/dhwld-n/todo-on" target="_blank" rel="noopener">GitHub에서 보기</a></p>
-  </div>
+  </header>
 
+  <!-- The app's TODO screen, drawn in HTML so it follows the page's light/dark. -->
+  <figure class="clay preview" style="margin-inline:0" aria-label="TODO on 앱 화면 미리보기">
+    <div class="pv" aria-hidden="true">
+      <div class="pv-rail">
+        <span class="clay-blue on"><svg viewBox="0 0 24 24"><path d="M4 7l2 2 4-4M4 16l2 2 4-4M14 8h7M14 17h7"/></svg></span>
+        <span class="clay-sm"><svg viewBox="0 0 24 24"><path d="M3 4h18v4H3zM5 8v12h14V8M10 12h4"/></svg></span>
+        <span class="clay-sm"><svg viewBox="0 0 24 24"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21v-1a6 6 0 0 1 12 0v1M16 3.5a4 4 0 0 1 0 7.5M22 21v-1a6 6 0 0 0-4-5.6"/></svg></span>
+        <span class="clay-sm"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1.2-4.6A8 8 0 1 1 21 12z"/></svg></span>
+        <span class="clay-sm"><svg viewBox="0 0 24 24"><path d="M2 5h7a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H2zM22 5h-7a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h8z"/></svg></span>
+        <span class="clay-sm"><svg viewBox="0 0 24 24"><path d="M12 22a7 7 0 0 0 7-7c0-4-3-6-4-10-2 2-3 4-3 6-1-1-2-2-2-4-2 2-5 5-5 8a7 7 0 0 0 7 7z"/></svg></span>
+      </div>
+      <div class="clay pv-card pv-cal">
+        <div class="pv-month">2026년 11월</div>
+        <div class="pv-grid" id="pv-grid"></div>
+      </div>
+      <div class="clay pv-card">
+        <div class="pv-date clay-inset">
+          <svg class="ico" viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM16 2v4M8 2v4M3 10h18"/></svg>
+          2026년 11월 12일 <small>1 / 4 완료</small>
+        </div>
+        <div class="pv-cats">
+          <div style="--c:#705EFF">
+            <div class="pv-head clay-sm" style="background:color-mix(in srgb, var(--c) 16%, var(--surface))"><span class="dot"></span><b>ETC</b><span class="pv-plus clay-sm"><svg class="ico" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></div>
+            <div class="pv-todo"><span class="cat"><img src="cat-todo.png" alt=""></span>영어 단어 50개</div>
+            <div class="pv-todo"><span class="cat"><img src="cat-todo-done.png" alt=""></span><span class="done">점심 부리또!</span></div>
+          </div>
+          <div style="--c:#2373F4">
+            <div class="pv-head clay-sm" style="background:color-mix(in srgb, var(--c) 16%, var(--surface))"><span class="dot"></span><b>운동</b><span class="pv-plus clay-sm"><svg class="ico" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></div>
+            <div class="pv-todo"><span class="cat"><img src="cat-todo.png" alt=""></span>헬스</div>
+          </div>
+          <div style="--c:#FFD749">
+            <div class="pv-head clay-sm" style="background:color-mix(in srgb, var(--c) 16%, var(--surface))"><span class="dot"></span><b>공부</b><span class="pv-plus clay-sm"><svg class="ico" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></div>
+            <div class="pv-todo"><span class="cat"><img src="cat-todo.png" alt=""></span>알고리즘 2문제</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <h2 class="section-title">이런 걸 할 수 있어요</h2>
   <div class="features">
-    <div class="feature">
-      <div class="chip" style="background: color-mix(in srgb, var(--chip-red) 16%, transparent);">🗂️</div>
+    <div class="feature clay">
+      <div class="chip clay-blue"><svg class="ico" viewBox="0 0 24 24"><path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L2 12V2h10l8.6 8.6a2 2 0 0 1 0 2.8zM7 7h.01"/></svg></div>
       <h3>카테고리</h3>
       <p>할 일을 카테고리별로 나눠서 관리하고, 드래그로 순서나 카테고리를 바로 옮길 수 있어요. 요일이나 날짜마다 반복하는 할 일은 그날 알아서 떠요.</p>
     </div>
-    <div class="feature">
-      <div class="chip" style="background: color-mix(in srgb, var(--primary) 16%, transparent);">📅</div>
+    <div class="feature clay">
+      <div class="chip clay-purple"><svg class="ico" viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM16 2v4M8 2v4M3 10h18"/></svg></div>
       <h3>캘린더</h3>
       <p>날짜별 할 일이 캘린더 칸 안에 바로 보이고, 공휴일도 자동으로 표시돼요.</p>
     </div>
-    <div class="feature">
-      <div class="chip" style="background: color-mix(in srgb, #ff8a3d 16%, transparent);">🔥</div>
+    <div class="feature clay">
+      <div class="chip clay-yellow"><svg class="ico" viewBox="0 0 24 24"><path d="M12 22a7 7 0 0 0 7-7c0-4-3-6-4-10-2 2-3 4-3 6-1-1-2-2-2-4-2 2-5 5-5 8a7 7 0 0 0 7 7z"/></svg></div>
       <h3>습관</h3>
       <p>매일 하는 습관을 체크하고 연속 달성일과 활동 지도로 한눈에 확인해요.</p>
     </div>
-    <div class="feature">
-      <div class="chip" style="background: color-mix(in srgb, var(--chip-purple) 16%, transparent);">📖</div>
+    <div class="feature clay">
+      <div class="chip clay-purple"><svg class="ico" viewBox="0 0 24 24"><path d="M2 5h7a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H2zM22 5h-7a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h8z"/></svg></div>
       <h3>일기</h3>
       <p>날짜별로 자유롭게 쓰는 나만의 일기장, 그리고 친구 한 명과 함께 쓰는 교환일기까지.</p>
     </div>
-    <div class="feature">
-      <div class="chip" style="background: color-mix(in srgb, var(--chip-teal) 16%, transparent);">🐾</div>
+    <div class="feature clay">
+      <div class="chip clay-yellow"><svg class="ico" viewBox="0 0 24 24"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21v-1a6 6 0 0 1 12 0v1M16 3.5a4 4 0 0 1 0 7.5M22 21v-1a6 6 0 0 0-4-5.6"/></svg></div>
       <h3>친구</h3>
       <p>아이디·닉네임으로 검색하거나 친구 코드로 친구를 추가하면 서로 자동으로 연결돼요. 캘린더로 날짜를 넘겨가며 친구의 할 일을 볼 수 있어요 (비공개로 해둔 카테고리·할 일은 제외).</p>
     </div>
-    <div class="feature">
-      <div class="chip" style="background: color-mix(in srgb, var(--primary) 16%, transparent);">💬</div>
+    <div class="feature clay">
+      <div class="chip clay-blue"><svg class="ico" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1.2-4.6A8 8 0 1 1 21 12z"/></svg></div>
       <h3>채팅</h3>
       <p>친구 화면에서 바로 1:1 채팅을 나눌 수 있어요.</p>
     </div>
   </div>
 
-  <div class="steps">
-    <h2>설치 방법</h2>
-    <ol>
-      <li>위 버튼으로 <code>TODOon-Setup.exe</code>를 받아요.</li>
-      <li>실행해서 안내대로 설치해요 (바탕화면 아이콘 만들기 체크 가능).</li>
-      <li>설치 끝나면 자동으로 앱이 열려요. 닉네임/이메일로 회원가입하면 끝!</li>
-    </ol>
-    <p class="note">Windows가 "알 수 없는 게시자" 경고를 띄우면 <b>추가 정보 → 실행</b>을 눌러주세요. 서명되지 않은 개인 배포 앱이라 나오는 정상적인 안내예요. <b>크롬이나 엣지가 다운로드 자체를 "위험한 파일"이라며 막으면</b>, 화면 아래 다운로드 알림 옆의 <b>⌄ 또는 ... 버튼 → 계속 유지/다운로드 유지</b>를 눌러주세요. 서명 인증서가 없는 개인 배포 프로그램이라 생기는 오탐이에요. 그래도 막히면 <a href="https://github.com/dhwld-n/todo-on/releases/latest/download/TODOon-windows.zip">압축파일(zip)</a>로 받아보세요. 실행 파일이 아니라 이런 차단이 덜해요 (압축을 푼 뒤 <code>todo_on.exe</code>를 실행하면 돼요). 이후 새 버전이 나오면 앱 안의 업데이트 알림에서 <b>지금 업데이트</b>를 누르는 것만으로 자동으로 받아서 설치돼요.</p>
-  </div>
-
-  <div class="steps">
-    <h2>안드로이드 설치 방법</h2>
-    <ol>
-      <li>폰에서 이 페이지 열고 <b>Android용 다운로드</b> 버튼으로 apk 파일(<code>TODOon-버전.apk</code>)을 받아요.</li>
-      <li>다운로드한 파일을 눌러서 설치해요. "출처를 알 수 없는 앱" 경고가 뜨면 <b>설정 → 허용</b> 후 다시 설치를 눌러주세요.</li>
-      <li>설치 끝나면 앱을 열고 닉네임/이메일로 회원가입하면 끝!</li>
-    </ol>
-    <p class="note">새 버전이 나오면 앱 안의 업데이트 알림에서 <b>지금 업데이트</b>를 누르면 앱이 직접 받아서 설치 화면을 띄워줘요. <b>업데이트</b>만 누르면 끝 (처음 한 번은 "출처를 알 수 없는 앱" 허용이 필요해요, 기존 데이터는 그대로 유지돼요). v1.6.48 이하에서는 이 페이지에서 한 번만 직접 받아 설치해주세요.</p>
+  <h2 class="section-title">설치 방법</h2>
+  <div class="installs">
+    <section class="install clay">
+      <h3><span class="chip clay-blue"><svg class="ico" viewBox="0 0 24 24"><path d="M3 5l8-1v8H3zM13 3.8 21 3v9h-8zM3 13h8v7l-8-1zM13 13h8v8l-8-1z"/></svg></span>Windows</h3>
+      <ol>
+        <li><span class="n clay-sm">1</span><span>위 버튼으로 <code class="clay-inset">TODOon-Setup.exe</code>를 받아요.</span></li>
+        <li><span class="n clay-sm">2</span><span>실행해서 안내대로 설치해요 (바탕화면 아이콘 만들기 체크 가능).</span></li>
+        <li><span class="n clay-sm">3</span><span>설치 끝나면 자동으로 앱이 열려요. 닉네임/이메일로 회원가입하면 끝!</span></li>
+      </ol>
+      <p class="note clay-inset">Windows가 "알 수 없는 게시자" 경고를 띄우면 <b>추가 정보 → 실행</b>을 눌러주세요. 서명되지 않은 개인 배포 앱이라 나오는 정상적인 안내예요. <b>크롬이나 엣지가 다운로드 자체를 "위험한 파일"이라며 막으면</b>, 화면 아래 다운로드 알림 옆의 <b>⌄ 또는 ... 버튼 → 계속 유지/다운로드 유지</b>를 눌러주세요. 서명 인증서가 없는 개인 배포 프로그램이라 생기는 오탐이에요. 그래도 막히면 <a href="https://github.com/dhwld-n/todo-on/releases/latest/download/TODOon-windows.zip">압축파일(zip)</a>로 받아보세요. 실행 파일이 아니라 이런 차단이 덜해요 (압축을 푼 뒤 <code class="clay-inset">todo_on.exe</code>를 실행하면 돼요). 이후 새 버전이 나오면 앱 안의 업데이트 알림에서 <b>지금 업데이트</b>를 누르는 것만으로 자동으로 받아서 설치돼요.</p>
+    </section>
+    <section class="install clay">
+      <h3><span class="chip clay-yellow"><svg class="ico" viewBox="0 0 24 24"><path d="M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM11 18h2"/></svg></span>Android</h3>
+      <ol>
+        <li><span class="n clay-sm">1</span><span>폰에서 이 페이지 열고 <b style="font-weight:normal">Android용 다운로드</b> 버튼으로 apk 파일(<code class="clay-inset">TODOon-버전.apk</code>)을 받아요.</span></li>
+        <li><span class="n clay-sm">2</span><span>다운로드한 파일을 눌러서 설치해요. "출처를 알 수 없는 앱" 경고가 뜨면 설정 → 허용 후 다시 설치를 눌러주세요.</span></li>
+        <li><span class="n clay-sm">3</span><span>설치 끝나면 앱을 열고 닉네임/이메일로 회원가입하면 끝!</span></li>
+      </ol>
+      <p class="note clay-inset">새 버전이 나오면 앱 안의 업데이트 알림에서 <b>지금 업데이트</b>를 누르면 앱이 직접 받아서 설치 화면을 띄워줘요. <b>업데이트</b>만 누르면 끝 (처음 한 번은 "출처를 알 수 없는 앱" 허용이 필요해요, 기존 데이터는 그대로 유지돼요). v1.6.48 이하에서는 이 페이지에서 한 번만 직접 받아 설치해주세요.</p>
+    </section>
   </div>
 
   <footer>
     Flutter + Firebase로 만든 개인 프로젝트예요 · <a href="https://github.com/dhwld-n/todo-on" target="_blank" rel="noopener">소스 코드 보기</a>
   </footer>
 </div>
+
 <script>
+// Calendar in the preview: today (9th) purple, the selected day (12th) blue.
+(function () {
+  var g = document.getElementById('pv-grid');
+  var html = '일월화수목금토'.split('').map(function (d) { return '<span class="wd">' + d + '</span>'; }).join('');
+  var marks = { 3: '#2373F4', 5: '#2373F4', 9: '#2373F4', 12: '#705EFF', 16: '#2373F4', 20: '#FFD749', 24: '#FFD749' };
+  for (var i = 1; i <= 35; i++) {
+    var cls = i === 9 ? ' now clay-purple' : i === 12 ? ' sel clay-blue' : '';
+    html += '<span class="pv-day' + cls + '">' + (i <= 30 ? i : '') + (marks[i] ? '<i style="--c:' + marks[i] + '"></i>' : '') + '</span>';
+  }
+  g.innerHTML = html;
+})();
+
 // Point the Android button at this release's own versioned apk: the fixed
 // TODOon.apk name collides with an earlier download on the phone, and the
 // browser then opens that old file. If this fails the fixed link stays.
