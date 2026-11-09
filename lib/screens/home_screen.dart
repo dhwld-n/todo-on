@@ -743,13 +743,7 @@ class _DayTodos extends ConsumerWidget {
     return Column(
       children: [
         if (date != null)
-          _DateBar(
-            date: date,
-            dayTodos: [
-              for (final t in todosAsync.value ?? const <TodoItem>[])
-                if (t.dueDate != null && isSameDay(t.dueDate!, date)) t,
-            ],
-          ),
+          _DateBar(date: date),
         Expanded(
           child: todosAsync.when(
             data: (todos) => categoriesAsync.when(
@@ -854,16 +848,14 @@ class _DayTodos extends ConsumerWidget {
   }
 }
 
-/// The selected day, pressed into the card, with how much of it is done.
+/// The selected day, pressed into the card.
 class _DateBar extends StatelessWidget {
   final DateTime date;
-  final List<TodoItem> dayTodos;
 
-  const _DateBar({required this.date, required this.dayTodos});
+  const _DateBar({required this.date});
 
   @override
   Widget build(BuildContext context) {
-    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
       child: Clay(
@@ -885,16 +877,6 @@ class _DateBar extends StatelessWidget {
                 style: const TextStyle(fontSize: 16),
               ),
             ),
-            if (dayTodos.isNotEmpty)
-              Text(
-                '${dayTodos.where((t) => t.isDone).length} / '
-                '${dayTodos.length} 완료',
-                style: TextStyle(
-                  fontFamily: 'OwnglyphParkDaHyun',
-                  fontSize: 13,
-                  color: muted,
-                ),
-              ),
           ],
         ),
       ),
