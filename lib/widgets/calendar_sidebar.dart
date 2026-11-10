@@ -235,37 +235,41 @@ class CalendarSidebar extends ConsumerWidget {
           const SizedBox(height: 2),
           for (final todo in events.take(_kMaxChipsPerDay))
             // A tint of its category; a done one fades and is struck out.
-            Opacity(
-              opacity: todo.isDone ? 0.55 : 1,
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: BoxDecoration(
-                  color: filled
-                      ? colorScheme.surface
-                      : Color.alphaBlend(
-                          Color(
-                            categoriesById[todo.categoryId]?.colorValue ??
-                                0xFF9AA5B1,
-                          ).withValues(
-                            alpha:
-                                Theme.of(context).brightness == Brightness.dark
-                                ? 0.32
-                                : 0.2,
-                          ),
-                          colorScheme.surface,
-                        ),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  todo.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 8.5,
-                    color: colorScheme.onSurface,
-                    decoration: todo.isDone ? TextDecoration.lineThrough : null,
+            // Faded through its colors, not an Opacity: that's an offscreen
+            // pass per chip on every frame.
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                color:
+                    (filled
+                            ? colorScheme.surface
+                            : Color.alphaBlend(
+                                Color(
+                                  categoriesById[todo.categoryId]?.colorValue ??
+                                      0xFF9AA5B1,
+                                ).withValues(
+                                  alpha:
+                                      Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? 0.32
+                                      : 0.2,
+                                ),
+                                colorScheme.surface,
+                              ))
+                        .withValues(alpha: todo.isDone ? 0.55 : 1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                todo.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 8.5,
+                  color: colorScheme.onSurface.withValues(
+                    alpha: todo.isDone ? 0.55 : 1,
                   ),
+                  decoration: todo.isDone ? TextDecoration.lineThrough : null,
                 ),
               ),
             ),

@@ -37,6 +37,8 @@ class CatCheckbox extends StatelessWidget {
             todoCheckboxAsset(isDone),
             width: kTodoCheckboxSize,
             height: kTodoCheckboxSize,
+            // The png is 2048x2048: decoded whole it's a 16MB texture.
+            cacheWidth: 256,
           ),
         ),
       ),

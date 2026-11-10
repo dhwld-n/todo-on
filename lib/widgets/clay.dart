@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 
@@ -8,8 +11,7 @@ enum ClayDepth { raised, inset }
 
 /// A soft, rounded "clay" surface: an outer drop shadow plus inner light
 /// (top-left) and shade (bottom-right), so it reads as a puffy 3D blob.
-/// Flutter's BoxShadow can't draw inner shadows, so those are painted by
-/// [_InnerShadowPainter] under the child.
+/// Painted by [_ClayPainter] under the child.
 class Clay extends StatelessWidget {
   final Widget? child;
   final double radius;
@@ -117,25 +119,18 @@ class Clay extends StatelessWidget {
             _Inner(light, Offset(7 * s, 7 * s), 14 * s),
             _Inner(shade, Offset(-7 * s, -8 * s), 16 * s),
           ];
-    final borderRadius = shape == BoxShape.circle
-        ? null
-        : BorderRadius.circular(radius);
-    return Container(
+    return SizedBox(
       width: width,
       height: height,
-      decoration: BoxDecoration(
-        color: fill,
-        shape: shape,
-        borderRadius: borderRadius,
-        boxShadow: outer,
-      ),
       child: CustomPaint(
-        painter: _InnerShadowPainter(
-          inner,
-          shape == BoxShape.circle ? null : radius,
+        painter: _ClayPainter(
+          fill: fill,
+          outer: outer,
+          inner: inner,
+          radius: shape == BoxShape.circle ? null : radius,
+          pixelRatio: MediaQuery.devicePixelRatioOf(context),
         ),
-        // Its own layer: a ripple or a blinking child repaints only itself,
-        // not the blurred shading under it (or every card beside it).
+        // Its own layer: a ripple or a blinking child repaints only itself.
         child: RepaintBoundary(
           child: padding == null
               ? child
@@ -164,25 +159,104 @@ class _Inner {
   int get hashCode => Object.hash(color, offset, blur);
 }
 
-/// Inner shadows: clipped to the shape, a blurred ring around it, shifted.
-class _InnerShadowPainter extends CustomPainter {
-  final List<_Inner> shadows;
+/// Paints a clay surface: its drop shadow, fill and inner shading.
+///
+/// Every one of those is a blur, and Android's renderer (Impeller) keeps no
+/// raster cache: it re-ran all of them on every frame, ~40 surfaces' worth,
+/// which took ~560ms a frame on the emulator. So each look is blurred once
+/// into a small image (a "skin": the four corners around a flat middle) and
+/// from then on drawn as a nine-patch stretched to the surface's size.
+class _ClayPainter extends CustomPainter {
+  final Color fill;
+  final List<BoxShadow> outer;
+  final List<_Inner> inner;
 
   /// Corner radius; null for a circle.
   final double? radius;
+  final double pixelRatio;
 
-  const _InnerShadowPainter(this.shadows, this.radius);
+  const _ClayPainter({
+    required this.fill,
+    required this.outer,
+    required this.inner,
+    required this.radius,
+    required this.pixelRatio,
+  });
+
+  // A few dozen looks at most (colors x sizes of corner); category tints
+  // are the only open-ended part, hence the cap.
+  static final _skins = <Object, _Skin>{};
+  static const _maxSkins = 96;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    final rrect = radius == null
-        ? RRect.fromRectAndRadius(rect, Radius.circular(size.shortestSide / 2))
-        : RRect.fromRectAndRadius(rect, Radius.circular(radius!));
-    final shape = Path()..addRRect(rrect);
+    if (size.isEmpty) return;
+    final half = size.shortestSide / 2;
+    // Halves of a pixel, so pills a hair apart in height share a skin.
+    final r = (math.min(radius ?? half, half) * 2).round() / 2;
+    // A corner patch has to hold the curve, the inner shading's reach, and
+    // enough of a run for the drop shadow to come up to full strength.
+    var corner = r;
+    for (final s in inner) {
+      corner = math.max(corner, s.offset.distance + s.blur);
+    }
+    var margin = 0.0;
+    for (final s in outer) {
+      corner = math.max(corner, s.blurRadius * 1.2);
+      margin = math.max(margin, s.offset.distance + s.blurRadius * 1.6);
+    }
+    corner = math.min(corner.ceilToDouble(), (half * 2).floor() / 2);
+    margin = margin.ceilToDouble();
+
+    final key = Object.hash(
+      fill,
+      Object.hashAll(outer),
+      Object.hashAll(inner),
+      r,
+      corner,
+      pixelRatio,
+    );
+    final skin = _skins[key] ??= _makeSkin(r, corner, margin);
+
     canvas.save();
+    // The skin is in physical pixels; a nine-patch's corners draw 1:1.
+    canvas.scale(1 / pixelRatio);
+    canvas.drawImageNine(
+      skin.image,
+      skin.center,
+      Rect.fromLTRB(
+        -margin * pixelRatio,
+        -margin * pixelRatio,
+        (size.width + margin) * pixelRatio,
+        (size.height + margin) * pixelRatio,
+      ),
+      Paint()..filterQuality = FilterQuality.low,
+    );
+    canvas.restore();
+  }
+
+  _Skin _makeSkin(double r, double corner, double margin) {
+    if (_skins.length >= _maxSkins) {
+      for (final s in _skins.values) {
+        s.image.dispose();
+      }
+      _skins.clear();
+    }
+    // Two corners and three flat pixels between them; the middle one is
+    // what stretches, so filtering never reaches into a corner.
+    final side = corner * 2 + 3;
+    final rect = Rect.fromLTWH(margin, margin, side, side);
+    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(r));
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder)..scale(pixelRatio);
+    for (final s in outer) {
+      canvas.drawRRect(rrect.shift(s.offset), s.toPaint());
+    }
+    canvas.drawRRect(rrect, Paint()..color = fill);
+    // Inner shadows: clipped to the shape, a blurred ring around it, shifted.
     canvas.clipRRect(rrect);
-    for (final s in shadows) {
+    final shape = Path()..addRRect(rrect);
+    for (final s in inner) {
       final ring = Path()
         ..fillType = PathFillType.evenOdd
         ..addRect(rect.inflate(s.blur * 3 + s.offset.distance))
@@ -194,12 +268,30 @@ class _InnerShadowPainter extends CustomPainter {
           ..maskFilter = MaskFilter.blur(BlurStyle.normal, s.blur / 2),
       );
     }
-    canvas.restore();
+    final pixels = ((side + margin * 2) * pixelRatio).ceil();
+    final picture = recorder.endRecording();
+    final image = picture.toImageSync(pixels, pixels);
+    picture.dispose();
+    final mid = (margin + corner + 1) * pixelRatio;
+    return _Skin(image, Rect.fromLTWH(mid, mid, pixelRatio, pixelRatio));
   }
 
   @override
-  bool shouldRepaint(_InnerShadowPainter old) =>
-      old.radius != radius || !listEquals(old.shadows, shadows);
+  bool shouldRepaint(_ClayPainter old) =>
+      old.fill != fill ||
+      old.radius != radius ||
+      old.pixelRatio != pixelRatio ||
+      !listEquals(old.outer, outer) ||
+      !listEquals(old.inner, inner);
+}
+
+class _Skin {
+  final ui.Image image;
+
+  /// The pixel of [image] that stretches, in its own pixels.
+  final Rect center;
+
+  const _Skin(this.image, this.center);
 }
 
 /// A round clay button holding one icon (app bar actions, chevrons, +).
