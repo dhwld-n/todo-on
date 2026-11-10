@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
@@ -133,9 +134,13 @@ class Clay extends StatelessWidget {
           inner,
           shape == BoxShape.circle ? null : radius,
         ),
-        child: padding == null
-            ? child
-            : Padding(padding: padding!, child: child),
+        // Its own layer: a ripple or a blinking child repaints only itself,
+        // not the blurred shading under it (or every card beside it).
+        child: RepaintBoundary(
+          child: padding == null
+              ? child
+              : Padding(padding: padding!, child: child),
+        ),
       ),
     );
   }
@@ -147,6 +152,16 @@ class _Inner {
   final double blur;
 
   const _Inner(this.color, this.offset, this.blur);
+
+  @override
+  bool operator ==(Object other) =>
+      other is _Inner &&
+      other.color == color &&
+      other.offset == offset &&
+      other.blur == blur;
+
+  @override
+  int get hashCode => Object.hash(color, offset, blur);
 }
 
 /// Inner shadows: clipped to the shape, a blurred ring around it, shifted.
@@ -161,13 +176,12 @@ class _InnerShadowPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
-    final shape = radius == null
-        ? (Path()..addOval(rect))
-        : (Path()..addRRect(
-            RRect.fromRectAndRadius(rect, Radius.circular(radius!)),
-          ));
+    final rrect = radius == null
+        ? RRect.fromRectAndRadius(rect, Radius.circular(size.shortestSide / 2))
+        : RRect.fromRectAndRadius(rect, Radius.circular(radius!));
+    final shape = Path()..addRRect(rrect);
     canvas.save();
-    canvas.clipPath(shape);
+    canvas.clipRRect(rrect);
     for (final s in shadows) {
       final ring = Path()
         ..fillType = PathFillType.evenOdd
@@ -185,7 +199,7 @@ class _InnerShadowPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_InnerShadowPainter old) =>
-      old.radius != radius || old.shadows != shadows;
+      old.radius != radius || !listEquals(old.shadows, shadows);
 }
 
 /// A round clay button holding one icon (app bar actions, chevrons, +).

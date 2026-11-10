@@ -18,10 +18,15 @@ Future<void> showAddEditTodoSheet(
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
-    builder: (_) => AddEditTodoSheet(
-      existing: existing,
-      initialDate: initialDate,
-      initialCategoryId: initialCategoryId,
+    // The keyboard's room is added out here: only this padding follows the
+    // keyboard frame by frame, not the whole form.
+    builder: (context) => Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: AddEditTodoSheet(
+        existing: existing,
+        initialDate: initialDate,
+        initialCategoryId: initialCategoryId,
+      ),
     ),
   );
 }
@@ -357,12 +362,7 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-      ),
+      padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 20),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,

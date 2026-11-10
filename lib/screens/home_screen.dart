@@ -32,16 +32,15 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedDate = ref.watch(selectedDateProvider);
-    final isWide = MediaQuery.of(context).size.width >= _kCalendarBreakpoint;
+    // sizeOf, not of(): of() also rebuilds this whole screen on every frame
+    // of the soft keyboard sliding in.
+    final isWide = MediaQuery.sizeOf(context).width >= _kCalendarBreakpoint;
     final themeMode = ref.watch(themeModeProvider);
     final isDark = themeMode == ThemeMode.dark;
     final mode = ref.watch(contentModeProvider);
     final activeDate = selectedDate ?? DateTime.now();
     final calendarExpanded = ref.watch(mobileCalendarExpandedProvider);
     final isAndroid = ref.watch(isAndroidPlatformProvider);
-    // Read here, above the Scaffold: it strips the keyboard inset out of the
-    // MediaQuery its body sees.
-    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     return Scaffold(
       bottomNavigationBar: isAndroid ? const _ModeBottomNav() : null,
@@ -135,10 +134,12 @@ class HomeScreen extends ConsumerWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (!keyboardOpen) ...[
-                    const ProfileHeader(),
-                    const SizedBox(height: 12),
-                  ],
+                  const _HiddenWhileTyping(
+                    child: Padding(
+                      padding: EdgeInsets.only(bottom: 12),
+                      child: ProfileHeader(),
+                    ),
+                  ),
                   Expanded(
                     child: showCalendarFirst
                         ? _DashboardCard(
@@ -203,6 +204,55 @@ class HomeScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// [child], or nothing while the soft keyboard is up. Rebuilds only when the
+/// keyboard comes or goes, not on every frame of it sliding, and only this,
+/// not the screen around it.
+class _HiddenWhileTyping extends StatefulWidget {
+  final Widget child;
+
+  const _HiddenWhileTyping({required this.child});
+
+  @override
+  State<_HiddenWhileTyping> createState() => _HiddenWhileTypingState();
+}
+
+class _HiddenWhileTypingState extends State<_HiddenWhileTyping>
+    with WidgetsBindingObserver {
+  var _typing = false;
+
+  // The Scaffold strips the keyboard inset out of its body's MediaQuery, so
+  // ask the view itself.
+  bool _keyboardUp() => View.of(context).viewInsets.bottom > 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _typing = _keyboardUp();
+  }
+
+  @override
+  void didChangeMetrics() {
+    final typing = _keyboardUp();
+    if (typing != _typing) setState(() => _typing = typing);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      _typing ? const SizedBox.shrink() : widget.child;
 }
 
 void _showDayTodosSheet(BuildContext context) {
