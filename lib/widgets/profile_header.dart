@@ -110,25 +110,30 @@ class ProfileHeader extends ConsumerWidget {
         ),
       ),
     );
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        card,
-        Positioned(
-          top: -9,
-          left: 34,
-          child: IgnorePointer(
-            child: Transform.rotate(
-              angle: -0.05,
-              child: Container(
-                width: 74,
-                height: 18,
-                color: Diary.edge(context).withValues(alpha: 0.22),
+    // Room above for the tape: the card sits first in a scroll view (or a
+    // column under the app bar) that clips anything poking out of it.
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          card,
+          Positioned(
+            top: -9,
+            left: 34,
+            child: IgnorePointer(
+              child: Transform.rotate(
+                angle: -0.05,
+                child: Container(
+                  width: 74,
+                  height: 18,
+                  color: Diary.edge(context).withValues(alpha: 0.22),
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
