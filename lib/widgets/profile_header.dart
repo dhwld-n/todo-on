@@ -7,8 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
 
 import '../providers/providers.dart';
-import '../theme/app_theme.dart';
-import 'clay.dart';
+import 'paper.dart';
 import 'manage_categories_sheet.dart' show kCategoryColors;
 import 'photo_crop_dialog.dart';
 
@@ -34,11 +33,10 @@ class ProfileHeader extends ConsumerWidget {
     final photoBase64 = profile?['photoBase64'] as String?;
     final initial = displayText.isNotEmpty ? displayText[0] : '?';
 
-    return Clay(
-      radius: 28,
+    final card = Paper(
       child: Material(
         type: MaterialType.transparency,
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(13),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => showDialog(
@@ -58,17 +56,15 @@ class ProfileHeader extends ConsumerWidget {
                         radius: 22,
                         backgroundImage: MemoryImage(base64Decode(photoBase64)),
                       )
-                    : Clay(
+                    : Paper(
                         small: true,
                         shape: BoxShape.circle,
-                        color: kClayPurple,
                         width: 44,
                         height: 44,
                         child: Center(
                           child: Text(
                             initial,
                             style: const TextStyle(
-                              color: Colors.white,
                               fontSize: 17,
                               fontWeight: FontWeight.w700,
                             ),
@@ -113,6 +109,26 @@ class ProfileHeader extends ConsumerWidget {
           ),
         ),
       ),
+    );
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        card,
+        Positioned(
+          top: -9,
+          left: 34,
+          child: IgnorePointer(
+            child: Transform.rotate(
+              angle: -0.05,
+              child: Container(
+                width: 74,
+                height: 18,
+                color: Diary.edge(context).withValues(alpha: 0.22),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

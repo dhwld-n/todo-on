@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:todo_on/models/dday.dart';
 import 'package:todo_on/providers/providers.dart';
 import 'package:todo_on/services/firestore_service.dart';
-import 'package:todo_on/widgets/clay.dart';
+import 'package:todo_on/widgets/paper.dart';
 import 'package:todo_on/widgets/dday_banner.dart';
 
 class _FakeService extends Fake implements FirestoreService {
@@ -157,7 +157,7 @@ void main() {
     expect(
       tester
           .getCenter(
-            find.ancestor(of: find.text('디데이 추가'), matching: find.byType(Clay)),
+            find.ancestor(of: find.text('디데이 추가'), matching: find.byType(Paper)),
           )
           .dx,
       moreOrLessEquals(tester.getCenter(find.byType(Scaffold)).dx, epsilon: 1),

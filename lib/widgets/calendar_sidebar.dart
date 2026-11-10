@@ -9,13 +9,13 @@ import '../models/category.dart';
 import '../models/todo_item.dart';
 import '../providers/providers.dart';
 import '../theme/app_theme.dart';
-import 'clay.dart';
+import 'paper.dart';
 
 const int _kMaxChipsPerDay = 3;
 
 // Diary-day markers - picked to read on both the light and dark themes.
-const kMyDiaryColor = kClayYellow;
-const kExchangeDiaryColor = kClayPurple;
+const kMyDiaryColor = kAccentYellow;
+const kExchangeDiaryColor = kAccentPurple;
 
 /// "내 일기" / "교환일기" book beside a day's number.
 class _DiaryMark extends StatelessWidget {
@@ -153,14 +153,12 @@ class CalendarSidebar extends ConsumerWidget {
     }) {
       final key = DateTime(day.year, day.month, day.day);
       final events = eventsByDay[key] ?? const <TodoItem>[];
-      final colorScheme = Theme.of(context).colorScheme;
       final holidayName = holidayNameFor(day);
       const holidayColor = Color(0xFFE24C4C);
       final dateKey = dateKeyFor(day);
-      // Today is a purple clay column, the selected day a blue one; today
-      // stays purple when it's the one selected.
+      // A planner page: today's number is circled in purple pen, the
+      // selected day washed with the blue highlighter.
       final today = !isOutside && isSameDay(day, DateTime.now());
-      final filled = today || isSelected;
 
       final cellBody = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -184,20 +182,29 @@ class CalendarSidebar extends ConsumerWidget {
                       : null,
                 ),
                 const SizedBox(width: 2),
-                Text(
-                  '${day.day}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: isToday || isSelected || holidayName != null
-                        ? FontWeight.w800
-                        : FontWeight.w500,
-                    color: isOutside
-                        ? Theme.of(context).disabledColor
-                        : holidayName != null
-                        ? holidayColor
-                        : filled
-                        ? Colors.white
-                        : null,
+                Container(
+                  width: 22,
+                  height: 22,
+                  alignment: Alignment.center,
+                  decoration: today
+                      ? BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: kAccentPurple, width: 2),
+                        )
+                      : null,
+                  child: Text(
+                    '${day.day}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: today || isSelected || holidayName != null
+                          ? FontWeight.w800
+                          : FontWeight.w500,
+                      color: isOutside
+                          ? Theme.of(context).disabledColor
+                          : holidayName != null
+                          ? holidayColor
+                          : null,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 2),
@@ -234,43 +241,10 @@ class CalendarSidebar extends ConsumerWidget {
             ),
           const SizedBox(height: 2),
           for (final todo in events.take(_kMaxChipsPerDay))
-            // A tint of its category; a done one fades and is struck out.
-            // Faded through its colors, not an Opacity: that's an offscreen
-            // pass per chip on every frame.
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              decoration: BoxDecoration(
-                color:
-                    (filled
-                            ? colorScheme.surface
-                            : Color.alphaBlend(
-                                Color(
-                                  categoriesById[todo.categoryId]?.colorValue ??
-                                      0xFF9AA5B1,
-                                ).withValues(
-                                  alpha:
-                                      Theme.of(context).brightness ==
-                                          Brightness.dark
-                                      ? 0.32
-                                      : 0.2,
-                                ),
-                                colorScheme.surface,
-                              ))
-                        .withValues(alpha: todo.isDone ? 0.55 : 1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                todo.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 8.5,
-                  color: colorScheme.onSurface.withValues(
-                    alpha: todo.isDone ? 0.55 : 1,
-                  ),
-                  decoration: todo.isDone ? TextDecoration.lineThrough : null,
-                ),
+            _DayChip(
+              todo: todo,
+              color: Color(
+                categoriesById[todo.categoryId]?.colorValue ?? 0xFF9AA5B1,
               ),
             ),
           if (events.length > _kMaxChipsPerDay)
@@ -280,30 +254,18 @@ class CalendarSidebar extends ConsumerWidget {
                 '+${events.length - _kMaxChipsPerDay}',
                 style: TextStyle(
                   fontSize: 8.5,
-                  color: filled
-                      ? Colors.white
-                      : Theme.of(context).disabledColor,
+                  color: Theme.of(context).disabledColor,
                 ),
               ),
             ),
         ],
       );
-      return Padding(
-        padding: const EdgeInsets.all(2),
-        child: filled
-            ? Clay(
-                small: true,
-                radius: 14,
-                color: today ? kClayPurple : kClayBlue,
-                width: double.infinity,
-                height: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: cellBody,
-              )
-            : Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: cellBody,
-              ),
+      return Container(
+        width: double.infinity,
+        height: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        color: isSelected ? Diary.highlight(context, kAccentBlue, 0.42) : null,
+        child: cellBody,
       );
     }
 
@@ -319,6 +281,10 @@ class CalendarSidebar extends ConsumerWidget {
               lastDay: DateTime.utc(2035, 12, 31),
               focusedDay: focusedMonth,
               rowHeight: 104,
+              calendarStyle: CalendarStyle(
+                tableBorder: TableBorder.all(color: Diary.rule(context)),
+                cellMargin: EdgeInsets.zero,
+              ),
               daysOfWeekHeight: 24,
               sixWeekMonthsEnforced: true,
               // The default also claims vertical swipes (to switch month/week
@@ -346,14 +312,14 @@ class CalendarSidebar extends ConsumerWidget {
                 formatButtonVisible: false,
                 leftChevronPadding: EdgeInsets.fromLTRB(12, 12, 12, 36),
                 rightChevronPadding: EdgeInsets.fromLTRB(12, 12, 12, 36),
-                leftChevronIcon: Clay(
+                leftChevronIcon: Paper(
                   small: true,
                   shape: BoxShape.circle,
                   width: 36,
                   height: 36,
                   child: Icon(Icons.chevron_left),
                 ),
-                rightChevronIcon: Clay(
+                rightChevronIcon: Paper(
                   small: true,
                   shape: BoxShape.circle,
                   width: 36,
@@ -408,6 +374,59 @@ class CalendarSidebar extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// One todo in a calendar day. To do: highlighted in its category's color,
+/// an empty box in front. Done: the highlight gone, ticked, struck through
+/// and greyed.
+class _DayChip extends StatelessWidget {
+  final TodoItem todo;
+  final Color color;
+
+  const _DayChip({required this.todo, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final done = todo.isDone;
+    final ink = done
+        ? Diary.muted(context)
+        : Theme.of(context).colorScheme.onSurface;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 3),
+      decoration: BoxDecoration(
+        color: done ? null : Diary.highlight(context, color),
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: Row(
+        children: [
+          done
+              ? Icon(Icons.check, size: 8, color: ink)
+              : Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: ink, width: 1),
+                    borderRadius: BorderRadius.circular(1),
+                  ),
+                ),
+          const SizedBox(width: 2),
+          Expanded(
+            child: Text(
+              todo.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 8.5,
+                color: ink,
+                decoration: done ? TextDecoration.lineThrough : null,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

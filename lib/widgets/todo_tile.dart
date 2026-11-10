@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/category.dart';
 import '../models/todo_item.dart';
-import 'clay.dart';
+import 'paper.dart';
 
 String todoCheckboxAsset(bool isDone) =>
     isDone ? 'assets/icons/cat_checked1.png' : 'assets/icons/cat_unchecked.png';
@@ -59,7 +59,7 @@ class TodoTile extends StatelessWidget {
   final Future<bool> Function()? onDelete;
   final Widget? dragHandle;
 
-  /// Space above the row's card.
+  /// Space above the row.
   final double topPadding;
 
   const TodoTile({
@@ -70,143 +70,148 @@ class TodoTile extends StatelessWidget {
     this.onTap,
     this.onDelete,
     this.dragHandle,
-    this.topPadding = 10,
+    this.topPadding = 0,
   });
 
   @override
   Widget build(BuildContext context) {
     final content = Padding(
       padding: EdgeInsets.fromLTRB(16, topPadding, 16, 0),
-      child: Clay(
-        small: true,
-        radius: 22,
-        // A shadow in the category's color sets each card off the white
-        // list card it sits on, and says whose it is at a glance.
-        shadowColor: category != null ? Color(category!.colorValue) : null,
-        child: Material(
-          type: MaterialType.transparency,
-          borderRadius: BorderRadius.circular(22),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(4, 4, 10, 4),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: onToggle == null
-                        ? null
-                        : () => onToggle!(!todo.isDone),
-                    // Pads the cropped cat back out to a comfortable target.
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 10,
+      // A line in a notebook, not a card: a dashed rule under it.
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Material(
+            type: MaterialType.transparency,
+            borderRadius: BorderRadius.circular(8),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(0, 3, 6, 3),
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: onToggle == null
+                          ? null
+                          : () => onToggle!(!todo.isDone),
+                      // Pads the cropped cat back out to a comfortable target.
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 10,
+                        ),
+                        child: CatCheckbox(isDone: todo.isDone),
                       ),
-                      child: CatCheckbox(isDone: todo.isDone),
                     ),
-                  ),
-                  const SizedBox(width: kTodoCheckboxGap - 6),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text.rich(
-                          TextSpan(
-                            children: [
-                              TextSpan(text: todo.title),
-                              for (final (show, icon, label) in [
-                                (todo.isRepeating, Icons.repeat, '반복'),
-                                (
-                                  todo.remindMinutes != null,
-                                  Icons.notifications_none,
-                                  '알림',
-                                ),
-                                (todo.isPrivate, Icons.lock_outline, '나만 보기'),
-                              ])
-                                if (show)
-                                  WidgetSpan(
-                                    alignment: PlaceholderAlignment.middle,
-                                    child: Padding(
-                                      padding: const EdgeInsets.only(left: 4),
-                                      child: Icon(
-                                        icon,
-                                        size: 14,
-                                        semanticLabel: label,
-                                        color: Theme.of(context).disabledColor,
+                    const SizedBox(width: kTodoCheckboxGap - 6),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(text: todo.title),
+                                for (final (show, icon, label) in [
+                                  (todo.isRepeating, Icons.repeat, '반복'),
+                                  (
+                                    todo.remindMinutes != null,
+                                    Icons.notifications_none,
+                                    '알림',
+                                  ),
+                                  (todo.isPrivate, Icons.lock_outline, '나만 보기'),
+                                ])
+                                  if (show)
+                                    WidgetSpan(
+                                      alignment: PlaceholderAlignment.middle,
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(left: 4),
+                                        child: Icon(
+                                          icon,
+                                          size: 14,
+                                          semanticLabel: label,
+                                          color: Theme.of(
+                                            context,
+                                          ).disabledColor,
+                                        ),
                                       ),
                                     ),
+                              ],
+                            ),
+                            style: TextStyle(
+                              fontFamily: 'GriunFromsol',
+                              fontSize: kTodoTitleSize,
+                              fontWeight: FontWeight.w600,
+                              color: todo.isDone
+                                  ? Theme.of(context).disabledColor
+                                  : null,
+                            ),
+                          ),
+                          if (category != null) ...[
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: Color(category!.colorValue),
+                                    shape: BoxShape.circle,
                                   ),
-                            ],
-                          ),
-                          style: TextStyle(
-                            fontFamily: 'GriunFromsol',
-                            fontSize: kTodoTitleSize,
-                            fontWeight: FontWeight.w600,
-                            color: todo.isDone
-                                ? Theme.of(context).disabledColor
-                                : null,
-                          ),
-                        ),
-                        if (category != null) ...[
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  color: Color(category!.colorValue),
-                                  shape: BoxShape.circle,
                                 ),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                category!.name,
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ],
-                          ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  category!.name,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                          ],
+                          if (todo.note != null && todo.note!.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            // The whole memo, every line of it; the icon stays
+                            // by the first line.
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Icon(
+                                    Icons.notes,
+                                    size: 13,
+                                    color: Theme.of(context).disabledColor,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    todo.note!,
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(
+                                          color: Theme.of(
+                                            context,
+                                          ).disabledColor,
+                                        ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ],
-                        if (todo.note != null && todo.note!.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          // The whole memo, every line of it; the icon stays
-                          // by the first line.
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.only(top: 2),
-                                child: Icon(
-                                  Icons.notes,
-                                  size: 13,
-                                  color: Theme.of(context).disabledColor,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  todo.note!,
-                                  style: Theme.of(context).textTheme.bodySmall
-                                      ?.copyWith(
-                                        color: Theme.of(context).disabledColor,
-                                      ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
+                      ),
                     ),
-                  ),
-                  ?dragHandle,
-                ],
+                    ?dragHandle,
+                  ],
+                ),
               ),
             ),
           ),
-        ),
+          const DashedRule(),
+        ],
       ),
     );
 
@@ -221,7 +226,7 @@ class TodoTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20),
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.errorContainer,
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(
           Icons.delete_outline,

@@ -1,19 +1,25 @@
 import 'package:flutter/material.dart';
 
-// The clay palette: blue leads, yellow and purple accent.
-const kClayBlue = Color(0xFF2373F4);
-const kClayYellow = Color(0xFFFFD749);
-const kClayPurple = Color(0xFF705EFF);
+// Blue, yellow and purple: the pens. Structure is drawn in ink (see
+// widgets/paper.dart), color only where it means something.
+const kAccentBlue = Color(0xFF2373F4);
+const kAccentYellow = Color(0xFFFFD749);
+const kAccentPurple = Color(0xFF705EFF);
 
-const kSeedColor = kClayBlue;
-const kLavenderBg = Color(0xFFE8EFFE);
-// Dark mode: a near-black page so the colored clay parts can glow.
-const kDarkBg = Color(0xFF0A0C14);
-const kDarkSurface = Color(0xFF171B28);
-const kDarkChipBg = Color(0xFF232838);
-const kDarkInputFill = Color(0xFF0F121C);
-const kInkText = Color(0xFF1C2452);
-const kCardBorderLight = Color(0xFFD3E5F8);
+const kSeedColor = kAccentBlue;
+// The diary: light grid paper, a dark page with a faint white grid.
+const kLavenderBg = Color(0xFFEEEEEE);
+const kPaperLight = Color(0xFFFBFAF6);
+const kEdgeLight = Color(0xFF2A2A2A);
+const kDarkBg = Color(0xFF2C2C2C);
+const kDarkSurface = Color(0xFF373737);
+const kDarkChipBg = Color(0xFF424242);
+// Not the surface: an input on a card must stay visible as a box.
+const kDarkInputFill = Color(0xFF2F2F2F);
+const kDarkInk = Color(0xFFF1EFE9);
+const kEdgeDark = Color(0xFFDAD7D0);
+const kInkText = Color(0xFF2A2A2A);
+const kCardBorderLight = Color(0xFFD3D3D3);
 
 ThemeData buildLightTheme() {
   final colorScheme =
@@ -21,12 +27,13 @@ ThemeData buildLightTheme() {
         seedColor: kSeedColor,
         brightness: Brightness.light,
       ).copyWith(
-        surface: Colors.white,
-        primary: kClayBlue,
+        surface: kPaperLight,
+        onSurface: kInkText,
+        primary: kAccentBlue,
         onPrimary: Colors.white,
-        secondary: kClayPurple,
+        secondary: kAccentPurple,
         onSecondary: Colors.white,
-        tertiary: kClayYellow,
+        tertiary: kAccentYellow,
         onTertiary: kInkText,
       );
 
@@ -48,7 +55,7 @@ ThemeData buildLightTheme() {
       ),
     ),
     cardTheme: CardThemeData(
-      color: Colors.white,
+      color: kPaperLight,
       elevation: 0,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -117,9 +124,10 @@ ThemeData buildDarkTheme() {
         brightness: Brightness.dark,
       ).copyWith(
         surface: kDarkSurface,
-        secondary: kClayPurple,
+        onSurface: kDarkInk,
+        secondary: kAccentPurple,
         onSecondary: Colors.white,
-        tertiary: kClayYellow,
+        tertiary: kAccentYellow,
         onTertiary: kInkText,
       );
 

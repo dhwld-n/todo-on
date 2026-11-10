@@ -204,18 +204,22 @@ void main() {
         matching: find.byIcon(Icons.drag_indicator),
       );
 
-      // A row's rect starts with the 10px gap it keeps above its card.
-      const gap = 10.0;
-
       // a dragged down onto b: the line goes under b, i.e. between b and c.
       var gesture = await tester.startGesture(tester.getCenter(handleOf('a')));
       await tester.pump();
       await gesture.moveTo(tester.getCenter(row('b')));
       await tester.pump();
       await tester.pump();
+      // Rows are notebook lines with no gap: the line sits on the boundary.
       var slot = tester.getRect(_dropLine);
-      expect(slot.top, greaterThan(tester.getRect(row('b')).bottom));
-      expect(slot.bottom, lessThan(tester.getRect(row('c')).top + gap));
+      expect(
+        slot.center.dy,
+        moreOrLessEquals(tester.getRect(row('b')).bottom, epsilon: 2),
+      );
+      expect(
+        tester.getRect(row('b')).bottom,
+        moreOrLessEquals(tester.getRect(row('c')).top, epsilon: 1),
+      );
       await gesture.up();
       await tester.pump();
 
@@ -226,8 +230,14 @@ void main() {
       await tester.pump();
       await tester.pump();
       slot = tester.getRect(_dropLine);
-      expect(slot.top, greaterThan(tester.getRect(row('a')).bottom));
-      expect(slot.bottom, lessThan(tester.getRect(row('b')).top + gap));
+      expect(
+        slot.center.dy,
+        moreOrLessEquals(tester.getRect(row('b')).top, epsilon: 2),
+      );
+      expect(
+        tester.getRect(row('a')).bottom,
+        moreOrLessEquals(tester.getRect(row('b')).top, epsilon: 1),
+      );
       await gesture.up();
       await tester.pump();
     },
