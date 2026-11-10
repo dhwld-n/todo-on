@@ -742,8 +742,7 @@ class _DayTodos extends ConsumerWidget {
 
     return Column(
       children: [
-        if (date != null)
-          _DateBar(date: date),
+        if (date != null) _DateBar(date: date),
         Expanded(
           child: todosAsync.when(
             data: (todos) => categoriesAsync.when(
@@ -944,28 +943,35 @@ void _moveTodo(
       );
 }
 
-/// Where a dragged todo will land - a clear box instead of a thin line.
-class _DropSlot extends StatelessWidget {
-  const _DropSlot();
+/// Where a dragged todo will land: a thin line in the gap between rows,
+/// drawn over the list so nothing shifts while dragging. Goes in a [Stack]
+/// around a row - in the gap above it, or just [below] it.
+@visibleForTesting
+class TodoDropLine extends StatelessWidget {
+  final bool visible;
+  final bool below;
+
+  const TodoDropLine({super.key, required this.visible, this.below = false});
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
-    return Container(
-      height: 52,
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: primary.withValues(alpha: 0.12),
-        border: Border.all(color: primary, width: 2),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Text(
-        '여기에 놓여요',
-        style: TextStyle(
-          color: primary,
-          fontWeight: FontWeight.w700,
-          fontFamily: 'GriunFromsol',
+    return Positioned(
+      left: 16,
+      right: 16,
+      // Centered in the 10px gap a row keeps above its card.
+      top: below ? null : 3.5,
+      bottom: below ? -6.5 : null,
+      child: IgnorePointer(
+        child: AnimatedOpacity(
+          opacity: visible ? 1 : 0,
+          duration: const Duration(milliseconds: 120),
+          child: Container(
+            height: 3,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
         ),
       ),
     );
@@ -975,55 +981,45 @@ class _DropSlot extends StatelessWidget {
 /// The card that follows the pointer while a todo is dragged.
 class _DragCard extends StatelessWidget {
   static const width = 300.0;
-  static const height = 68.0;
+  static const height = 52.0;
 
   final TodoItem todo;
+  final Color? categoryColor;
 
-  const _DragCard({required this.todo});
+  const _DragCard({required this.todo, this.categoryColor});
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        width: width,
-        height: height,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          // Tinted so it doesn't blend into the list it's floating over.
-          color: Color.alphaBlend(
-            scheme.primary.withValues(alpha: 0.16),
-            scheme.surface,
-          ),
-          border: Border.all(color: scheme.primary, width: 2),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.3),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            CatCheckbox(isDone: todo.isDone),
-            const SizedBox(width: kTodoCheckboxGap),
-            Expanded(
-              child: Text(
-                todo.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontFamily: 'GriunFromsol',
-                  fontSize: kTodoTitleSize,
-                  fontWeight: FontWeight.w600,
-                  color: scheme.onSurface,
+    return Opacity(
+      opacity: 0.88,
+      child: Material(
+        type: MaterialType.transparency,
+        child: Clay(
+          small: true,
+          radius: 22,
+          width: width,
+          height: height,
+          shadowColor: categoryColor,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Row(
+            children: [
+              CatCheckbox(isDone: todo.isDone),
+              const SizedBox(width: kTodoCheckboxGap),
+              Expanded(
+                child: Text(
+                  todo.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: 'GriunFromsol',
+                    fontSize: kTodoTitleSize,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1137,18 +1133,20 @@ class _CategorySection extends ConsumerWidget {
           DragTarget<TodoItem>(
             onAcceptWithDetails: (details) =>
                 _moveTodo(ref, details.data, category, todos),
-            builder: (context, candidateData, rejectedData) {
-              if (candidateData.isNotEmpty) return const _DropSlot();
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(24, 8, 16, 16),
-                child: Text(
-                  '할 일이 없어요.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).disabledColor,
+            builder: (context, candidateData, rejectedData) => Stack(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 8, 16, 16),
+                  child: Text(
+                    '할 일이 없어요.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).disabledColor,
+                    ),
                   ),
                 ),
-              );
-            },
+                TodoDropLine(visible: candidateData.isNotEmpty),
+              ],
+            ),
           )
         else
           for (final todo in todos)
@@ -1166,12 +1164,10 @@ class _CategorySection extends ConsumerWidget {
                 final dragged = candidateData.firstOrNull;
                 final after =
                     dragged != null && _dropsAfter(dragged, todo, todos);
-                // The slot sits inside this target, so the pointer stays over
-                // it after the tile shifts - no flicker while hovering.
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                return Stack(
+                  // The line under a row sits in the next row's gap.
+                  clipBehavior: Clip.none,
                   children: [
-                    if (dragged != null && !after) const _DropSlot(),
                     Opacity(
                       opacity: todo.id == draggingId ? 0.35 : 1,
                       child: TodoTile(
@@ -1200,7 +1196,7 @@ class _CategorySection extends ConsumerWidget {
                           onDragEnd: (_) =>
                               ref.read(draggingTodoIdProvider.notifier).state =
                                   null,
-                          feedback: _DragCard(todo: todo),
+                          feedback: _DragCard(todo: todo, categoryColor: color),
                           childWhenDragging: Icon(
                             Icons.drag_indicator,
                             color: Theme.of(context).disabledColor,
@@ -1209,7 +1205,8 @@ class _CategorySection extends ConsumerWidget {
                         ),
                       ),
                     ),
-                    if (after) const _DropSlot(),
+                    TodoDropLine(visible: dragged != null && !after),
+                    TodoDropLine(visible: after, below: true),
                   ],
                 );
               },
@@ -1218,10 +1215,12 @@ class _CategorySection extends ConsumerWidget {
           DragTarget<TodoItem>(
             onAcceptWithDetails: (details) =>
                 _moveTodo(ref, details.data, category, todos),
-            builder: (context, candidateData, rejectedData) {
-              if (candidateData.isNotEmpty) return const _DropSlot();
-              return const SizedBox(height: 6);
-            },
+            builder: (context, candidateData, rejectedData) => SizedBox(
+              height: 10,
+              child: Stack(
+                children: [TodoDropLine(visible: candidateData.isNotEmpty)],
+              ),
+            ),
           ),
       ],
     );

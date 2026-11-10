@@ -20,8 +20,11 @@ TodoItem _todo(String id, String title, int order) => TodoItem(
   order: order,
 );
 
+/// The drop line that's showing (every row keeps two hidden ones).
+final _dropLine = find.byWidgetPredicate((w) => w is TodoDropLine && w.visible);
+
 void main() {
-  testWidgets('dragging a todo shows a card, a drop box, and fades the row', (
+  testWidgets('dragging a todo shows a card, a drop line, and fades the row', (
     tester,
   ) async {
     await initializeDateFormatting('ko_KR');
@@ -67,7 +70,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(find.text('여기에 놓여요'), findsNothing);
+    expect(_dropLine, findsNothing);
     // Titles also show up small in the calendar, so count them up front.
     final titleCountBefore = find.text('영어 단어').evaluate().length;
     Opacity rowOpacity(String id) => tester.widget<Opacity>(
@@ -79,6 +82,12 @@ void main() {
       ),
     );
     expect(rowOpacity('a').opacity, 1);
+    Rect rowRect(String id) => tester.getRect(
+      find.byWidgetPredicate((w) => w is TodoTile && w.todo.id == id),
+    );
+    final rowsBefore = [
+      for (final id in ['a', 'b', 'c']) rowRect(id),
+    ];
 
     // Grab 영어 단어's handle and hover it over 독서.
     final handles = find.byIcon(Icons.drag_indicator);
@@ -92,9 +101,14 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    // The drop spot is a box, the card follows the pointer (title shown twice:
-    // the row and the card), and the original row is faded.
-    expect(find.text('여기에 놓여요'), findsOneWidget);
+    // The drop spot is a line, the card follows the pointer (title shown
+    // twice: the row and the card), and the original row is faded. No row
+    // moves to make room.
+    expect(_dropLine, findsOneWidget);
+    expect(find.text('여기에 놓여요'), findsNothing);
+    expect([
+      for (final id in ['a', 'b', 'c']) rowRect(id),
+    ], rowsBefore);
     expect(find.text('영어 단어').evaluate().length, titleCountBefore + 1);
     expect(container.read(draggingTodoIdProvider), 'a');
     expect(rowOpacity('a').opacity, lessThan(1));
@@ -103,7 +117,7 @@ void main() {
     await gesture.up();
     await tester.pump();
     expect(container.read(draggingTodoIdProvider), isNull);
-    expect(find.text('여기에 놓여요'), findsNothing);
+    expect(_dropLine, findsNothing);
     expect(rowOpacity('a').opacity, 1);
   });
 
@@ -144,7 +158,7 @@ void main() {
   });
 
   testWidgets(
-    'the drop box shows below a row when dragging down, above when up',
+    'the drop line shows below a row when dragging down, above when up',
     (tester) async {
       await initializeDateFormatting('ko_KR');
       tester.view.physicalSize = const Size(1400, 900);
@@ -190,27 +204,30 @@ void main() {
         matching: find.byIcon(Icons.drag_indicator),
       );
 
-      // a dragged down onto b: the box goes under b, i.e. between b and c.
+      // A row's rect starts with the 10px gap it keeps above its card.
+      const gap = 10.0;
+
+      // a dragged down onto b: the line goes under b, i.e. between b and c.
       var gesture = await tester.startGesture(tester.getCenter(handleOf('a')));
       await tester.pump();
       await gesture.moveTo(tester.getCenter(row('b')));
       await tester.pump();
       await tester.pump();
-      var slot = tester.getRect(find.text('여기에 놓여요'));
-      expect(slot.top, greaterThan(tester.getRect(row('b')).bottom - 1));
-      expect(slot.bottom, lessThan(tester.getRect(row('c')).top + 1));
+      var slot = tester.getRect(_dropLine);
+      expect(slot.top, greaterThan(tester.getRect(row('b')).bottom));
+      expect(slot.bottom, lessThan(tester.getRect(row('c')).top + gap));
       await gesture.up();
       await tester.pump();
 
-      // c dragged up onto b: the box goes above b, i.e. between a and b.
+      // c dragged up onto b: the line goes above b, i.e. between a and b.
       gesture = await tester.startGesture(tester.getCenter(handleOf('c')));
       await tester.pump();
       await gesture.moveTo(tester.getCenter(row('b')));
       await tester.pump();
       await tester.pump();
-      slot = tester.getRect(find.text('여기에 놓여요'));
-      expect(slot.top, greaterThan(tester.getRect(row('a')).bottom - 1));
-      expect(slot.bottom, lessThan(tester.getRect(row('b')).top + 1));
+      slot = tester.getRect(_dropLine);
+      expect(slot.top, greaterThan(tester.getRect(row('a')).bottom));
+      expect(slot.bottom, lessThan(tester.getRect(row('b')).top + gap));
       await gesture.up();
       await tester.pump();
     },
