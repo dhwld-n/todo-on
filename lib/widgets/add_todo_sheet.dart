@@ -7,6 +7,7 @@ import '../models/category.dart';
 import '../models/todo_item.dart';
 import '../providers/providers.dart';
 import '../services/reminder_service.dart';
+import 'paper.dart';
 
 Future<void> showAddEditTodoSheet(
   BuildContext context,
@@ -18,14 +19,25 @@ Future<void> showAddEditTodoSheet(
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
+    // A page of the diary: paper with an inked top edge.
+    backgroundColor: Theme.of(context).colorScheme.surface,
+    shape: RoundedRectangleBorder(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+      side: BorderSide(color: Diary.edge(context), width: 1.5),
+    ),
     // The keyboard's room is added out here: only this padding follows the
     // keyboard frame by frame, not the whole form.
-    builder: (context) => Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: AddEditTodoSheet(
-        existing: existing,
-        initialDate: initialDate,
-        initialCategoryId: initialCategoryId,
+    builder: (context) => Theme(
+      data: Diary.controls(context),
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: AddEditTodoSheet(
+          existing: existing,
+          initialDate: initialDate,
+          initialCategoryId: initialCategoryId,
+        ),
       ),
     ),
   );
@@ -371,9 +383,15 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
             Row(
               children: [
                 Expanded(
-                  child: Text(
-                    widget.existing == null ? '할 일 추가' : '할 일 수정',
-                    style: Theme.of(context).textTheme.titleLarge,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Highlighted(
+                      color: Diary.marker(context),
+                      child: Text(
+                        widget.existing == null ? '할 일 추가' : '할 일 수정',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ),
                   ),
                 ),
                 if (widget.existing != null)
@@ -400,10 +418,7 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
             TextField(
               controller: _titleController,
               autofocus: true,
-              decoration: const InputDecoration(
-                labelText: '할 일',
-                border: OutlineInputBorder(),
-              ),
+              decoration: const InputDecoration(labelText: '할 일'),
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _save(),
             ),
@@ -417,7 +432,6 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
                 decoration: const InputDecoration(
                   labelText: '메모',
                   alignLabelWithHint: true,
-                  border: OutlineInputBorder(),
                 ),
               ),
             ] else ...[
@@ -527,12 +541,14 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
                     children: [
                       ChoiceChip(
                         label: const Text('오늘 하기'),
+                        showCheckmark: false,
                         selected: dueDay == today,
                         onSelected: (_) => setState(() => _dueDate = today),
                       ),
                       const SizedBox(width: 8),
                       ChoiceChip(
                         label: const Text('내일 하기'),
+                        showCheckmark: false,
                         selected: dueDay == tomorrow,
                         onSelected: (_) => setState(() => _dueDate = tomorrow),
                       ),
@@ -543,6 +559,9 @@ class _AddEditTodoSheetState extends ConsumerState<AddEditTodoSheet> {
               const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: _pickDueDate,
+                style: OutlinedButton.styleFrom(
+                  iconColor: Theme.of(context).colorScheme.primary,
+                ),
                 icon: const Icon(Icons.calendar_today, size: 18),
                 label: Text(DateFormat('yyyy년 M월 d일').format(_dueDate)),
               ),
@@ -619,6 +638,7 @@ class _DayToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final edge = Diary.edge(context);
     return Semantics(
       button: true,
       selected: selected,
@@ -631,14 +651,12 @@ class _DayToggle extends StatelessWidget {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: selected ? scheme.primary : null,
-            border: Border.all(
-              color: selected ? scheme.primary : scheme.outlineVariant,
-            ),
+            color: selected ? edge : null,
+            border: Border.all(color: edge, width: 1.5),
           ),
           child: Text(
             label,
-            style: TextStyle(color: selected ? scheme.onPrimary : null),
+            style: TextStyle(color: selected ? scheme.surface : null),
           ),
         ),
       ),
@@ -673,9 +691,8 @@ class _DateToggle extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: on
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outlineVariant,
+              color: on ? Diary.edge(context) : Diary.rule(context),
+              width: 1.5,
             ),
           ),
           child: Text(

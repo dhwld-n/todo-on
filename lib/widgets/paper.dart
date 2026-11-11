@@ -34,6 +34,79 @@ abstract final class Diary {
   static Color marker(BuildContext context) => _dark(context)
       ? const Color(0xFF8FD14F).withValues(alpha: 0.38)
       : kAccentYellow.withValues(alpha: 0.76);
+
+  /// The theme with its form controls drawn in ink: fields written on a
+  /// line, buttons and chips with an inked edge, the chosen one filled in
+  /// ink. For sheets and forms that should match the diary pages.
+  static ThemeData controls(BuildContext context) {
+    final theme = Theme.of(context);
+    final ink = theme.colorScheme.onSurface;
+    final paper = theme.colorScheme.surface;
+    final edge = Diary.edge(context);
+    final line = BorderSide(color: edge, width: 1.5);
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(10),
+    );
+    WidgetStateProperty<Color> pick(Color on, Color off) =>
+        WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? on : off,
+        );
+    return theme.copyWith(
+      inputDecorationTheme: InputDecorationTheme(
+        filled: false,
+        border: UnderlineInputBorder(borderSide: line),
+        enabledBorder: UnderlineInputBorder(borderSide: line),
+        focusedBorder: UnderlineInputBorder(
+          borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+        ),
+        labelStyle: TextStyle(color: Diary.muted(context)),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(foregroundColor: ink),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: ink,
+          side: line,
+          shape: shape,
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: edge,
+          foregroundColor: paper,
+          shape: shape,
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+        ),
+      ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          backgroundColor: pick(edge, Colors.transparent),
+          foregroundColor: pick(paper, ink),
+          side: WidgetStatePropertyAll(line),
+          shape: WidgetStatePropertyAll(shape),
+        ),
+      ),
+      chipTheme: theme.chipTheme.copyWith(
+        backgroundColor: paper,
+        selectedColor: edge,
+        secondarySelectedColor: edge,
+        checkmarkColor: paper,
+        labelStyle: theme.chipTheme.labelStyle?.copyWith(color: ink),
+        secondaryLabelStyle: theme.chipTheme.secondaryLabelStyle?.copyWith(
+          color: paper,
+        ),
+        side: line,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: pick(paper, edge),
+        trackColor: pick(edge, paper),
+        trackOutlineColor: WidgetStatePropertyAll(edge),
+      ),
+      listTileTheme: theme.listTileTheme.copyWith(iconColor: ink),
+    );
+  }
 }
 
 /// A sheet of paper: flat, an inked edge, lifted a little off the page by a
