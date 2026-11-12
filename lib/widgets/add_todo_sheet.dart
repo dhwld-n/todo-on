@@ -28,7 +28,7 @@ Future<void> showAddEditTodoSheet(
     // The keyboard's room is added out here: only this padding follows the
     // keyboard frame by frame, not the whole form.
     builder: (context) => Theme(
-      data: Diary.controls(context),
+      data: Diary.ruledFields(context),
       child: Padding(
         padding: EdgeInsets.only(
           bottom: MediaQuery.viewInsetsOf(context).bottom,

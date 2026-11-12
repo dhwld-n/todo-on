@@ -8,6 +8,7 @@ import '../providers/providers.dart';
 import '../screens/friend_detail_screen.dart';
 import '../services/firestore_service.dart';
 import '../utils/display_name.dart';
+import 'paper.dart';
 
 /// How I add a friend: find them by ID/nickname, or swap friend codes.
 enum AddFriendBy { search, code }
@@ -130,10 +131,11 @@ class _AddFriendPaneState extends ConsumerState<AddFriendPane> {
                         vertical: 10,
                       ),
                       decoration: BoxDecoration(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Diary.edge(context),
+                          width: 1.5,
+                        ),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: SelectableText(
                         myUid,
@@ -184,8 +186,8 @@ class _MyHandleRow extends ConsumerWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Diary.edge(context), width: 1.5),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: handle != null
                 ? Text('@$handle', style: const TextStyle(fontSize: 14))
@@ -525,21 +527,16 @@ class _FriendTile extends ConsumerWidget {
     final photoBase64 = profile?['photoBase64'] as String?;
 
     return Material(
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(14),
+      color: Theme.of(context).colorScheme.surface,
+      shape: inkCardShape(context),
       child: ListTile(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        leading: CircleAvatar(
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          backgroundImage: photoBase64 != null
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        leading: InkAvatar(
+          radius: 20,
+          image: photoBase64 != null
               ? MemoryImage(base64Decode(photoBase64))
               : null,
-          child: photoBase64 == null
-              ? Text(
-                  displayText.isNotEmpty ? displayText[0] : '?',
-                  style: const TextStyle(color: Colors.white),
-                )
-              : null,
+          initial: displayText.isNotEmpty ? displayText[0] : '?',
         ),
         title: Text(displayText),
         subtitle: (bio != null && bio.isNotEmpty)

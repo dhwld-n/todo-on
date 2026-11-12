@@ -35,22 +35,11 @@ abstract final class Diary {
       ? const Color(0xFF8FD14F).withValues(alpha: 0.38)
       : kAccentYellow.withValues(alpha: 0.76);
 
-  /// The theme with its form controls drawn in ink: fields written on a
-  /// line, buttons and chips with an inked edge, the chosen one filled in
-  /// ink. For sheets and forms that should match the diary pages.
-  static ThemeData controls(BuildContext context) {
+  /// The theme with its text fields written on a line instead of boxed,
+  /// for a form that should read like a page of the diary.
+  static ThemeData ruledFields(BuildContext context) {
     final theme = Theme.of(context);
-    final ink = theme.colorScheme.onSurface;
-    final paper = theme.colorScheme.surface;
-    final edge = Diary.edge(context);
-    final line = BorderSide(color: edge, width: 1.5);
-    final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(10),
-    );
-    WidgetStateProperty<Color> pick(Color on, Color off) =>
-        WidgetStateProperty.resolveWith(
-          (s) => s.contains(WidgetState.selected) ? on : off,
-        );
+    final line = BorderSide(color: Diary.edge(context), width: 1.5);
     return theme.copyWith(
       inputDecorationTheme: InputDecorationTheme(
         filled: false,
@@ -61,52 +50,19 @@ abstract final class Diary {
         ),
         labelStyle: TextStyle(color: Diary.muted(context)),
       ),
-      textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(foregroundColor: ink),
+      listTileTheme: theme.listTileTheme.copyWith(
+        iconColor: theme.colorScheme.onSurface,
       ),
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: ink,
-          side: line,
-          shape: shape,
-        ),
-      ),
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          backgroundColor: edge,
-          foregroundColor: paper,
-          shape: shape,
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-        ),
-      ),
-      segmentedButtonTheme: SegmentedButtonThemeData(
-        style: ButtonStyle(
-          backgroundColor: pick(edge, Colors.transparent),
-          foregroundColor: pick(paper, ink),
-          side: WidgetStatePropertyAll(line),
-          shape: WidgetStatePropertyAll(shape),
-        ),
-      ),
-      chipTheme: theme.chipTheme.copyWith(
-        backgroundColor: paper,
-        selectedColor: edge,
-        secondarySelectedColor: edge,
-        checkmarkColor: paper,
-        labelStyle: theme.chipTheme.labelStyle?.copyWith(color: ink),
-        secondaryLabelStyle: theme.chipTheme.secondaryLabelStyle?.copyWith(
-          color: paper,
-        ),
-        side: line,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-      switchTheme: SwitchThemeData(
-        thumbColor: pick(paper, edge),
-        trackColor: pick(edge, paper),
-        trackOutlineColor: WidgetStatePropertyAll(edge),
-      ),
-      listTileTheme: theme.listTileTheme.copyWith(iconColor: ink),
     );
   }
+
+  /// A filled icon button in ink (send).
+  static ButtonStyle inkIconButton(BuildContext context) =>
+      IconButton.styleFrom(
+        backgroundColor: Diary.edge(context),
+        foregroundColor: Theme.of(context).colorScheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      );
 }
 
 /// A sheet of paper: flat, an inked edge, lifted a little off the page by a
@@ -306,3 +262,48 @@ class _GridPainter extends CustomPainter {
   bool shouldRepaint(_GridPainter old) =>
       old.color != color || old.background != background;
 }
+
+/// A round picture with an inked edge: a photo, or an initial or icon in
+/// ink on paper.
+class InkAvatar extends StatelessWidget {
+  final double radius;
+  final ImageProvider? image;
+  final String? initial;
+  final IconData? icon;
+
+  const InkAvatar({
+    super.key,
+    required this.radius,
+    this.image,
+    this.initial,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: Diary.edge(context), width: 1.5),
+      ),
+      child: CircleAvatar(
+        radius: radius,
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
+        backgroundImage: image,
+        child: image != null
+            ? null
+            : icon != null
+            ? Icon(icon, size: radius)
+            : Text(initial ?? '?'),
+      ),
+    );
+  }
+}
+
+/// A list row as an index card: paper with an inked edge.
+ShapeBorder inkCardShape(BuildContext context) => RoundedRectangleBorder(
+  borderRadius: BorderRadius.circular(12),
+  side: BorderSide(color: Diary.edge(context), width: 1.5),
+);

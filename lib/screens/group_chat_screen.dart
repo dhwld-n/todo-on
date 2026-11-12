@@ -13,6 +13,8 @@ import '../utils/chat_enter.dart';
 import '../utils/display_name.dart';
 import '../widgets/chat_photo.dart';
 import '../widgets/member_avatar.dart';
+import '../widgets/paper.dart';
+import '../theme/app_theme.dart';
 
 // Decode each photo once - see friend_chat_screen.dart's _photoBytes for why.
 final _photoBytes = <String, Uint8List>{};
@@ -225,180 +227,184 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
       }
     });
 
-    return Scaffold(
-      key: _scaffoldKey,
-      appBar: AppBar(
-        title: Text(title, overflow: TextOverflow.ellipsis),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.menu),
-            tooltip: '참여자',
-            onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
-          ),
-        ],
-      ),
-      endDrawer: _MembersDrawer(
-        members: group.members,
-        myUid: myUid,
-        onLeave: _leaveGroup,
-        onRename: () async {
-          final newName = await showRenameGroupDialog(
-            context,
-            current: name ?? '',
-            defaultTitle: defaultTitle,
-          );
-          if (newName == null) return;
-          await ref
-              .read(firestoreServiceProvider)
-              ?.renameGroupChat(_groupId, newName);
-        },
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: messagesAsync.when(
-              data: (messages) {
-                if (messages.isEmpty) {
-                  return Center(
-                    child: Text(
-                      '아직 나눈 대화가 없어요.',
-                      style: TextStyle(color: Theme.of(context).disabledColor),
-                    ),
-                  );
-                }
-                final lastMineIndex = messages.lastIndexWhere(
-                  (m) => m.senderUid == myUid,
-                );
-                final byId = {for (final m in messages) m.id: m};
-                return ListView.builder(
-                  controller: _scrollController,
-                  reverse: true,
-                  padding: const EdgeInsets.all(16),
-                  itemCount: messages.length,
-                  itemBuilder: (context, reversedIndex) {
-                    final index = messages.length - 1 - reversedIndex;
-                    final message = messages[index];
-                    final isMe = message.senderUid == myUid;
-                    String? readLabel;
-                    if (isMe && index == lastMineIndex) {
-                      final unread = otherMembers.where((m) {
-                        final t = lastReadMap[m];
-                        return t == null || t.isBefore(message.createdAt);
-                      }).length;
-                      readLabel = unread == 0 ? '읽음' : '안읽음 $unread';
-                    }
-                    // KakaoTalk-style: a run of messages from one person
-                    // only names them on the first bubble.
-                    final continuesRun =
-                        index > 0 &&
-                        messages[index - 1].senderUid == message.senderUid;
-                    return _GroupMessageBubble(
-                      key: _bubbleKeys.putIfAbsent(message.id, GlobalKey.new),
-                      message: message,
-                      isMe: isMe,
-                      groupId: _groupId,
-                      senderName: isMe || continuesRun
-                          ? null
-                          : _memberDisplayName(ref, message.senderUid),
-                      readLabel: readLabel,
-                      repliedMessage: message.replyToId == null
-                          ? null
-                          : byId[message.replyToId],
-                      onReply: _startReply,
-                    );
-                  },
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('오류: $e')),
+    return GridPaper24(
+      // Grid paper, as on the home screen.
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        key: _scaffoldKey,
+        appBar: AppBar(
+          title: Text(title, overflow: TextOverflow.ellipsis),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.menu),
+              tooltip: '참여자',
+              onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
             ),
-          ),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (_replyTo != null)
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 6),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border(
-                          left: BorderSide(
-                            color: Theme.of(context).colorScheme.primary,
-                            width: 3,
-                          ),
+          ],
+        ),
+        endDrawer: _MembersDrawer(
+          members: group.members,
+          myUid: myUid,
+          onLeave: _leaveGroup,
+          onRename: () async {
+            final newName = await showRenameGroupDialog(
+              context,
+              current: name ?? '',
+              defaultTitle: defaultTitle,
+            );
+            if (newName == null) return;
+            await ref
+                .read(firestoreServiceProvider)
+                ?.renameGroupChat(_groupId, newName);
+          },
+        ),
+        body: Column(
+          children: [
+            Expanded(
+              child: messagesAsync.when(
+                data: (messages) {
+                  if (messages.isEmpty) {
+                    return Center(
+                      child: Text(
+                        '아직 나눈 대화가 없어요.',
+                        style: TextStyle(
+                          color: Theme.of(context).disabledColor,
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              _replyTo!.imageBase64 != null
-                                  ? '사진'
-                                  : _replyTo!.text,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.close, size: 16),
-                            visualDensity: VisualDensity.compact,
-                            onPressed: () => setState(() => _replyTo = null),
-                          ),
-                        ],
-                      ),
-                    ),
-                  Row(
-                    children: [
-                      IconButton(
-                        onPressed: _sending ? null : _sendImage,
-                        icon: const Icon(Icons.add_photo_alternate_outlined),
-                      ),
-                      Expanded(
-                        child: TextField(
-                          controller: _controller,
-                          focusNode: _composerFocus,
-                          minLines: 1,
-                          maxLines: 5,
-                          keyboardType: TextInputType.multiline,
-                          textInputAction: chatEnterSendsOnDesktop
-                              ? TextInputAction.newline
-                              : TextInputAction.send,
-                          onChanged: _onComposerChanged,
-                          decoration: const InputDecoration(
-                            hintText: '메시지 보내기',
-                            isDense: true,
-                            border: OutlineInputBorder(),
-                          ),
-                          // Don't drop focus on Enter: the next message
-                          // goes straight into the same box.
-                          onEditingComplete: () {},
-                          onSubmitted: (_) => _send(),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton.filled(
-                        onPressed: _sending ? null : _send,
-                        icon: const Icon(Icons.send),
-                      ),
-                    ],
-                  ),
-                ],
+                    );
+                  }
+                  final lastMineIndex = messages.lastIndexWhere(
+                    (m) => m.senderUid == myUid,
+                  );
+                  final byId = {for (final m in messages) m.id: m};
+                  return ListView.builder(
+                    controller: _scrollController,
+                    reverse: true,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: messages.length,
+                    itemBuilder: (context, reversedIndex) {
+                      final index = messages.length - 1 - reversedIndex;
+                      final message = messages[index];
+                      final isMe = message.senderUid == myUid;
+                      String? readLabel;
+                      if (isMe && index == lastMineIndex) {
+                        final unread = otherMembers.where((m) {
+                          final t = lastReadMap[m];
+                          return t == null || t.isBefore(message.createdAt);
+                        }).length;
+                        readLabel = unread == 0 ? '읽음' : '안읽음 $unread';
+                      }
+                      // KakaoTalk-style: a run of messages from one person
+                      // only names them on the first bubble.
+                      final continuesRun =
+                          index > 0 &&
+                          messages[index - 1].senderUid == message.senderUid;
+                      return _GroupMessageBubble(
+                        key: _bubbleKeys.putIfAbsent(message.id, GlobalKey.new),
+                        message: message,
+                        isMe: isMe,
+                        groupId: _groupId,
+                        senderName: isMe || continuesRun
+                            ? null
+                            : _memberDisplayName(ref, message.senderUid),
+                        readLabel: readLabel,
+                        repliedMessage: message.replyToId == null
+                            ? null
+                            : byId[message.replyToId],
+                        onReply: _startReply,
+                      );
+                    },
+                  );
+                },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, _) => Center(child: Text('오류: $e')),
               ),
             ),
-          ),
-        ],
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (_replyTo != null)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border(
+                            left: BorderSide(
+                              color: Theme.of(context).colorScheme.primary,
+                              width: 3,
+                            ),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _replyTo!.imageBase64 != null
+                                    ? '사진'
+                                    : _replyTo!.text,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close, size: 16),
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () => setState(() => _replyTo = null),
+                            ),
+                          ],
+                        ),
+                      ),
+                    Row(
+                      children: [
+                        IconButton(
+                          onPressed: _sending ? null : _sendImage,
+                          icon: const Icon(Icons.add_photo_alternate_outlined),
+                        ),
+                        Expanded(
+                          child: TextField(
+                            controller: _controller,
+                            focusNode: _composerFocus,
+                            minLines: 1,
+                            maxLines: 5,
+                            keyboardType: TextInputType.multiline,
+                            textInputAction: chatEnterSendsOnDesktop
+                                ? TextInputAction.newline
+                                : TextInputAction.send,
+                            onChanged: _onComposerChanged,
+                            decoration: const InputDecoration(
+                              hintText: '메시지 보내기',
+                              isDense: true,
+                            ),
+                            // Don't drop focus on Enter: the next message
+                            // goes straight into the same box.
+                            onEditingComplete: () {},
+                            onSubmitted: (_) => _send(),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton.filled(
+                          style: Diary.inkIconButton(context),
+                          onPressed: _sending ? null : _send,
+                          icon: const Icon(Icons.send),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -514,20 +520,14 @@ class _MemberProfileTile extends ConsumerWidget {
     final displayText = displayNameFor(profile, uid);
     final bio = (profile?['bio'] as String?)?.trim();
     final photoBase64 = profile?['photoBase64'] as String?;
-    final colorScheme = Theme.of(context).colorScheme;
 
     return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: colorScheme.primary,
-        backgroundImage: photoBase64 != null
+      leading: InkAvatar(
+        radius: 20,
+        image: photoBase64 != null
             ? MemoryImage(base64Decode(photoBase64))
             : null,
-        child: photoBase64 == null
-            ? Text(
-                displayText.isNotEmpty ? displayText[0] : '?',
-                style: const TextStyle(color: Colors.white),
-              )
-            : null,
+        initial: displayText.isNotEmpty ? displayText[0] : '?',
       ),
       title: Text(isMe ? '$displayText (나)' : displayText),
       subtitle: (bio != null && bio.isNotEmpty)
@@ -684,14 +684,20 @@ class _GroupMessageBubble extends ConsumerWidget {
                 ? const EdgeInsets.all(4)
                 : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
+              // Mine run over with the blue highlighter, theirs plain paper; both
+              // inked at the edge.
               color: isMe
-                  ? colorScheme.primary
-                  : colorScheme.surfaceContainerHighest,
+                  ? Color.alphaBlend(
+                      Diary.highlight(context, kAccentBlue, 0.75),
+                      colorScheme.surface,
+                    )
+                  : colorScheme.surface,
+              border: Border.all(color: Diary.edge(context), width: 1.5),
               borderRadius: BorderRadius.only(
-                topLeft: const Radius.circular(16),
-                topRight: const Radius.circular(16),
-                bottomLeft: Radius.circular(isMe ? 16 : 4),
-                bottomRight: Radius.circular(isMe ? 4 : 16),
+                topLeft: const Radius.circular(12),
+                topRight: const Radius.circular(12),
+                bottomLeft: Radius.circular(isMe ? 12 : 3),
+                bottomRight: Radius.circular(isMe ? 3 : 12),
               ),
             ),
             child: Column(
@@ -706,11 +712,7 @@ class _GroupMessageBubble extends ConsumerWidget {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color:
-                          (isMe
-                                  ? colorScheme.onPrimary
-                                  : colorScheme.onSurfaceVariant)
-                              .withValues(alpha: 0.12),
+                      color: (colorScheme.onSurface).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -721,9 +723,7 @@ class _GroupMessageBubble extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 12,
-                        color: isMe
-                            ? colorScheme.onPrimary
-                            : colorScheme.onSurfaceVariant,
+                        color: colorScheme.onSurface,
                       ),
                     ),
                   ),
@@ -732,11 +732,7 @@ class _GroupMessageBubble extends ConsumerWidget {
                 else ...[
                   Text(
                     message.text,
-                    style: TextStyle(
-                      color: isMe
-                          ? colorScheme.onPrimary
-                          : colorScheme.onSurfaceVariant,
-                    ),
+                    style: TextStyle(color: colorScheme.onSurface),
                   ),
                   if (message.edited) ...[
                     const SizedBox(height: 2),
@@ -744,11 +740,7 @@ class _GroupMessageBubble extends ConsumerWidget {
                       '수정됨',
                       style: TextStyle(
                         fontSize: 10,
-                        color:
-                            (isMe
-                                    ? colorScheme.onPrimary
-                                    : colorScheme.onSurfaceVariant)
-                                .withValues(alpha: 0.7),
+                        color: (colorScheme.onSurface).withValues(alpha: 0.7),
                       ),
                     ),
                   ],

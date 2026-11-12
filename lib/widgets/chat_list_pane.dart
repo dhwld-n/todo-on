@@ -9,6 +9,7 @@ import '../providers/providers.dart';
 import '../utils/display_name.dart';
 import '../screens/friend_chat_screen.dart';
 import '../screens/group_chat_screen.dart';
+import 'paper.dart';
 
 class ChatListPane extends ConsumerWidget {
   const ChatListPane({super.key});
@@ -311,23 +312,17 @@ class _ChatFriendTile extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Material(
-      color: colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(14),
+      color: Theme.of(context).colorScheme.surface,
+      shape: inkCardShape(context),
       clipBehavior: Clip.antiAlias,
       child: ListTile(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        leading: CircleAvatar(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        leading: InkAvatar(
           radius: 24,
-          backgroundColor: colorScheme.primary,
-          backgroundImage: photoBase64 != null
+          image: photoBase64 != null
               ? MemoryImage(base64Decode(photoBase64))
               : null,
-          child: photoBase64 == null
-              ? Text(
-                  displayText.isNotEmpty ? displayText[0] : '?',
-                  style: const TextStyle(color: Colors.white),
-                )
-              : null,
+          initial: displayText.isNotEmpty ? displayText[0] : '?',
         ),
         title: Text(
           displayText,
@@ -423,16 +418,12 @@ class _GroupChatTile extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Material(
-      color: colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(14),
+      color: Theme.of(context).colorScheme.surface,
+      shape: inkCardShape(context),
       clipBehavior: Clip.antiAlias,
       child: ListTile(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        leading: CircleAvatar(
-          radius: 24,
-          backgroundColor: colorScheme.secondary,
-          child: const Icon(Icons.groups, color: Colors.white),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        leading: const InkAvatar(radius: 24, icon: Icons.groups),
         title: Text(
           displayText,
           overflow: TextOverflow.ellipsis,
