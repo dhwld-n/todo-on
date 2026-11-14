@@ -21,6 +21,7 @@ import '../widgets/habits_pane.dart';
 import '../widgets/manage_categories_sheet.dart';
 import '../widgets/profile_header.dart';
 import '../widgets/settings_dialog.dart';
+import '../widgets/todo_selection.dart';
 import '../widgets/todo_tile.dart';
 import '../widgets/update_checker.dart';
 
@@ -713,17 +714,20 @@ class _TodoListPane extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen(
+      selectedDateProvider,
+      (_, _) => ref.read(selectedTodoIdsProvider.notifier).state = const {},
+    );
+    final day = ref.watch(selectedDateProvider);
     return Column(
       children: [
         const DdayBanner(),
         Expanded(
           child: swipeBetweenDays
               ? _DaySwiper(scrollController: scrollController)
-              : _DayTodos(
-                  date: ref.watch(selectedDateProvider),
-                  scrollController: scrollController,
-                ),
+              : _DayTodos(date: day, scrollController: scrollController),
         ),
+        TodoSelectionBar(day: day),
       ],
     );
   }
@@ -806,102 +810,105 @@ class _DayTodos extends ConsumerWidget {
       children: [
         if (date != null) _DateBar(date: date),
         Expanded(
-          child: todosAsync.when(
-            data: (todos) => categoriesAsync.when(
-              data: (categories) {
-                final filtered = todos.where((t) {
-                  if (date == null) return true;
-                  return t.dueDate != null && isSameDay(t.dueDate!, date);
-                }).toList();
+          child: MarqueeSelect(
+            child: todosAsync.when(
+              data: (todos) => categoriesAsync.when(
+                data: (categories) {
+                  final filtered = todos.where((t) {
+                    if (date == null) return true;
+                    return t.dueDate != null && isSameDay(t.dueDate!, date);
+                  }).toList();
 
-                final byCategory = <String?, List<TodoItem>>{};
-                for (final t in filtered) {
-                  (byCategory[t.categoryId] ??= []).add(t);
-                }
-                for (final list in byCategory.values) {
-                  list.sort(compareTodosForList);
-                }
+                  final byCategory = <String?, List<TodoItem>>{};
+                  for (final t in filtered) {
+                    (byCategory[t.categoryId] ??= []).add(t);
+                  }
+                  for (final list in byCategory.values) {
+                    list.sort(compareTodosForList);
+                  }
 
-                if (categories.isEmpty && byCategory.isEmpty) {
-                  return Center(
-                    child: Text(
-                      '카테고리를 먼저 만들어주세요.\n카테고리 관리에서 추가할 수 있어요.',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Theme.of(context).disabledColor,
-                      ),
-                    ),
-                  );
-                }
-
-                final sections = <_CategorySectionData>[
-                  for (final c in categories)
-                    _CategorySectionData(
-                      category: c,
-                      todos: byCategory[c.id] ?? const [],
-                    ),
-                  if ((byCategory[null] ?? const []).isNotEmpty)
-                    _CategorySectionData(
-                      category: null,
-                      todos: byCategory[null]!,
-                    ),
-                ];
-
-                if (sections.length < 2) {
-                  return ListView(
-                    controller: scrollController,
-                    padding: const EdgeInsets.only(bottom: 16),
-                    children: [
-                      for (final section in sections)
-                        _CategorySection(
-                          category: section.category,
-                          todos: section.todos,
-                          selectedDate: date,
-                          swipeToDelete: swipeToDelete,
+                  if (categories.isEmpty && byCategory.isEmpty) {
+                    return Center(
+                      child: Text(
+                        '카테고리를 먼저 만들어주세요.\n카테고리 관리에서 추가할 수 있어요.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: Theme.of(context).disabledColor,
                         ),
-                    ],
-                  );
-                }
-                // 2+ categories: lay them out as responsive columns instead of
-                // one long stacked list, so wide windows aren't mostly empty
-                // space. Falls back to a single column on narrow widths.
-                return LayoutBuilder(
-                  builder: (context, constraints) {
-                    const minColumnWidth = 300.0;
-                    const gap = 16.0;
-                    final columns = (constraints.maxWidth / minColumnWidth)
-                        .floor()
-                        .clamp(1, sections.length);
-                    final columnWidth =
-                        (constraints.maxWidth - gap * (columns - 1)) / columns;
-                    return SingleChildScrollView(
-                      controller: scrollController,
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Wrap(
-                        spacing: gap,
-                        runSpacing: gap,
-                        children: [
-                          for (final section in sections)
-                            SizedBox(
-                              width: columnWidth,
-                              child: _CategorySection(
-                                category: section.category,
-                                todos: section.todos,
-                                selectedDate: date,
-                                swipeToDelete: swipeToDelete,
-                              ),
-                            ),
-                        ],
                       ),
                     );
-                  },
-                );
-              },
+                  }
+
+                  final sections = <_CategorySectionData>[
+                    for (final c in categories)
+                      _CategorySectionData(
+                        category: c,
+                        todos: byCategory[c.id] ?? const [],
+                      ),
+                    if ((byCategory[null] ?? const []).isNotEmpty)
+                      _CategorySectionData(
+                        category: null,
+                        todos: byCategory[null]!,
+                      ),
+                  ];
+
+                  if (sections.length < 2) {
+                    return ListView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.only(bottom: 16),
+                      children: [
+                        for (final section in sections)
+                          _CategorySection(
+                            category: section.category,
+                            todos: section.todos,
+                            selectedDate: date,
+                            swipeToDelete: swipeToDelete,
+                          ),
+                      ],
+                    );
+                  }
+                  // 2+ categories: lay them out as responsive columns instead of
+                  // one long stacked list, so wide windows aren't mostly empty
+                  // space. Falls back to a single column on narrow widths.
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      const minColumnWidth = 300.0;
+                      const gap = 16.0;
+                      final columns = (constraints.maxWidth / minColumnWidth)
+                          .floor()
+                          .clamp(1, sections.length);
+                      final columnWidth =
+                          (constraints.maxWidth - gap * (columns - 1)) /
+                          columns;
+                      return SingleChildScrollView(
+                        controller: scrollController,
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Wrap(
+                          spacing: gap,
+                          runSpacing: gap,
+                          children: [
+                            for (final section in sections)
+                              SizedBox(
+                                width: columnWidth,
+                                child: _CategorySection(
+                                  category: section.category,
+                                  todos: section.todos,
+                                  selectedDate: date,
+                                  swipeToDelete: swipeToDelete,
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, _) => Center(child: Text('오류: $e')),
+              ),
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('오류: $e')),
             ),
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('오류: $e')),
           ),
         ),
       ],
@@ -1055,7 +1062,10 @@ class _DragCard extends StatelessWidget {
 
   final TodoItem todo;
 
-  const _DragCard({required this.todo});
+  /// How many go along (the selection this one is part of).
+  final int count;
+
+  const _DragCard({required this.todo, this.count = 1});
 
   @override
   Widget build(BuildContext context) {
@@ -1086,6 +1096,24 @@ class _DragCard extends StatelessWidget {
                   ),
                 ),
               ),
+              if (count > 1)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Diary.edge(context),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '$count개',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.surface,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -1111,6 +1139,13 @@ class _CategorySection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final color = category != null ? Color(category!.colorValue) : null;
     final draggingId = ref.watch(draggingTodoIdProvider);
+    final picked = ref.watch(selectedTodoIdsProvider);
+    final isAndroid = ref.watch(isAndroidPlatformProvider);
+    void togglePick(TodoItem todo) {
+      final next = {...picked};
+      if (!next.remove(todo.id)) next.add(todo.id);
+      ref.read(selectedTodoIdsProvider.notifier).state = next;
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1235,17 +1270,35 @@ class _CategorySection extends ConsumerWidget {
                   clipBehavior: Clip.none,
                   children: [
                     Opacity(
-                      opacity: todo.id == draggingId ? 0.35 : 1,
+                      opacity:
+                          todo.id == draggingId ||
+                              (draggingId != null &&
+                                  picked.contains(draggingId) &&
+                                  picked.contains(todo.id))
+                          ? 0.35
+                          : 1,
                       child: TodoTile(
                         key: ValueKey(todo.id),
                         todo: todo,
                         category: category,
+                        selected: picked.contains(todo.id),
                         onToggle: (v) => ref
                             .read(firestoreServiceProvider)
                             ?.setDone(todo, v ?? false),
-                        onTap: () =>
-                            showAddEditTodoSheet(context, ref, existing: todo),
-                        onDelete: swipeToDelete
+                        // While some are picked, a tap picks or drops.
+                        onTap: picked.isNotEmpty
+                            ? () => togglePick(todo)
+                            : () => showAddEditTodoSheet(
+                                context,
+                                ref,
+                                existing: todo,
+                              ),
+                        onLongPress: () => togglePick(todo),
+                        // Swipe to delete is for touch. With a mouse the
+                        // same drag draws the selection box instead (it
+                        // slid the row away mid-selection); deleting is in
+                        // the todo's sheet.
+                        onDelete: swipeToDelete && isAndroid
                             ? () => deleteTodoAsking(context, ref, todo)
                             : null,
                         dragHandle: Draggable<TodoItem>(
@@ -1262,7 +1315,10 @@ class _CategorySection extends ConsumerWidget {
                           onDragEnd: (_) =>
                               ref.read(draggingTodoIdProvider.notifier).state =
                                   null,
-                          feedback: _DragCard(todo: todo),
+                          feedback: _DragCard(
+                            todo: todo,
+                            count: picked.contains(todo.id) ? picked.length : 1,
+                          ),
                           childWhenDragging: Icon(
                             Icons.drag_indicator,
                             color: Theme.of(context).disabledColor,

@@ -10,6 +10,7 @@ import '../models/todo_item.dart';
 import '../providers/providers.dart';
 import '../theme/app_theme.dart';
 import 'paper.dart';
+import 'todo_selection.dart';
 
 const int _kMaxChipsPerDay = 3;
 
@@ -260,12 +261,31 @@ class CalendarSidebar extends ConsumerWidget {
             ),
         ],
       );
-      return Container(
-        width: double.infinity,
-        height: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 3),
-        color: isSelected ? Diary.highlight(context, kAccentBlue, 0.42) : null,
-        child: cellBody,
+      // Drop a dragged todo here to move it to this day - with the rest of
+      // the selection when it's part of one.
+      return DragTarget<TodoItem>(
+        onWillAcceptWithDetails: (_) => !isOutside,
+        onAcceptWithDetails: (details) {
+          final picked = ref.read(selectedTodoIdsProvider);
+          final todos = picked.contains(details.data.id)
+              ? selectedTodos(ref, picked)
+              : [details.data];
+          moveTodosToDay(context, ref, todos, day);
+        },
+        builder: (context, candidates, _) => Container(
+          width: double.infinity,
+          height: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          decoration: BoxDecoration(
+            color: candidates.isNotEmpty || isSelected
+                ? Diary.highlight(context, kAccentBlue, 0.42)
+                : null,
+            border: candidates.isNotEmpty
+                ? Border.all(color: kAccentBlue, width: 2)
+                : null,
+          ),
+          child: cellBody,
+        ),
       );
     }
 

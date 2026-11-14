@@ -174,6 +174,16 @@ class FirestoreService {
     return batch.commit();
   }
 
+  /// Moves one-day todos onto [day], done or not as they were.
+  Future<void> moveTodosToDay(Iterable<String> todoIds, DateTime day) {
+    final due = Timestamp.fromDate(DateTime(day.year, day.month, day.day));
+    final batch = _db.batch();
+    for (final id in todoIds) {
+      batch.update(_todos.doc(id), {'dueDate': due});
+    }
+    return batch.commit();
+  }
+
   Future<void> deleteTodos(Iterable<String> todoIds) {
     final batch = _db.batch();
     for (final id in todoIds) {
