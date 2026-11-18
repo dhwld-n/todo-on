@@ -789,7 +789,7 @@ class _DaySwiperState extends ConsumerState<_DaySwiper> {
 
 /// One day's todos under its date bar, by category; every todo when [date]
 /// is null.
-class _DayTodos extends ConsumerWidget {
+class _DayTodos extends ConsumerStatefulWidget {
   final DateTime? date;
   final ScrollController? scrollController;
   final bool swipeToDelete;
@@ -801,14 +801,74 @@ class _DayTodos extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_DayTodos> createState() => _DayTodosState();
+}
+
+class _DayTodosState extends ConsumerState<_DayTodos> {
+  ScrollController? _own;
+
+  ScrollController get _scroll =>
+      widget.scrollController ?? (_own ??= ScrollController());
+
+  @override
+  void dispose() {
+    _own?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final todosAsync = ref.watch(todosProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
-    final date = this.date;
+    final date = widget.date;
+    final swipeToDelete = widget.swipeToDelete;
+    final scrollController = _scroll;
 
     return Column(
       children: [
-        if (date != null) _DateBar(date: date),
+        // While a todo is dragged, a strip over the date line: drop it there
+        // for the top of its category, however far down the list it came
+        // from. Laid over the date, it moves no row and hides no category.
+        if (date != null)
+          Stack(
+            children: [
+              _DateBar(date: date),
+              Positioned(
+                top: 4,
+                left: 16,
+                right: 16,
+                child: _TopDropStrip(
+                  date: date,
+                  onMoved: () {
+                    if (scrollController.hasClients) {
+                      scrollController.animateTo(
+                        0,
+                        duration: const Duration(milliseconds: 250),
+                        curve: Curves.easeOut,
+                      );
+                    }
+                  },
+                ),
+              ),
+            ],
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _TopDropStrip(
+              date: date,
+              onMoved: () {
+                if (scrollController.hasClients) {
+                  scrollController.animateTo(
+                    0,
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeOut,
+                  );
+                }
+              },
+            ),
+          ),
+
         Expanded(
           child: MarqueeSelect(
             child: todosAsync.when(
@@ -1020,6 +1080,144 @@ void _moveTodo(
       );
 }
 
+/// The todos to move with [dragged]: the whole selection when it's part of
+/// one (in list order), else just it.
+List<TodoItem> _goingAlong(WidgetRef ref, TodoItem dragged) {
+  final picked = ref.read(selectedTodoIdsProvider);
+  if (!picked.contains(dragged.id)) return [dragged];
+  return selectedTodos(ref, picked)..sort(compareTodosForList);
+}
+
+/// [moving] first, then the rest of [category] as it was: the order a drop
+/// "to the top" leaves.
+@visibleForTesting
+List<String> topOrderedIds(List<String> moving, List<String> category) => [
+  ...moving,
+  for (final id in category)
+    if (!moving.contains(id)) id,
+];
+
+/// Puts [dragged] - with the rest of the selection, when it's part of one -
+/// at the top of [category], whose todos for the day are [categoryTodos].
+void _moveToTop(
+  WidgetRef ref,
+  TodoItem dragged,
+  TodoCategory? category,
+  List<TodoItem> categoryTodos,
+) {
+  final moving = _goingAlong(ref, dragged);
+  final ids = topOrderedIds(
+    [for (final t in moving) t.id],
+    [for (final t in categoryTodos) t.id],
+  );
+  final service = ref.read(firestoreServiceProvider);
+  for (final t in moving) {
+    service?.moveTodo(
+      todoId: t.id,
+      categoryId: category?.id,
+      categoryIsPrivate: (category?.isPrivate ?? false) || t.isPrivate,
+      destinationOrderedIds: ids,
+    );
+  }
+  ref.read(selectedTodoIdsProvider.notifier).state = const {};
+}
+
+/// Shown at the top of the list while a todo is dragged: drop it there and
+/// it (with the rest of the selection) goes first in its own category.
+class _TopDropStrip extends ConsumerWidget {
+  final DateTime? date;
+  final VoidCallback onMoved;
+
+  const _TopDropStrip({required this.date, required this.onMoved});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final draggingId = ref.watch(draggingTodoIdProvider);
+    if (draggingId == null) return const SizedBox.shrink();
+    final todos = ref.watch(todosProvider).value ?? const <TodoItem>[];
+    final categories =
+        ref.watch(categoriesProvider).value ?? const <TodoCategory>[];
+    final dragged = todos.where((t) => t.id == draggingId).firstOrNull;
+    if (dragged == null) return const SizedBox.shrink();
+    TodoCategory? categoryOf(String? id) =>
+        categories.where((c) => c.id == id).firstOrNull;
+    final own = categoryOf(dragged.categoryId);
+    final going = _goingAlong(ref, dragged);
+    final sameCategory = going.every((t) => t.categoryId == dragged.categoryId);
+    final label = sameCategory ? own?.name ?? '카테고리 없음' : '각 카테고리';
+
+    return DragTarget<TodoItem>(
+      onAcceptWithDetails: (details) {
+        final moving = _goingAlong(ref, details.data);
+        final day = date;
+        // Each one to the top of its own category.
+        for (final categoryId in {for (final t in moving) t.categoryId}) {
+          final mine = [
+            for (final t in moving)
+              if (t.categoryId == categoryId) t,
+          ];
+          final rest = [
+            for (final t in todos)
+              if (t.categoryId == categoryId &&
+                  (day == null ||
+                      (t.dueDate != null && isSameDay(t.dueDate!, day))))
+                t,
+          ]..sort(compareTodosForList);
+          ref.read(selectedTodoIdsProvider.notifier).state = {
+            for (final t in mine) t.id,
+          };
+          _moveToTop(ref, mine.first, categoryOf(categoryId), rest);
+        }
+        onMoved();
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(
+            content: Text(
+              moving.length == 1
+                  ? '"${moving.single.title}"을(를) $label 맨 위로 옮겼어요'
+                  : '${moving.length}개를 $label 맨 위로 옮겼어요',
+            ),
+          ),
+        );
+      },
+      builder: (context, candidates, _) {
+        final hover = candidates.isNotEmpty;
+        final color = own != null
+            ? Color(own.colorValue)
+            : Theme.of(context).disabledColor;
+        return Container(
+          height: 40,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: hover
+                ? Color.alphaBlend(
+                    Diary.highlight(context, kAccentBlue, 0.45),
+                    Theme.of(context).colorScheme.surface,
+                  )
+                : Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: hover ? kAccentBlue : Diary.edge(context),
+              width: hover ? 2 : 1.5,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.arrow_upward, size: 18),
+              const SizedBox(width: 6),
+              Highlighted(
+                color: Diary.highlight(context, color, 1.3),
+                child: Text(label),
+              ),
+              const Text(' 맨 위로'),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
 /// Where a dragged todo will land: a thin line in the gap between rows,
 /// drawn over the list so nothing shifts while dragging. Goes in a [Stack]
 /// around a row - in the gap above it, or just [below] it.
@@ -1151,8 +1349,9 @@ class _CategorySection extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         DragTarget<TodoItem>(
+          // Dropped on the name: to the top of this category.
           onAcceptWithDetails: (details) =>
-              _moveTodo(ref, details.data, category, todos),
+              _moveToTop(ref, details.data, category, todos),
           builder: (context, candidateData, rejectedData) {
             final isHovering = candidateData.isNotEmpty;
             final categoryColor = color ?? Theme.of(context).disabledColor;
