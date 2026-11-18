@@ -114,31 +114,6 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('the strip only shows while dragging', (tester) async {
-    await pumpHome(tester);
-    expect(find.text(' 맨 위로'), findsNothing);
-    final gesture = await tester.startGesture(tester.getCenter(handleOf('c')));
-    await tester.pump();
-    await gesture.moveBy(const Offset(0, -20));
-    await tester.pump();
-    expect(find.text(' 맨 위로'), findsOneWidget);
-    expect(find.text('SCHOOL'), findsWidgets);
-    await gesture.up();
-    await tester.pump();
-    expect(find.text(' 맨 위로'), findsNothing);
-  });
-
-  testWidgets('dropped on the strip, a todo goes first in its category', (
-    tester,
-  ) async {
-    await pumpHome(tester);
-    await dragTo(tester, 'c', find.text(' 맨 위로'));
-    // Records hold the list by identity, so check each part.
-    final (id, category, order) = service.calls.single;
-    expect((id, category), ('c', 'school'));
-    expect(order, ['c', 'a', 'b']);
-  });
-
   testWidgets('dropped on a category name, it goes first in that category', (
     tester,
   ) async {
@@ -150,13 +125,13 @@ void main() {
     expect(order, ['b', 'p']);
   });
 
-  testWidgets('a selection dropped on the strip lands on top, in order', (
+  testWidgets('a selection dropped on a category name lands on top, in order', (
     tester,
   ) async {
     await pumpHome(tester);
     container.read(selectedTodoIdsProvider.notifier).state = {'b', 'c'};
     await tester.pump();
-    await dragTo(tester, 'c', find.text(' 맨 위로'));
+    await dragTo(tester, 'c', find.text('SCHOOL').first);
     for (final (_, _, order) in service.calls) {
       expect(order, ['b', 'c', 'a']);
     }
