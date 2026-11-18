@@ -23,6 +23,7 @@ import '../widgets/habits_pane.dart';
 import '../widgets/manage_categories_sheet.dart';
 import '../widgets/profile_header.dart';
 import '../widgets/settings_dialog.dart';
+import '../widgets/todo_search.dart';
 import '../widgets/todo_selection.dart';
 import '../widgets/todo_tile.dart';
 import '../widgets/update_checker.dart';
@@ -82,6 +83,7 @@ class HomeScreen extends ConsumerWidget {
                       );
                 },
               ),
+              (Icons.search, '할 일 찾기', () => showTodoSearch(context)),
               if (!isWide && mode == ContentMode.todo)
                 (
                   calendarExpanded
@@ -109,13 +111,14 @@ class HomeScreen extends ConsumerWidget {
               ),
             ])
               Padding(
-                padding: EdgeInsets.only(right: isWide ? 12 : 8),
+                // A phone fits six of these and still has room for the title.
+                padding: EdgeInsets.only(right: isWide ? 12 : 6),
                 child: PaperIconButton(
                   icon: icon,
                   tooltip: tooltip,
                   onPressed: onPressed,
-                  size: isWide ? 42 : 36,
-                  iconSize: isWide ? 20 : 17,
+                  size: isWide ? 42 : 34,
+                  iconSize: isWide ? 20 : 16,
                 ),
               ),
             const SizedBox(width: 4),
