@@ -421,9 +421,9 @@ class _ModeTabRail extends ConsumerWidget {
 /// Whether the tab rail is scrolled, so its tabs pass under the logo.
 final _railScrolledProvider = StateProvider<bool>((ref) => false);
 
-/// The app bar's logo. While the tab rail is scrolled under it, it sits on a
-/// lifted paper label so it reads in front of the tabs; the label hangs
-/// outside the logo's box, so the logo doesn't move when it appears.
+/// The app bar's logo. While the tab rail is scrolled under it, the letters
+/// get a paper-colored rim and the app's hard lift shadow, so they read in
+/// front of the tabs.
 class _Logo extends ConsumerWidget {
   final Widget child;
 
@@ -432,22 +432,28 @@ class _Logo extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final under = ref.watch(_railScrolledProvider);
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Positioned(
-          left: -10,
-          right: -10,
-          top: -3,
-          bottom: -4,
-          child: AnimatedOpacity(
-            opacity: under ? 1 : 0,
-            duration: const Duration(milliseconds: 150),
-            child: const Paper(small: true, radius: 10),
-          ),
-        ),
-        child,
-      ],
+    final rim = Theme.of(context).colorScheme.surface;
+    final lift = Diary.lift(context);
+    Color on(Color c) => under ? c : c.withValues(alpha: 0);
+    return AnimatedDefaultTextStyle(
+      duration: const Duration(milliseconds: 150),
+      style: DefaultTextStyle.of(context).style.copyWith(
+        shadows: [
+          Shadow(color: on(lift), offset: const Offset(2.5, 3.5)),
+          for (final (dx, dy) in const [
+            (-1.5, 0.0),
+            (1.5, 0.0),
+            (0.0, -1.5),
+            (0.0, 1.5),
+            (-1.1, -1.1),
+            (1.1, -1.1),
+            (-1.1, 1.1),
+            (1.1, 1.1),
+          ])
+            Shadow(color: on(rim), offset: Offset(dx, dy)),
+        ],
+      ),
+      child: child,
     );
   }
 }
