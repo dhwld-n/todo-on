@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -806,12 +808,48 @@ class _DayTodos extends ConsumerStatefulWidget {
 
 class _DayTodosState extends ConsumerState<_DayTodos> {
   ScrollController? _own;
+  final _viewport = GlobalKey();
+  Timer? _autoScroll;
+  double _step = 0;
 
   ScrollController get _scroll =>
       widget.scrollController ?? (_own ??= ScrollController());
 
+  /// While a todo is dragged near the list's top or bottom edge (or past
+  /// it), the list scrolls that way - faster the closer the pointer gets -
+  /// so it can be carried anywhere in a long list.
+  void _followDrag(PointerMoveEvent event) {
+    final box = _viewport.currentContext?.findRenderObject();
+    if (box is! RenderBox) return _stopAutoScroll();
+    // Not checked for a drag here: the drag may only begin on this very
+    // move. The timer below checks, and stops when there's none.
+    _step = autoScrollStep(
+      box.globalToLocal(event.position).dy,
+      box.size.height,
+    );
+    if (_step == 0) return _stopAutoScroll();
+    _autoScroll ??= Timer.periodic(const Duration(milliseconds: 16), (_) {
+      final scroll = _scroll;
+      if (!scroll.hasClients || ref.read(draggingTodoIdProvider) == null) {
+        return _stopAutoScroll();
+      }
+      final position = scroll.position;
+      final next = (position.pixels + _step).clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      );
+      if (next != position.pixels) scroll.jumpTo(next);
+    });
+  }
+
+  void _stopAutoScroll() {
+    _autoScroll?.cancel();
+    _autoScroll = null;
+  }
+
   @override
   void dispose() {
+    _stopAutoScroll();
     _own?.dispose();
     super.dispose();
   }
@@ -870,104 +908,118 @@ class _DayTodosState extends ConsumerState<_DayTodos> {
           ),
 
         Expanded(
-          child: MarqueeSelect(
-            child: todosAsync.when(
-              data: (todos) => categoriesAsync.when(
-                data: (categories) {
-                  final filtered = todos.where((t) {
-                    if (date == null) return true;
-                    return t.dueDate != null && isSameDay(t.dueDate!, date);
-                  }).toList();
+          child: Listener(
+            // A dragged todo's pointer moves reach here (the drag began on
+            // a handle inside), even once it's past the list's edges.
+            onPointerMove: _followDrag,
+            onPointerUp: (_) => _stopAutoScroll(),
+            onPointerCancel: (_) => _stopAutoScroll(),
+            child: KeyedSubtree(
+              key: _viewport,
+              child: MarqueeSelect(
+                child: todosAsync.when(
+                  data: (todos) => categoriesAsync.when(
+                    data: (categories) {
+                      final filtered = todos.where((t) {
+                        if (date == null) return true;
+                        return t.dueDate != null && isSameDay(t.dueDate!, date);
+                      }).toList();
 
-                  final byCategory = <String?, List<TodoItem>>{};
-                  for (final t in filtered) {
-                    (byCategory[t.categoryId] ??= []).add(t);
-                  }
-                  for (final list in byCategory.values) {
-                    list.sort(compareTodosForList);
-                  }
+                      final byCategory = <String?, List<TodoItem>>{};
+                      for (final t in filtered) {
+                        (byCategory[t.categoryId] ??= []).add(t);
+                      }
+                      for (final list in byCategory.values) {
+                        list.sort(compareTodosForList);
+                      }
 
-                  if (categories.isEmpty && byCategory.isEmpty) {
-                    return Center(
-                      child: Text(
-                        '카테고리를 먼저 만들어주세요.\n카테고리 관리에서 추가할 수 있어요.',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Theme.of(context).disabledColor,
-                        ),
-                      ),
-                    );
-                  }
-
-                  final sections = <_CategorySectionData>[
-                    for (final c in categories)
-                      _CategorySectionData(
-                        category: c,
-                        todos: byCategory[c.id] ?? const [],
-                      ),
-                    if ((byCategory[null] ?? const []).isNotEmpty)
-                      _CategorySectionData(
-                        category: null,
-                        todos: byCategory[null]!,
-                      ),
-                  ];
-
-                  if (sections.length < 2) {
-                    return ListView(
-                      controller: scrollController,
-                      padding: const EdgeInsets.only(bottom: 16),
-                      children: [
-                        for (final section in sections)
-                          _CategorySection(
-                            category: section.category,
-                            todos: section.todos,
-                            selectedDate: date,
-                            swipeToDelete: swipeToDelete,
+                      if (categories.isEmpty && byCategory.isEmpty) {
+                        return Center(
+                          child: Text(
+                            '카테고리를 먼저 만들어주세요.\n카테고리 관리에서 추가할 수 있어요.',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyLarge
+                                ?.copyWith(
+                                  color: Theme.of(context).disabledColor,
+                                ),
                           ),
-                      ],
-                    );
-                  }
-                  // 2+ categories: lay them out as responsive columns instead of
-                  // one long stacked list, so wide windows aren't mostly empty
-                  // space. Falls back to a single column on narrow widths.
-                  return LayoutBuilder(
-                    builder: (context, constraints) {
-                      const minColumnWidth = 300.0;
-                      const gap = 16.0;
-                      final columns = (constraints.maxWidth / minColumnWidth)
-                          .floor()
-                          .clamp(1, sections.length);
-                      final columnWidth =
-                          (constraints.maxWidth - gap * (columns - 1)) /
-                          columns;
-                      return SingleChildScrollView(
-                        controller: scrollController,
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: Wrap(
-                          spacing: gap,
-                          runSpacing: gap,
+                        );
+                      }
+
+                      final sections = <_CategorySectionData>[
+                        for (final c in categories)
+                          _CategorySectionData(
+                            category: c,
+                            todos: byCategory[c.id] ?? const [],
+                          ),
+                        if ((byCategory[null] ?? const []).isNotEmpty)
+                          _CategorySectionData(
+                            category: null,
+                            todos: byCategory[null]!,
+                          ),
+                      ];
+
+                      if (sections.length < 2) {
+                        return ListView(
+                          controller: scrollController,
+                          padding: const EdgeInsets.only(bottom: 16),
                           children: [
                             for (final section in sections)
-                              SizedBox(
-                                width: columnWidth,
-                                child: _CategorySection(
-                                  category: section.category,
-                                  todos: section.todos,
-                                  selectedDate: date,
-                                  swipeToDelete: swipeToDelete,
-                                ),
+                              _CategorySection(
+                                category: section.category,
+                                todos: section.todos,
+                                selectedDate: date,
+                                swipeToDelete: swipeToDelete,
                               ),
                           ],
-                        ),
+                        );
+                      }
+                      // 2+ categories: lay them out as responsive columns instead of
+                      // one long stacked list, so wide windows aren't mostly empty
+                      // space. Falls back to a single column on narrow widths.
+                      return LayoutBuilder(
+                        builder: (context, constraints) {
+                          const minColumnWidth = 300.0;
+                          const gap = 16.0;
+                          final columns =
+                              (constraints.maxWidth / minColumnWidth)
+                                  .floor()
+                                  .clamp(1, sections.length);
+                          final columnWidth =
+                              (constraints.maxWidth - gap * (columns - 1)) /
+                              columns;
+                          return SingleChildScrollView(
+                            controller: scrollController,
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Wrap(
+                              spacing: gap,
+                              runSpacing: gap,
+                              children: [
+                                for (final section in sections)
+                                  SizedBox(
+                                    width: columnWidth,
+                                    child: _CategorySection(
+                                      category: section.category,
+                                      todos: section.todos,
+                                      selectedDate: date,
+                                      swipeToDelete: swipeToDelete,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          );
+                        },
                       );
                     },
-                  );
-                },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('오류: $e')),
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (e, _) => Center(child: Text('오류: $e')),
+                  ),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Center(child: Text('오류: $e')),
+                ),
               ),
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('오류: $e')),
             ),
           ),
         ),
@@ -1078,6 +1130,20 @@ void _moveTodo(
             (destinationCategory?.isPrivate ?? false) || dragged.isPrivate,
         destinationOrderedIds: [for (final t in list) t.id],
       );
+}
+
+/// How far to scroll per frame for a drag at [y] in a list [height] tall:
+/// nothing in the middle, up to 16px a frame within 64px of an edge (and
+/// the most once past it), negative toward the top.
+@visibleForTesting
+double autoScrollStep(double y, double height) {
+  const edge = 64.0;
+  const most = 16.0;
+  if (y < edge) return -most * ((edge - y) / edge).clamp(0.0, 1.0);
+  if (y > height - edge) {
+    return most * ((y - (height - edge)) / edge).clamp(0.0, 1.0);
+  }
+  return 0;
 }
 
 /// The todos to move with [dragged]: the whole selection when it's part of
