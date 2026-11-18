@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
@@ -53,18 +54,20 @@ class HomeScreen extends ConsumerWidget {
         appBar: AppBar(
           // Shrinks rather than overflows when a phone's action icons and a
           // big 설정 font size leave it little room.
-          title: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'TODO on',
-                  style: TextStyle(fontFamily: 'GriunGyuwon'),
-                ),
-                const SizedBox(width: 5),
-                BlinkingDot(size: 7, color: Diary.edge(context)),
-              ],
+          title: _Logo(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'TODO on',
+                    style: TextStyle(fontFamily: 'GriunGyuwon'),
+                  ),
+                  const SizedBox(width: 5),
+                  BlinkingDot(size: 7, color: Diary.edge(context)),
+                ],
+              ),
             ),
           ),
           actions: [
@@ -315,92 +318,136 @@ class _ModeTabRail extends ConsumerWidget {
     final updateInfo = ref.watch(updateInfoProvider).value;
     final updateSeen = ref.watch(updateSeenProvider);
     // Scrolls in a short window rather than running off the bottom; no
-    // clip, so the buttons' shadows aren't cut at the rail's edges.
-    return SingleChildScrollView(
-      clipBehavior: Clip.none,
-      padding: const EdgeInsets.fromLTRB(0, 0, 20, 16),
-      child: Column(
-        children: [
-          _ModeTabButton(
-            icon: Icons.checklist_rtl,
-            label: 'TODO',
-            selected: mode == ContentMode.todo,
-            onTap: () =>
-                ref.read(contentModeProvider.notifier).state = ContentMode.todo,
-          ),
-          const SizedBox(height: 14),
-          _ModeTabButton(
-            icon: Icons.inventory_2_outlined,
-            label: '보관함',
-            selected: mode == ContentMode.archive,
-            onTap: () => ref.read(contentModeProvider.notifier).state =
-                ContentMode.archive,
-          ),
-          const SizedBox(height: 14),
-          _ModeTabButton(
-            icon: Icons.people_outline,
-            label: '친구',
-            selected: mode == ContentMode.friends,
-            onTap: () => ref.read(contentModeProvider.notifier).state =
-                ContentMode.friends,
-          ),
-          const SizedBox(height: 14),
-          _ModeTabButton(
-            icon: Icons.person_add_alt_outlined,
-            label: '친구 추가',
-            selected: mode == ContentMode.addFriend,
-            onTap: () => ref.read(contentModeProvider.notifier).state =
-                ContentMode.addFriend,
-          ),
-          const SizedBox(height: 14),
-          _ModeTabButton(
-            icon: Icons.chat_bubble_outline,
-            label: '채팅',
-            selected: mode == ContentMode.chat,
-            showBadge: ref.watch(hasUnreadChatProvider),
-            onTap: () =>
-                ref.read(contentModeProvider.notifier).state = ContentMode.chat,
-          ),
-          const SizedBox(height: 14),
-          _ModeTabButton(
-            icon: Icons.menu_book_outlined,
-            label: '일기',
-            selected: mode == ContentMode.diary,
-            showBadge: ref.watch(hasUnseenSharedDiaryProvider),
-            onTap: () => ref.read(contentModeProvider.notifier).state =
-                ContentMode.diary,
-          ),
-          const SizedBox(height: 14),
-          _ModeTabButton(
-            icon: Icons.local_fire_department_outlined,
-            label: '습관',
-            selected: mode == ContentMode.habits,
-            onTap: () => ref.read(contentModeProvider.notifier).state =
-                ContentMode.habits,
-          ),
-          const SizedBox(height: 14),
-          _ModeTabButton(
-            icon: Icons.system_update_alt,
-            label: '업데이트',
-            selected: false,
-            showBadge: updateInfo != null && !updateSeen,
-            onTap: () async {
-              // The startup check can be stale if a release came out while
-              // the app was open, so check again on every tap.
-              final info = await ref.refresh(updateInfoProvider.future);
-              if (!context.mounted) return;
-              if (info == null) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('이미 최신 버전이에요')));
-                return;
-              }
-              ref.read(updateSeenProvider.notifier).state = true;
-              showUpdateDialog(context, info);
-            },
-          ),
-        ],
+    // clip, so the buttons' shadows aren't cut at the rail's edges. Scrolled,
+    // the top tabs slide up under the logo, which then sits on its own paper.
+    return NotificationListener<ScrollNotification>(
+      onNotification: (n) {
+        final under = n.depth == 0 && n.metrics.pixels > 0;
+        if (ref.read(_railScrolledProvider) != under) {
+          ref.read(_railScrolledProvider.notifier).state = under;
+        }
+        return false;
+      },
+      child: SingleChildScrollView(
+        clipBehavior: Clip.none,
+        padding: const EdgeInsets.fromLTRB(0, 0, 20, 16),
+        child: Column(
+          children: [
+            _ModeTabButton(
+              icon: Icons.checklist_rtl,
+              label: 'TODO',
+              selected: mode == ContentMode.todo,
+              onTap: () => ref.read(contentModeProvider.notifier).state =
+                  ContentMode.todo,
+            ),
+            const SizedBox(height: 14),
+            _ModeTabButton(
+              icon: Icons.inventory_2_outlined,
+              label: '보관함',
+              selected: mode == ContentMode.archive,
+              onTap: () => ref.read(contentModeProvider.notifier).state =
+                  ContentMode.archive,
+            ),
+            const SizedBox(height: 14),
+            _ModeTabButton(
+              icon: Icons.people_outline,
+              label: '친구',
+              selected: mode == ContentMode.friends,
+              onTap: () => ref.read(contentModeProvider.notifier).state =
+                  ContentMode.friends,
+            ),
+            const SizedBox(height: 14),
+            _ModeTabButton(
+              icon: Icons.person_add_alt_outlined,
+              label: '친구 추가',
+              selected: mode == ContentMode.addFriend,
+              onTap: () => ref.read(contentModeProvider.notifier).state =
+                  ContentMode.addFriend,
+            ),
+            const SizedBox(height: 14),
+            _ModeTabButton(
+              icon: Icons.chat_bubble_outline,
+              label: '채팅',
+              selected: mode == ContentMode.chat,
+              showBadge: ref.watch(hasUnreadChatProvider),
+              onTap: () => ref.read(contentModeProvider.notifier).state =
+                  ContentMode.chat,
+            ),
+            const SizedBox(height: 14),
+            _ModeTabButton(
+              icon: Icons.menu_book_outlined,
+              label: '일기',
+              selected: mode == ContentMode.diary,
+              showBadge: ref.watch(hasUnseenSharedDiaryProvider),
+              onTap: () => ref.read(contentModeProvider.notifier).state =
+                  ContentMode.diary,
+            ),
+            const SizedBox(height: 14),
+            _ModeTabButton(
+              icon: Icons.local_fire_department_outlined,
+              label: '습관',
+              selected: mode == ContentMode.habits,
+              onTap: () => ref.read(contentModeProvider.notifier).state =
+                  ContentMode.habits,
+            ),
+            const SizedBox(height: 14),
+            _ModeTabButton(
+              icon: Icons.system_update_alt,
+              label: '업데이트',
+              selected: false,
+              showBadge: updateInfo != null && !updateSeen,
+              onTap: () async {
+                // The startup check can be stale if a release came out while
+                // the app was open, so check again on every tap.
+                final info = await ref.refresh(updateInfoProvider.future);
+                if (!context.mounted) return;
+                if (info == null) {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text('이미 최신 버전이에요')));
+                  return;
+                }
+                ref.read(updateSeenProvider.notifier).state = true;
+                showUpdateDialog(context, info);
+              },
+            ),
+          ],
+        ),
       ),
+    );
+  }
+}
+
+/// Whether the tab rail is scrolled, so its tabs pass under the logo.
+final _railScrolledProvider = StateProvider<bool>((ref) => false);
+
+/// The app bar's logo. While the tab rail is scrolled under it, it sits on a
+/// lifted paper label so it reads in front of the tabs; the label hangs
+/// outside the logo's box, so the logo doesn't move when it appears.
+class _Logo extends ConsumerWidget {
+  final Widget child;
+
+  const _Logo({required this.child});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final under = ref.watch(_railScrolledProvider);
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned(
+          left: -10,
+          right: -10,
+          top: -3,
+          bottom: -4,
+          child: AnimatedOpacity(
+            opacity: under ? 1 : 0,
+            duration: const Duration(milliseconds: 150),
+            child: const Paper(small: true, radius: 10),
+          ),
+        ),
+        child,
+      ],
     );
   }
 }
